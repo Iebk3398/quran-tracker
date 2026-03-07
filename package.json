@@ -1,0 +1,30 @@
+{
+  "name": "quran-tracker",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "db:generate": "turbo run db:generate --filter=@quran-tracker/db",
+    "db:migrate": "turbo run db:migrate --filter=@quran-tracker/db",
+    "db:studio": "turbo run db:studio --filter=@quran-tracker/db",
+    "db:seed": "turbo run db:seed --filter=@quran-tracker/db",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "npm@10.9.0"
+}

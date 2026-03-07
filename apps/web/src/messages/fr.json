@@ -1,0 +1,105 @@
+{
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "profile": "Mon Profil",
+    "validate": "Valider",
+    "settings": "Paramètres",
+    "logout": "Déconnexion"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "leaderboard": "Classement",
+    "feed": "Fil d'actualité",
+    "stats": "Statistiques",
+    "myProgress": "Ma progression"
+  },
+  "surah": {
+    "status": {
+      "not_started": "Non commencé",
+      "in_progress": "En cours",
+      "memorized": "Mémorisé",
+      "consolidated": "Consolidé"
+    },
+    "filter": {
+      "all": "Toutes",
+      "in_progress": "En cours",
+      "memorized": "Mémorisées",
+      "not_started": "À commencer"
+    },
+    "viewByJuz": "Par Juz",
+    "viewGrid": "Grille"
+  },
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "email": "Adresse email",
+    "emailPlaceholder": "votre@email.com",
+    "magicLink": "Envoyer le lien magique",
+    "orContinueWith": "Ou continuer avec",
+    "google": "Continuer avec Google",
+    "checkEmail": "Vérifiez vos emails",
+    "checkEmailDesc": "Un lien de connexion a été envoyé à {email}",
+    "back": "Retour",
+    "title": "Bon retour parmi nous",
+    "subtitle": "Suivez votre mémorisation du Coran en groupe"
+  },
+  "sheikh": {
+    "validate": "Valider",
+    "pending": "En attente de validation",
+    "validated": "Validé",
+    "notes": "Notes du sheikh",
+    "notesPlaceholder": "Ajouter des notes de correction..."
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "search": "Rechercher",
+    "noData": "Aucune donnée disponible",
+    "verses": "versets",
+    "juz": "Juz",
+    "surah": "Sourate",
+    "today": "Aujourd'hui",
+    "yesterday": "Hier"
+  },
+  "gamification": {
+    "xp": "XP",
+    "streak": "jours de suite",
+    "badges": "Badges",
+    "rank": "Rang",
+    "level": "Niveau"
+  },
+  "feed": {
+    "memorized_surah": "a mémorisé la sourate {surah}",
+    "completed_revision": "a révisé la sourate {surah}",
+    "joined_group": "a rejoint le groupe",
+    "earned_badge": "a obtenu le badge {badge}",
+    "sheikh_validated": "a été validé par le sheikh",
+    "milestone_reached": "a atteint un jalon : {milestone}",
+    "react": {
+      "mashallah": "MashaAllah",
+      "dua": "Dua",
+      "fire": "Feu",
+      "star": "Étoile"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification",
+    "markAllRead": "Tout marquer comme lu"
+  },
+  "profile": {
+    "title": "Mon Profil",
+    "surahs": "Sourates mémorisées",
+    "streak": "Série en cours",
+    "totalXP": "XP total",
+    "badges": "Mes badges",
+    "progressCalendar": "Calendrier de progression",
+    "editProfile": "Modifier le profil"
+  }
+}

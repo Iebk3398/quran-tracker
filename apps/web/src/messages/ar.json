@@ -1,0 +1,105 @@
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "profile": "ملفي الشخصي",
+    "validate": "التحقق",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "leaderboard": "قائمة المتصدرين",
+    "feed": "آخر الأخبار",
+    "stats": "الإحصائيات",
+    "myProgress": "تقدمي"
+  },
+  "surah": {
+    "status": {
+      "not_started": "لم يبدأ",
+      "in_progress": "جارٍ الحفظ",
+      "memorized": "محفوظة",
+      "consolidated": "مُتقنة"
+    },
+    "filter": {
+      "all": "الكل",
+      "in_progress": "جارٍ",
+      "memorized": "المحفوظة",
+      "not_started": "للبداية"
+    },
+    "viewByJuz": "بالجزء",
+    "viewGrid": "شبكة"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "email": "البريد الإلكتروني",
+    "emailPlaceholder": "بريدك@مثال.com",
+    "magicLink": "إرسال رابط الدخول",
+    "orContinueWith": "أو تابع بـ",
+    "google": "متابعة مع Google",
+    "checkEmail": "تحقق من بريدك الإلكتروني",
+    "checkEmailDesc": "تم إرسال رابط الدخول إلى {email}",
+    "back": "رجوع",
+    "title": "مرحباً بعودتك",
+    "subtitle": "تابع حفظك للقرآن الكريم مع المجموعة"
+  },
+  "sheikh": {
+    "validate": "التحقق",
+    "pending": "بانتظار التحقق",
+    "validated": "تم التحقق",
+    "notes": "ملاحظات الشيخ",
+    "notesPlaceholder": "أضف ملاحظات التصحيح..."
+  },
+  "common": {
+    "loading": "جارٍ التحميل...",
+    "error": "حدث خطأ",
+    "retry": "إعادة المحاولة",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "search": "بحث",
+    "noData": "لا توجد بيانات",
+    "verses": "آية",
+    "juz": "جزء",
+    "surah": "سورة",
+    "today": "اليوم",
+    "yesterday": "أمس"
+  },
+  "gamification": {
+    "xp": "نقطة",
+    "streak": "يوم متتالي",
+    "badges": "الشارات",
+    "rank": "الترتيب",
+    "level": "المستوى"
+  },
+  "feed": {
+    "memorized_surah": "حفظ سورة {surah}",
+    "completed_revision": "راجع سورة {surah}",
+    "joined_group": "انضم إلى المجموعة",
+    "earned_badge": "حصل على شارة {badge}",
+    "sheikh_validated": "تم التحقق من قِبَل الشيخ",
+    "milestone_reached": "وصل إلى {milestone}",
+    "react": {
+      "mashallah": "ما شاء الله",
+      "dua": "دعاء",
+      "fire": "نار",
+      "star": "نجمة"
+    }
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "empty": "لا توجد إشعارات",
+    "markAllRead": "تعيين الكل كمقروء"
+  },
+  "profile": {
+    "title": "ملفي الشخصي",
+    "surahs": "السور المحفوظة",
+    "streak": "السلسلة الحالية",
+    "totalXP": "مجموع النقاط",
+    "badges": "شاراتي",
+    "progressCalendar": "تقويم التقدم",
+    "editProfile": "تعديل الملف"
+  }
+}

@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+
+@theme {
+  --color-emerald-brand: #10b981;
+  --color-gold-brand: #f59e0b;
+  --color-bg-warm: #fafaf9;
+
+  --font-arabic: 'Noto Naskh Arabic', serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 98.4%;
+    --foreground: 20 14.3% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14.3% 4.1%;
+    --primary: 158 64% 40%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 60 4.8% 95.9%;
+    --secondary-foreground: 24 9.8% 10%;
+    --muted: 60 4.8% 95.9%;
+    --muted-foreground: 25 5.3% 44.7%;
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
+    --border: 20 5.9% 90%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 20 14.3% 4.1%;
+    --foreground: 60 9.1% 97.8%;
+    --card: 20 14.3% 4.1%;
+    --primary: 158 64% 52%;
+    --border: 12 6.5% 15.1%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  [lang='ar'], [dir='rtl'] {
+    font-family: var(--font-arabic);
+  }
+
+  .arabic-text {
+    font-family: var(--font-arabic);
+    direction: rtl;
+    line-height: 2;
+  }
+}

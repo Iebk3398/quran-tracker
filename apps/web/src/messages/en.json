@@ -1,0 +1,105 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "profile": "My Profile",
+    "validate": "Validate",
+    "settings": "Settings",
+    "logout": "Log out"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "leaderboard": "Leaderboard",
+    "feed": "Activity Feed",
+    "stats": "Statistics",
+    "myProgress": "My Progress"
+  },
+  "surah": {
+    "status": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "memorized": "Memorized",
+      "consolidated": "Consolidated"
+    },
+    "filter": {
+      "all": "All",
+      "in_progress": "In progress",
+      "memorized": "Memorized",
+      "not_started": "To start"
+    },
+    "viewByJuz": "By Juz",
+    "viewGrid": "Grid"
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "email": "Email address",
+    "emailPlaceholder": "your@email.com",
+    "magicLink": "Send magic link",
+    "orContinueWith": "Or continue with",
+    "google": "Continue with Google",
+    "checkEmail": "Check your email",
+    "checkEmailDesc": "A sign-in link has been sent to {email}",
+    "back": "Back",
+    "title": "Welcome back",
+    "subtitle": "Track your Quran memorization with your group"
+  },
+  "sheikh": {
+    "validate": "Validate",
+    "pending": "Pending validation",
+    "validated": "Validated",
+    "notes": "Sheikh's notes",
+    "notesPlaceholder": "Add correction notes..."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "noData": "No data available",
+    "verses": "verses",
+    "juz": "Juz",
+    "surah": "Surah",
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "gamification": {
+    "xp": "XP",
+    "streak": "days streak",
+    "badges": "Badges",
+    "rank": "Rank",
+    "level": "Level"
+  },
+  "feed": {
+    "memorized_surah": "memorized Surah {surah}",
+    "completed_revision": "revised Surah {surah}",
+    "joined_group": "joined the group",
+    "earned_badge": "earned the {badge} badge",
+    "sheikh_validated": "was validated by the sheikh",
+    "milestone_reached": "reached milestone: {milestone}",
+    "react": {
+      "mashallah": "MashaAllah",
+      "dua": "Dua",
+      "fire": "Fire",
+      "star": "Star"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "markAllRead": "Mark all as read"
+  },
+  "profile": {
+    "title": "My Profile",
+    "surahs": "Memorized surahs",
+    "streak": "Current streak",
+    "totalXP": "Total XP",
+    "badges": "My badges",
+    "progressCalendar": "Progress calendar",
+    "editProfile": "Edit profile"
+  }
+}
