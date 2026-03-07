@@ -9,7 +9,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[🚀 Démo](#) · [📖 Documentation](#documentation) · [🐛 Signaler un bug](https://github.com/Iebk3398/quran-tracker/issues)
+[🐛 Signaler un bug](https://github.com/Iebk3398/quran-tracker/issues)
 
 </div>
 
@@ -25,7 +25,7 @@ Chaque membre du groupe peut enregistrer sa progression sourate par sourate, le 
 
 | Rôle | Usage |
 |------|-------|
-| **Sheikh / Enseignant** | Valider les mémorisations, suivre chaque élève, attribuer des notes |
+| **Sheikh / Enseignant** | Valider les mémorisations, suivre chaque élève, ajouter des notes |
 | **Élève / Hafiz** | Enregistrer sa progression, réviser via la répétition espacée (SM-2) |
 | **Parent** | Consulter la progression de son enfant en lecture seule |
 
@@ -34,26 +34,26 @@ Chaque membre du groupe peut enregistrer sa progression sourate par sourate, le 
 ## 🖼️ Fonctionnalités
 
 ### Dashboard Groupe
-- **Tableau de bord temps réel** — Progression du groupe mise à jour instantanément via Supabase Realtime
-- **Classement (Leaderboard)** — Classement des membres par XP, sourates mémorisées et série de jours
-- **Fil d'actualité** — Timeline des activités du groupe (mémorisations, validations, badges) avec réactions emoji
+- **Tableau de bord temps réel** — Progression du groupe via Supabase Realtime (WebSockets)
+- **Classement (Leaderboard)** — Classement par XP, sourates mémorisées et série de jours
+- **Fil d'actualité** — Timeline des activités avec réactions emoji (MashaAllah, Dua, etc.)
 - **Statistiques de groupe** — Vue d'ensemble des performances collectives
 
 ### Progression Individuelle
-- **Vue des 114 sourates** — Carte visuelle de toutes les sourates avec codes couleur par statut
+- **Vue des 114 sourates** — Carte visuelle avec codes couleur par statut
   - ⬜ Non commencé · 🟡 En cours · 🟢 Mémorisé · 🔵 Consolidé
 - **Heatmap calendrier** — Calendrier style GitHub montrant l'intensité des révisions
-- **Répétition espacée (SM-2)** — Algorithme scientifique qui planifie les révisions au moment optimal
+- **Répétition espacée (SM-2)** — Algorithme qui planifie les révisions au moment optimal
 
 ### Validation & Gamification
-- **Validation sheikh** — Les enseignants peuvent valider les sourates et ajouter des notes
-- **Badges** — 8 badges à débloquer (Juz Amma, Hafiz, streaks, etc.)
+- **Validation sheikh** — Les enseignants valident les sourates et ajoutent des notes de correction
+- **8 Badges** — Juz Amma, Hafiz, Première Sourate, séries 7j/30j, etc.
 - **XP & Niveaux** — Système de points d'expérience pour motiver les membres
 
 ### PWA & Notifications
 - **Progressive Web App** — Installable sur mobile comme une app native
 - **Notifications push** — Rappels de révision, validations et activité du groupe
-- **Mode hors ligne** — Les pages clés sont disponibles sans connexion
+- **Mode hors ligne** — Pages clés disponibles sans connexion via Service Worker
 
 ### Internationalisation
 - **3 langues** — Français 🇫🇷, Arabe 🇸🇦 (RTL natif), Anglais 🇬🇧
@@ -68,28 +68,28 @@ Ce projet est un **monorepo Turborepo** composé de 4 packages :
 ```
 quran-tracker/
 ├── apps/
-│   ├── web/          → Frontend Next.js 15 (App Router)
+│   ├── web/          → Frontend Next.js 15 (App Router + Server Components)
 │   └── api/          → Backend Hono.js (Node.js 22)
 └── packages/
-    ├── db/           → Drizzle ORM + schémas + seed
+    ├── db/           → Drizzle ORM + schémas + seed 114 sourates
     ├── types/        → Types TypeScript partagés
-    └── ui/           → Composants UI partagés (en cours)
+    └── ui/           → Composants UI partagés (à compléter)
 ```
 
 ### Stack technique
 
 | Couche | Technologie |
 |--------|-------------|
-| **Frontend** | Next.js 15, TypeScript 5, Tailwind CSS v4, shadcn/ui, Framer Motion |
-| **État client** | Zustand (global), TanStack Query v5 (serveur) |
-| **Backend** | Hono.js, Node.js 22, Better Auth |
-| **Base de données** | PostgreSQL (Supabase), Drizzle ORM |
-| **Cache** | Redis (Upstash) |
+| **Frontend** | Next.js 15, TypeScript 5 strict, Tailwind CSS v4, shadcn/ui, Framer Motion |
+| **État client** | Zustand (global), TanStack Query v5 (cache serveur) |
+| **Backend** | Hono.js, Node.js 22, Better Auth (magic link + Google OAuth) |
+| **Base de données** | PostgreSQL via Supabase, Drizzle ORM |
+| **Cache** | Redis via Upstash |
 | **Temps réel** | Supabase Realtime (PostgreSQL CDC) |
 | **Email** | Resend |
 | **Stockage** | Cloudflare R2 |
-| **Tests** | Vitest |
-| **CI/CD** | GitHub Actions → Vercel + Railway |
+| **Tests** | Vitest (SM-2, badges/XP) |
+| **CI/CD** | GitHub Actions → Vercel (web) + Railway (api) |
 
 ---
 
@@ -112,36 +112,22 @@ cd quran-tracker
 
 ```bash
 cp .env.example .env.local
+# Remplir les valeurs dans .env.local
 ```
 
-Remplir les valeurs dans `.env.local` :
-
-```env
-# Supabase (créer un projet sur supabase.com)
-DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres"
-NEXT_PUBLIC_SUPABASE_URL="https://[REF].supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="[ANON_KEY]"
-
-# Auth
-BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
-GOOGLE_CLIENT_ID="[GOOGLE_OAUTH_CLIENT_ID]"
-GOOGLE_CLIENT_SECRET="[GOOGLE_OAUTH_CLIENT_SECRET]"
-
-# Email (resend.com)
-RESEND_API_KEY="re_[API_KEY]"
-
-# Redis (upstash.com)
-UPSTASH_REDIS_REST_URL="https://[ENDPOINT].upstash.io"
-UPSTASH_REDIS_REST_TOKEN="[TOKEN]"
-```
+Les variables requises (voir `.env.example`) :
+- **Supabase** : `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **Auth** : `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- **Email** : `RESEND_API_KEY`
+- **Redis** : `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
 
 ### 3. Démarrer la base de données locale
 
 ```bash
 docker-compose up -d
-# PostgreSQL disponible sur localhost:5432
-# Redis disponible sur localhost:6379
-# Adminer sur http://localhost:8080
+# PostgreSQL → localhost:5432
+# Redis → localhost:6379
+# Adminer → http://localhost:8080
 ```
 
 ### 4. Installer les dépendances
@@ -153,23 +139,18 @@ npm install
 ### 5. Initialiser la base de données
 
 ```bash
-# Générer les migrations Drizzle
-npm run db:generate
-
-# Appliquer les migrations
-npm run db:migrate
-
-# Seeder les 114 sourates + 8 badges
-npm run db:seed
+npm run db:generate   # Génère les migrations Drizzle
+npm run db:migrate    # Applique les migrations
+npm run db:seed       # Seed les 114 sourates + 8 badges
 ```
 
 ### 6. Lancer le développement
 
 ```bash
 npm run dev
-# Web → http://localhost:3000
-# API → http://localhost:3001
-# DB Studio → http://localhost:4983 (npm run db:studio)
+# Web  → http://localhost:3000
+# API  → http://localhost:3001
+# DB Studio → npm run db:studio
 ```
 
 ---
@@ -177,21 +158,11 @@ npm run dev
 ## 🧪 Tests
 
 ```bash
-# Lancer tous les tests
-npm run test
-
-# Tests d'un package spécifique
-npm run test --workspace=packages/db
-npm run test --workspace=apps/api
-
-# Avec coverage
-npm run test -- --coverage
+npm run test                              # Tous les tests
+npm run test --workspace=packages/db      # Tests SM-2
+npm run test --workspace=apps/api         # Tests badges/XP
+npm run test -- --coverage                # Avec coverage
 ```
-
-Les tests couvrent :
-- Algorithme SM-2 (spaced repetition)
-- Logique des badges et calcul XP
-- Routes API (à venir)
 
 ---
 
@@ -201,7 +172,7 @@ Les tests couvrent :
 |--------|-------------|
 | `npm run dev` | Lance tous les services en développement |
 | `npm run build` | Build de production |
-| `npm run typecheck` | Vérification TypeScript |
+| `npm run typecheck` | Vérification TypeScript strict |
 | `npm run lint` | ESLint sur tous les packages |
 | `npm run test` | Tests Vitest |
 | `npm run db:generate` | Génère les migrations Drizzle |
@@ -215,58 +186,43 @@ Les tests couvrent :
 ## 🌍 Déploiement
 
 ### Frontend → Vercel
-
 ```bash
-# Via CLI
 vercel --prod
-
 # Ou automatiquement via GitHub Actions au push sur main
 ```
-
-Variables à configurer sur Vercel :
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_APP_URL`
-- `BETTER_AUTH_URL`
+Variables Vercel : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_URL`.
 
 ### Backend → Railway
-
 ```bash
-# Via CLI
 railway up
-
 # Ou automatiquement via GitHub Actions
 ```
-
-Variables à configurer sur Railway :
-- Toutes les variables de `.env.example`
 
 ---
 
 ## 🗃️ Schéma de base de données
 
-```sql
-users              → Comptes utilisateurs (avec rôles)
-groups             → Groupes de mémorisation
-group_members      → Appartenance aux groupes
-surahs             → Les 114 sourates du Coran
-memorization_progress → Progression par sourate (avec SM-2)
-revision_sessions  → Historique des révisions
-badges             → Badges disponibles
-user_badges        → Badges obtenus
-group_feed         → Fil d'actualité du groupe
-notifications      → Notifications utilisateurs
-```
+| Table | Description |
+|-------|-------------|
+| `users` | Comptes avec rôles (super_admin, sheikh, student, parent) |
+| `groups` + `group_members` | Groupes de mémorisation et membres |
+| `surahs` | Les 114 sourates (données complètes : AR/FR/EN, versets, juz, hizb) |
+| `memorization_progress` | Progression par sourate avec SM-2 (retentionScore, nextReviewAt, easeFactor) |
+| `revision_sessions` | Historique des sessions avec qualité (0-5) |
+| `badges` + `user_badges` | Système de badges et attributions |
+| `group_feed` | Fil d'actualité avec réactions |
+| `notifications` | Notifications utilisateurs |
 
 ---
 
 ## 🤖 IA (v2 — prochaine version)
 
-L'architecture IA est prête dans `apps/api/src/routes/ai.ts`. Les fonctionnalités suivantes seront développées en v2 :
+L'architecture IA est prête dans `apps/api/src/routes/ai.ts` mais retourne des données stub en v1.
+Les fonctionnalités suivantes seront développées en **v2** :
 
-- **Suggestions intelligentes** — GPT-4o analyse vos patterns de révision et recommande les sourates prioritaires
-- **Assistant conversationnel** — Chat avec un assistant spécialisé Hifz (motivation, planning, Q&A)
-- **Plan quotidien** — Plan de révision personnalisé généré chaque matin
+- **Suggestions GPT-4o** — Analyse vos patterns SM-2 et recommande les révisions prioritaires
+- **Assistant conversationnel** — Chat Hifz (motivation, planning, Q&A en arabe/français)
+- **Plan quotidien IA** — Plan de révision personnalisé généré chaque matin
 - **Validation vocale** — Whisper API pour valider les récitations à l'oral
 
 ---
@@ -274,9 +230,9 @@ L'architecture IA est prête dans `apps/api/src/routes/ai.ts`. Les fonctionnalit
 ## 🤝 Contribuer
 
 1. Fork le repo
-2. Créer une branche (`git checkout -b feat/ma-feature`)
-3. Commiter (`git commit -m 'feat: ajouter ma feature'`)
-4. Push (`git push origin feat/ma-feature`)
+2. Créer une branche : `git checkout -b feat/ma-feature`
+3. Commiter : `git commit -m 'feat: ajouter ma feature'`
+4. Push : `git push origin feat/ma-feature`
 5. Ouvrir une Pull Request
 
 Voir les [issues ouvertes](https://github.com/Iebk3398/quran-tracker/issues) pour les contributions bienvenues.
