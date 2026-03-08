@@ -18,7 +18,7 @@ import { prettyJSON } from 'hono/pretty-json'
 import { HTTPException } from 'hono/http-exception'
 import { serve } from '@hono/node-server'
 
-import { authRoutes } from './routes/auth.ts'
+import { auth } from './lib/auth.ts'
 import { groupRoutes } from './routes/groups.ts'
 import { progressRoutes } from './routes/progress.ts'
 import { revisionRoutes } from './routes/revisions.ts'
@@ -54,8 +54,10 @@ app.get('/health', (c) =>
   })
 )
 
-// ─── Routes ────────────────────────────────────────────────
-app.route('/api/auth', authRoutes)
+// ─── Auth (Better Auth — doit recevoir l'URL complète) ─────
+app.on(['GET', 'POST'], ['/api/auth', '/api/auth/*'], (c) =>
+  auth.handler(c.req.raw)
+)
 app.route('/api/groups', groupRoutes)
 app.route('/api/progress', progressRoutes)
 app.route('/api/revisions', revisionRoutes)

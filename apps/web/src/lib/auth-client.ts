@@ -7,7 +7,8 @@ import { createAuthClient } from 'better-auth/react'
 import { magicLinkClient } from 'better-auth/client/plugins'
 
 export const authClient = createAuthClient({
-  baseURL: process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000',
+  // Better Auth server is on the API (port 3001), not the Next.js app (port 3000)
+  baseURL: process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001',
   plugins: [magicLinkClient()],
 })
 

@@ -2,7 +2,7 @@
  * @file Schéma Drizzle — Table users
  * @description Utilisateurs de l'application avec rôles
  */
-import { pgTable, text, timestamp, pgEnum } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, pgEnum } from 'drizzle-orm/pg-core'
 
 /** Enum des rôles utilisateur */
 export const userRoleEnum = pgEnum('user_role', [
@@ -17,7 +17,7 @@ export const users = pgTable('users', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
-  emailVerified: timestamp('email_verified', { withTimezone: true }),
+  emailVerified: boolean('email_verified').notNull().default(false),
   role: userRoleEnum('role').notNull().default('student'),
   avatar: text('avatar'),
   xp: text('xp').notNull().default('0'),

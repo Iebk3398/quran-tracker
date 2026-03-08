@@ -179,6 +179,26 @@ Total                   ████████████  97% ✅
 
 ---
 
+## 🐛 CORRECTIONS & HOTFIXES (2026-03-08)
+
+### Fix — Migration DB + ESM drizzle-kit
+- [x] Correction script `db:generate` : utilisation de `tsx` pour résoudre le conflit ESM/CJS avec drizzle-kit
+- [x] Migration `0001` générée et appliquée : colonne `email_verified` passée de `timestamp` → `boolean` (DROP + ADD COLUMN)
+- [x] Fichier migration corrigé manuellement (cast impossible via `ALTER COLUMN` en PostgreSQL)
+
+**Fichiers modifiés :**
+- `packages/db/package.json` — script `db:generate` avec `tsx`
+- `packages/db/src/migrations/0001_odd_human_cannonball.sql` — migration email_verified
+- `packages/db/src/migrations/meta/_journal.json` — journal mis à jour
+
+### Fix — Magic Link redirect vers le mauvais port
+- [x] `callbackURL` passé de `'/dashboard'` (relatif → redirigait vers `localhost:3001`) à URL absolue `http://localhost:3000/dashboard`
+
+**Fichiers modifiés :**
+- `apps/web/src/app/(auth)/login/page.tsx` — callbackURL absolu via `NEXT_PUBLIC_APP_URL`
+
+---
+
 ## 🔮 BACKLOG v2
 
 | Feature | Description | Priorité |
@@ -206,4 +226,4 @@ Total                   ████████████  97% ✅
 
 ---
 
-*🤖 Dernière mise à jour : 2026-03-07 — Phases 0→7 complétées · IA GPT-4o reportée en v2*
+*🤖 Dernière mise à jour : 2026-03-08 — Phases 0→7 complétées · Fix migration DB + magic link redirect · IA GPT-4o reportée en v2*

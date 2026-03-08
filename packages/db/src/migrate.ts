@@ -2,18 +2,14 @@
  * @file Script de migration Drizzle
  * @description Applique toutes les migrations SQL en attente
  */
+// Env loaded via --env-file-if-exists flag in package.json scripts (Node 22+)
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import dotenv from 'dotenv'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// Load .env.local from monorepo root (packages/db → packages → root)
-dotenv.config({ path: path.resolve(__dirname, '../../../.env.local') })
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') })
 
 const connectionString = process.env['DATABASE_URL']
 if (!connectionString) {

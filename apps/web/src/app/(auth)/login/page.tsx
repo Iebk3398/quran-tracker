@@ -4,17 +4,30 @@
  */
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { authClient } from '@/lib/auth-client'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    // TODO: intégrer better-auth magic link
-    await new Promise((r) => setTimeout(r, 1000))
+    setError(null)
+
+    const { error } = await authClient.signIn.magicLink({
+      email,
+      callbackURL: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/dashboard`,
+    })
+
+    if (error) {
+      setError(error.message ?? 'Une erreur est survenue')
+      setLoading(false)
+      return
+    }
+
     setSent(true)
     setLoading(false)
   }
@@ -54,6 +67,10 @@ export default function LoginPage() {
                     className="w-full px-3 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
+
+                {error && (
+                  <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+                )}
 
                 <button
                   type="submit"

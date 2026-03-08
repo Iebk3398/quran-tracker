@@ -2,10 +2,11 @@
   "name": "@quran-tracker/api",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "node --experimental-strip-types --watch src/index.ts",
+    "dev": "node --env-file-if-exists=../../.env.local --env-file-if-exists=../../.env --experimental-strip-types --watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node --env-file-if-exists=../../.env.local --env-file-if-exists=../../.env dist/index.js",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
@@ -19,6 +20,7 @@
     "dotenv": "^17.3.1",
     "hono": "^4.6.14",
     "nanoid": "^5.0.9",
+    "resend": "^4.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

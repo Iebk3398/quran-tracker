@@ -3,15 +3,8 @@
  * @description Insère les données initiales (114 sourates, badges)
  * Usage: npm run db:seed
  */
-import dotenv from 'dotenv'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
-// Load .env.local from monorepo root
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env.local') })
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env') })
-
+// Env loaded via --env-file-if-exists flag in package.json scripts (Node 22+)
+// ESM hoisting means runtime dotenv.config() runs AFTER imports → use --env-file instead
 import { db } from '../index.ts'
 import { surahs, badges } from '../schema/index.ts'
 import { SURAHS_DATA } from './surahs-data.ts'

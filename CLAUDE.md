@@ -12,7 +12,7 @@
 |---|---|
 | Projet | Quran Tracker — Suivi de mémorisation du Coran en groupe |
 | Propriétaire | ilyas (iebk3398@gmail.com) |
-| Dernière mise à jour | 2026-03-07 |
+| Dernière mise à jour | 2026-03-08 |
 | Phase actuelle | ✅ PHASES 0→7 — Architecture complète générée (v1) |
 | Repo GitHub | https://github.com/Iebk3398/quran-tracker |
 | URL App | ⬜ À déployer |
@@ -271,6 +271,8 @@ Les routes IA sont architecturalement prêtes dans `apps/api/src/routes/ai.ts` m
 | 2026-03-07 | Node.js 22 au lieu de Bun | Bun non disponible dans l'environnement CI |
 | 2026-03-07 | IA GPT-4o → v2 | Architecture prête, développement complet prévu en v2 |
 | 2026-03-07 | Service Worker natif | Contrôle total du caching et des notifications push |
+| 2026-03-08 | `db:generate` via `tsx` | drizzle-kit (CJS) incompatible ESM — `tsx node_modules/.bin/drizzle-kit generate` requis |
+| 2026-03-08 | Magic link `callbackURL` absolu | URL relative redirige vers `baseURL` de l'API (3001) — toujours passer une URL absolue frontend |
 
 ---
 
@@ -317,4 +319,4 @@ npm run dev
 ---
 
 *🤖 Ce fichier est géré automatiquement par Claude. Ne pas éditer manuellement.*
-*Dernière mise à jour : 2026-03-07 — Phases 0→7 complétées (v1) · IA GPT-4o prévue en v2*
+*Dernière mise à jour : 2026-03-08 — Phases 0→7 complétées (v1) · Fix migration DB + magic link redirect · IA GPT-4o prévue en v2*

@@ -2,6 +2,7 @@
   "name": "@quran-tracker/db",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -9,10 +10,11 @@
     "./schema": "./src/schema/index.ts"
   },
   "scripts": {
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --experimental-strip-types src/migrate.ts",
+    "db:generate": "tsx node_modules/.bin/drizzle-kit generate",
+    "db:migrate": "node --env-file-if-exists=../../.env.local --env-file-if-exists=../../.env --experimental-strip-types src/migrate.ts",
+    "db:reset": "node --env-file-if-exists=../../.env.local --env-file-if-exists=../../.env --experimental-strip-types src/reset.ts",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "node --experimental-strip-types src/seed/index.ts",
+    "db:seed": "node --env-file-if-exists=../../.env.local --env-file-if-exists=../../.env --experimental-strip-types src/seed/index.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },

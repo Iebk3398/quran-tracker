@@ -10,18 +10,28 @@ import { db, users, sessions, accounts, verifications } from '../../../../packag
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: 'pg',
-    schema: { users, sessions, accounts, verifications },
+    schema: {
+      user: users,
+      session: sessions,
+      account: accounts,
+      verification: verifications,
+    },
   }),
   secret: process.env['BETTER_AUTH_SECRET'],
-  baseURL: process.env['BETTER_AUTH_URL'] ?? 'http://localhost:3000',
+  baseURL: process.env['BETTER_AUTH_URL'] ?? 'http://localhost:3001',
+  trustedOrigins: [
+    process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000',
+  ],
   emailAndPassword: { enabled: false },
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, url }) => {
+        console.log(`📧 [MagicLink] Sending to: ${email}`)
+        console.log(`🔗 [MagicLink] URL: ${url}`)
         // Envoi via Resend
         const { Resend } = await import('resend')
         const resend = new Resend(process.env['RESEND_API_KEY'])
-        await resend.emails.send({
+        const result = await resend.emails.send({
           from: process.env['EMAIL_FROM'] ?? 'noreply@qurantracker.app',
           to: email,
           subject: '🕌 Connexion à Quran Tracker',
@@ -42,6 +52,11 @@ export const auth = betterAuth({
             </div>
           `,
         })
+        if (result.error) {
+          console.error('❌ [Resend] Error:', result.error)
+          throw new Error(`Resend error: ${result.error.message}`)
+        }
+        console.log('✅ [Resend] Email sent, id:', result.data?.id)
       },
     }),
   ],

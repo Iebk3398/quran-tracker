@@ -10,6 +10,7 @@
     "clean": "turbo run clean",
     "db:generate": "turbo run db:generate --filter=@quran-tracker/db",
     "db:migrate": "turbo run db:migrate --filter=@quran-tracker/db",
+    "db:reset": "turbo run db:reset --filter=@quran-tracker/db",
     "db:studio": "turbo run db:studio --filter=@quran-tracker/db",
     "db:seed": "turbo run db:seed --filter=@quran-tracker/db",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
@@ -32,9 +33,6 @@
   ],
   "packageManager": "npm@10.9.0",
   "dependencies": {
-    "@esbuild/linux-arm64": "^0.27.3",
-    "@hono/node-server": "^1.19.11",
-    "@next/swc-linux-arm64-gnu": "^16.1.6",
-    "esbuild": "^0.27.3"
+    "@hono/node-server": "^1.19.11"
   }
 }
