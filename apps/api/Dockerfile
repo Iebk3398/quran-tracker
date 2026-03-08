@@ -1,36 +1,22 @@
-# ─── Build Stage ─────────────────────────────────────────────────────────────
-FROM node:22-alpine AS builder
+# ─── Runtime (pas de build step — --experimental-strip-types) ─────────────────
+FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy monorepo files
+# Copy monorepo structure
 COPY package*.json ./
+COPY .npmrc ./
 COPY turbo.json ./
 COPY tsconfig.base.json ./
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
-# Install dependencies
-RUN npm ci --workspace=apps/api --workspace=packages/db --workspace=packages/types
-
-# Build
-RUN npm run build --workspace=apps/api
-
-# ─── Production Stage ─────────────────────────────────────────────────────────
-FROM node:22-alpine AS runner
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-# Copy built files
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
+# Install deps (--omit=optional évite Prisma qui est peer dep optionnel de better-auth)
+RUN npm ci --omit=optional
 
 EXPOSE 3001
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD wget -qO- http://localhost:3001/health || exit 1
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "--experimental-strip-types", "apps/api/src/index.ts"]
