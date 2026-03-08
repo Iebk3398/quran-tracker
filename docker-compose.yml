@@ -12,16 +12,16 @@ services:
     container_name: quran-tracker-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: quran
+      POSTGRES_PASSWORD: qurantracker
       POSTGRES_DB: quran_tracker
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U quran']
       interval: 10s
       timeout: 5s
       retries: 5

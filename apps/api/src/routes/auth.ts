@@ -3,7 +3,7 @@
  * @description Better Auth handler — toutes les routes /api/auth/*
  */
 import { Hono } from 'hono'
-import { auth } from '../lib/auth'
+import { auth } from '../lib/auth.ts'
 
 export const authRoutes = new Hono()
 

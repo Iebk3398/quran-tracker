@@ -2,9 +2,9 @@
  * @file Routes notifications — /api/notifications
  */
 import { Hono } from 'hono'
-import { db, notifications } from '@quran-tracker/db'
+import { db, notifications } from '../../../../packages/db/src/index.ts'
 import { eq, and, isNull, sql } from 'drizzle-orm'
-import { requireAuth } from '../middleware/auth'
+import { requireAuth } from '../middleware/auth.ts'
 
 export const notificationRoutes = new Hono()
 

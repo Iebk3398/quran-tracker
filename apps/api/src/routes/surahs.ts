@@ -2,7 +2,7 @@
  * @file Routes sourates — GET /api/surahs
  */
 import { Hono } from 'hono'
-import { db, surahs } from '@quran-tracker/db'
+import { db, surahs } from '../../../../packages/db/src/index.ts'
 import { asc, eq } from 'drizzle-orm'
 
 export const surahRoutes = new Hono()

@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+/* Note: Arabic font loaded from CDN in production; using system fallback in dev */
 
 @theme {
   --color-emerald-brand: #10b981;
@@ -37,11 +37,12 @@
   }
 
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 
   [lang='ar'], [dir='rtl'] {

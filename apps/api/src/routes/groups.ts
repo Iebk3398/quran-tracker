@@ -5,9 +5,9 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
-import { db, groups, groupMembers, users, memorizationProgress } from '@quran-tracker/db'
+import { db, groups, groupMembers, users, memorizationProgress } from '../../../../packages/db/src/index.ts'
 import { eq, and, desc, sql } from 'drizzle-orm'
-import { requireAuth, requireSheikh } from '../middleware/auth'
+import { requireAuth, requireSheikh } from '../middleware/auth.ts'
 
 export const groupRoutes = new Hono()
 

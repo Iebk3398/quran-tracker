@@ -5,10 +5,10 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
-import { db, memorizationProgress, surahs, users } from '@quran-tracker/db'
+import { db, memorizationProgress, surahs, users } from '../../../../packages/db/src/index.ts'
 import { eq, and, sql } from 'drizzle-orm'
-import { requireAuth, requireSheikh } from '../middleware/auth'
-import { calculateSM2 } from '@quran-tracker/db/lib/spaced-repetition'
+import { requireAuth, requireSheikh } from '../middleware/auth.ts'
+import { calculateSM2 } from '../../../../packages/db/src/lib/spaced-repetition.ts'
 
 export const progressRoutes = new Hono()
 

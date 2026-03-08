@@ -3,9 +3,18 @@
  * @description Insère les données initiales (114 sourates, badges)
  * Usage: npm run db:seed
  */
-import { db } from '../index'
-import { surahs, badges } from '../schema'
-import { SURAHS_DATA } from './surahs-data'
+import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+// Load .env.local from monorepo root
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env.local') })
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') })
+
+import { db } from '../index.ts'
+import { surahs, badges } from '../schema/index.ts'
+import { SURAHS_DATA } from './surahs-data.ts'
 
 /** Badges initiaux du système de gamification */
 const INITIAL_BADGES = [

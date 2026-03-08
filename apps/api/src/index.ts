@@ -2,20 +2,30 @@
  * @file Point d'entrée — API Hono.js
  * @description Serveur HTTP pour Quran Tracker
  */
+import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+// Load .env.local from monorepo root (apps/api/src → apps/api → apps → root)
+const __apiDir = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))))
+dotenv.config({ path: path.join(__apiDir, '../.env.local') })
+dotenv.config({ path: path.join(__apiDir, '../.env') })
+
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { prettyJSON } from 'hono/pretty-json'
 import { HTTPException } from 'hono/http-exception'
+import { serve } from '@hono/node-server'
 
-import { authRoutes } from './routes/auth'
-import { groupRoutes } from './routes/groups'
-import { progressRoutes } from './routes/progress'
-import { revisionRoutes } from './routes/revisions'
-import { feedRoutes } from './routes/feed'
-import { notificationRoutes } from './routes/notifications'
-import { surahRoutes } from './routes/surahs'
-import aiRoutes from './routes/ai'
+import { authRoutes } from './routes/auth.ts'
+import { groupRoutes } from './routes/groups.ts'
+import { progressRoutes } from './routes/progress.ts'
+import { revisionRoutes } from './routes/revisions.ts'
+import { feedRoutes } from './routes/feed.ts'
+import { notificationRoutes } from './routes/notifications.ts'
+import { surahRoutes } from './routes/surahs.ts'
+import aiRoutes from './routes/ai.ts'
 
 const app = new Hono()
 
@@ -75,9 +85,9 @@ app.onError((err, c) => {
 })
 
 const PORT = Number(process.env['PORT'] ?? 3001)
-console.log(`🕌 Quran Tracker API running on http://localhost:${PORT}`)
 
-export default {
-  port: PORT,
-  fetch: app.fetch,
-}
+serve({ fetch: app.fetch, port: PORT }, (info) => {
+  console.log(`🕌 Quran Tracker API running on http://localhost:${info.port}`)
+})
+
+export type AppType = typeof app

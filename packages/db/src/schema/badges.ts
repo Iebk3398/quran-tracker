@@ -2,7 +2,7 @@
  * @file Schéma Drizzle — Tables badges & user_badges
  */
 import { pgTable, text, timestamp, integer, index } from 'drizzle-orm/pg-core'
-import { users } from './users'
+import { users } from './users.ts'
 
 /** Définitions des badges */
 export const badges = pgTable('badges', {

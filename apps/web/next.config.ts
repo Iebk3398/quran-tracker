@@ -5,9 +5,6 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@quran-tracker/db', '@quran-tracker/types'],
-  experimental: {
-    typedRoutes: true,
-  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },

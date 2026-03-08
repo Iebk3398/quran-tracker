@@ -21,15 +21,15 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { db } from '@quran-tracker/db'
+import { db } from '../../../../packages/db/src/index.ts'
 import {
   memorizationProgress,
   revisionSessions,
   surahs,
-} from '@quran-tracker/db/schema'
+} from '../../../../packages/db/src/schema/index.ts'
 import { eq, desc, gte } from 'drizzle-orm'
-import { requireAuth } from '../middleware/auth.js'
-import type { Variables } from '../index.js'
+import { requireAuth } from '../middleware/auth.ts'
+import type { Variables } from '../index.ts'
 
 const ai = new Hono<{ Variables: Variables }>()
 

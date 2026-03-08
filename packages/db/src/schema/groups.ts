@@ -2,7 +2,7 @@
  * @file Schéma Drizzle — Tables groups & group_members
  */
 import { pgTable, text, timestamp, pgEnum, primaryKey, index } from 'drizzle-orm/pg-core'
-import { users } from './users'
+import { users } from './users.ts'
 
 export const groupMemberRoleEnum = pgEnum('group_member_role', [
   'sheikh',

@@ -2,8 +2,8 @@
  * @file Schéma Drizzle — Tables group_feed & notifications
  */
 import { pgTable, text, timestamp, pgEnum, index } from 'drizzle-orm/pg-core'
-import { users } from './users'
-import { groups } from './groups'
+import { users } from './users.ts'
+import { groups } from './groups.ts'
 
 export const feedEventTypeEnum = pgEnum('feed_event_type', [
   'surah_memorized',

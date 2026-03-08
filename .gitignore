@@ -41,3 +41,9 @@ coverage
 *.tsbuildinfo
 .vercel
 .railway
+
+# Local DB data (embedded postgres, sandbox)
+.pg-data/
+
+# Screenshot previews
+login-preview.png

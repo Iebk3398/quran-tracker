@@ -4,7 +4,7 @@
  */
 import type { Context, Next } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import { auth } from '../lib/auth'
+import { auth } from '../lib/auth.ts'
 
 export type AuthUser = {
   id: string

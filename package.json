@@ -12,11 +12,15 @@
     "db:migrate": "turbo run db:migrate --filter=@quran-tracker/db",
     "db:studio": "turbo run db:studio --filter=@quran-tracker/db",
     "db:seed": "turbo run db:seed --filter=@quran-tracker/db",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "dev:local": "tsx scripts/setup-local-db.ts && turbo run dev",
+    "setup:local": "tsx scripts/setup-local-db.ts"
   },
   "devDependencies": {
-    "turbo": "^2.3.3",
+    "embedded-postgres": "^18.3.0-beta.16",
     "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
     "typescript": "^5.7.3"
   },
   "engines": {
@@ -26,5 +30,11 @@
     "apps/*",
     "packages/*"
   ],
-  "packageManager": "npm@10.9.0"
+  "packageManager": "npm@10.9.0",
+  "dependencies": {
+    "@esbuild/linux-arm64": "^0.27.3",
+    "@hono/node-server": "^1.19.11",
+    "@next/swc-linux-arm64-gnu": "^16.1.6",
+    "esbuild": "^0.27.3"
+  }
 }

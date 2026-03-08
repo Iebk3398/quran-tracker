@@ -4,7 +4,7 @@
  */
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
-import * as schema from './schema'
+import * as schema from './schema/index.ts'
 
 const connectionString = process.env['DATABASE_URL']
 if (!connectionString) {
@@ -21,5 +21,5 @@ const client = postgres(connectionString, {
 /** Instance Drizzle ORM avec tous les schémas */
 export const db = drizzle(client, { schema })
 
-export * from './schema'
+export * from './schema/index.ts'
 export type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'

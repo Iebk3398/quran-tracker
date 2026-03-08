@@ -5,8 +5,8 @@
 import {
   pgTable, text, timestamp, integer, real, pgEnum, index, unique
 } from 'drizzle-orm/pg-core'
-import { users } from './users'
-import { surahs } from './surahs'
+import { users } from './users.ts'
+import { surahs } from './surahs.ts'
 
 export const memorizationStatusEnum = pgEnum('memorization_status', [
   'not_started',

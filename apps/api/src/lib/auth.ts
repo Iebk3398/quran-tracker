@@ -5,7 +5,7 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { magicLink } from 'better-auth/plugins'
-import { db, users, sessions, accounts, verifications } from '@quran-tracker/db'
+import { db, users, sessions, accounts, verifications } from '../../../../packages/db/src/index.ts'
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {

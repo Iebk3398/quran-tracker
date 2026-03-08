@@ -5,9 +5,9 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
-import { db, groupFeed, users } from '@quran-tracker/db'
+import { db, groupFeed, users } from '../../../../packages/db/src/index.ts'
 import { eq, desc } from 'drizzle-orm'
-import { requireAuth } from '../middleware/auth'
+import { requireAuth } from '../middleware/auth.ts'
 
 export const feedRoutes = new Hono()
 
