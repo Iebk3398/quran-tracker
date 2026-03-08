@@ -1,39 +1,66 @@
 @import 'tailwindcss';
-/* Note: Arabic font loaded from CDN in production; using system fallback in dev */
 
 @theme {
-  --color-emerald-brand: #10b981;
-  --color-gold-brand: #f59e0b;
-  --color-bg-warm: #fafaf9;
-
+  --color-emerald-brand: #059669;
+  --color-gold-brand: #d97706;
   --font-arabic: 'Noto Naskh Arabic', serif;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 98.4%;
-    --foreground: 20 14.3% 4.1%;
+    /* Warm neutral background */
+    --background: 36 33% 97%;
+    --foreground: 222 47% 11%;
+
+    /* Cards: pure white with subtle warm shadow */
     --card: 0 0% 100%;
-    --card-foreground: 20 14.3% 4.1%;
-    --primary: 158 64% 40%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 60 4.8% 95.9%;
-    --secondary-foreground: 24 9.8% 10%;
-    --muted: 60 4.8% 95.9%;
-    --muted-foreground: 25 5.3% 44.7%;
-    --accent: 60 4.8% 95.9%;
-    --accent-foreground: 24 9.8% 10%;
-    --border: 20 5.9% 90%;
-    --radius: 0.5rem;
+    --card-foreground: 222 47% 11%;
+
+    /* Primary: deep emerald */
+    --primary: 161 94% 30%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Muted surfaces */
+    --muted: 36 20% 94%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Accent: warm amber gold */
+    --accent: 43 96% 56%;
+    --accent-foreground: 222 47% 11%;
+
+    /* Borders: very subtle */
+    --border: 36 12% 89%;
+    --input: 36 12% 89%;
+    --ring: 161 94% 30%;
+    --radius: 0.75rem;
+
+    /* Secondary */
+    --secondary: 36 20% 94%;
+    --secondary-foreground: 222 47% 11%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
   }
 
   .dark {
-    --background: 20 14.3% 4.1%;
-    --foreground: 60 9.1% 97.8%;
-    --card: 20 14.3% 4.1%;
-    --primary: 158 64% 52%;
-    --border: 12 6.5% 15.1%;
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 6%;
+    --card-foreground: 213 31% 91%;
+    --primary: 161 94% 40%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 43 96% 56%;
+    --accent-foreground: 222 47% 11%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --secondary: 222 47% 11%;
+    --secondary-foreground: 213 31% 91%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 213 31% 91%;
   }
 
   * {
@@ -43,6 +70,7 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   [lang='ar'], [dir='rtl'] {
@@ -53,5 +81,14 @@
     font-family: var(--font-arabic);
     direction: rtl;
     line-height: 2;
+  }
+
+  /* Hide scrollbar but keep scrollable */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

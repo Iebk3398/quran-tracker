@@ -3,7 +3,7 @@
  * @file DashboardClient — Récupère et affiche les données réelles du groupe
  */
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from '@/lib/auth-client'
 import { apiFetch } from '@/lib/api'
 import { GroupStats } from '@/components/group/group-stats'
@@ -63,9 +63,15 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
 
 export function DashboardClient() {
   const { data: session, isPending: sessionLoading } = useSession()
+  const queryClient = useQueryClient()
+
   const [inviteCode, setInviteCode] = useState('')
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
+
+  const [groupName, setGroupName] = useState('')
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const { data: myGroups, isLoading: groupsLoading, refetch: refetchGroups } = useQuery({
     queryKey: ['my-groups'],
@@ -88,6 +94,27 @@ export function DashboardClient() {
     enabled: !!groupId,
   })
 
+  const createGroup = useMutation({
+    mutationFn: ({ name, description }: { name: string; description?: string }) =>
+      apiFetch<MyGroup>('/api/groups', {
+        method: 'POST',
+        body: JSON.stringify({ name, description: description ?? '' }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-groups'] })
+      refetchGroups()
+    },
+    onError: (err) => {
+      setCreateError(err instanceof Error ? err.message : 'Erreur lors de la création')
+    },
+  })
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    setCreateError(null)
+    createGroup.mutate({ name: groupName })
+  }
+
   async function handleJoin(e: React.FormEvent) {
     e.preventDefault()
     setJoining(true)
@@ -102,6 +129,17 @@ export function DashboardClient() {
       setJoinError(err instanceof Error ? err.message : 'Erreur')
     } finally {
       setJoining(false)
+    }
+  }
+
+  async function handleCopyCode() {
+    if (!group) return
+    try {
+      await navigator.clipboard.writeText(group.inviteCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // fallback silent
     }
   }
 
@@ -120,29 +158,64 @@ export function DashboardClient() {
 
   if (!group) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-        <div className="text-6xl">🕌</div>
-        <h2 className="text-xl font-semibold">Vous n'avez pas encore rejoint de groupe</h2>
-        <p className="text-muted-foreground text-sm max-w-sm">
-          Entrez le code d'invitation de votre Sheikh pour rejoindre une halqa.
-        </p>
-        <form onSubmit={handleJoin} className="flex gap-2 w-full max-w-sm">
-          <input
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-            placeholder="Code d'invitation (ex: ABC12345)"
-            className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            maxLength={12}
-          />
-          <button
-            type="submit"
-            disabled={joining || inviteCode.length < 6}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
-          >
-            {joining ? '...' : 'Rejoindre'}
-          </button>
-        </form>
-        {joinError && <p className="text-sm text-red-500">{joinError}</p>}
+      <div className="py-12 space-y-6 max-w-2xl mx-auto">
+        <div className="text-center space-y-2">
+          <div className="text-5xl">🕌</div>
+          <h2 className="text-xl font-semibold">Rejoignez ou créez une halqa</h2>
+          <p className="text-muted-foreground text-sm">
+            Une halqa est un groupe de mémorisation du Coran.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Create card */}
+          <div className="rounded-2xl border-2 border-dashed p-6 space-y-3">
+            <div className="text-3xl">✨</div>
+            <h3 className="font-semibold">Créer une halqa</h3>
+            <p className="text-sm text-muted-foreground">Vous êtes sheikh ? Créez votre groupe.</p>
+            <form onSubmit={handleCreate} className="space-y-2">
+              <input
+                value={groupName}
+                onChange={e => setGroupName(e.target.value)}
+                placeholder="Nom du groupe"
+                maxLength={60}
+                className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
+              />
+              <button
+                type="submit"
+                disabled={createGroup.isPending || groupName.length < 2}
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {createGroup.isPending ? 'Création…' : 'Créer'}
+              </button>
+            </form>
+            {createError && <p className="text-xs text-red-500">{createError}</p>}
+          </div>
+
+          {/* Join card */}
+          <div className="rounded-2xl border-2 border-dashed p-6 space-y-3">
+            <div className="text-3xl">🤝</div>
+            <h3 className="font-semibold">Rejoindre une halqa</h3>
+            <p className="text-sm text-muted-foreground">Entrez le code de votre sheikh.</p>
+            <form onSubmit={handleJoin} className="space-y-2">
+              <input
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                placeholder="Code d'invitation (ex: ABC12345)"
+                maxLength={12}
+                className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
+              />
+              <button
+                type="submit"
+                disabled={joining || inviteCode.length < 6}
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {joining ? 'Connexion…' : 'Rejoindre'}
+              </button>
+            </form>
+            {joinError && <p className="text-xs text-red-500">{joinError}</p>}
+          </div>
+        </div>
       </div>
     )
   }
@@ -160,16 +233,29 @@ export function DashboardClient() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">{group.name}</h1>
           <p className="text-muted-foreground text-sm">
             {group.description ?? 'Suivi en temps réel de votre halqa'}
           </p>
         </div>
-        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-          Code : {group.inviteCode}
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          {group.sheikhId === session?.user?.id && (
+            <button
+              onClick={handleCopyCode}
+              className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-mono font-bold hover:bg-emerald-100 transition-colors dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/40"
+              title="Cliquer pour copier"
+            >
+              {copied ? '✓ Copié !' : `📋 ${group.inviteCode}`}
+            </button>
+          )}
+          {group.sheikhId !== session?.user?.id && (
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+              Code : {group.inviteCode}
+            </span>
+          )}
+        </div>
       </div>
 
       <GroupStats stats={groupStats} />
