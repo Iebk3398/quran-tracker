@@ -1,17 +1,19 @@
 'use client'
 /**
- * @file ProfileClient — Profil utilisateur avec données réelles
+ * @file ProfileClient — Profil utilisateur avec CRUD progression
  */
-import { Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSession } from '@/lib/auth-client'
 import { apiFetch } from '@/lib/api'
 import { SurahTree } from '@/components/quran/surah-tree'
 import { HeatmapCalendar } from '@/components/quran/heatmap-calendar'
+import { SurahUpdateModal } from '@/components/quran/surah-update-modal'
+import type { Surah, MemorizationStatus } from '@quran-tracker/types'
 
 interface ProgressEntry {
   surahId: number
-  status: 'not_started' | 'in_progress' | 'memorized' | 'consolidated'
+  status: MemorizationStatus
   retentionScore?: number
   lastRevisedAt?: string | null
 }
@@ -26,9 +28,19 @@ interface SessionUser {
   longestStreak?: string
 }
 
+interface SelectedSurah {
+  surahId: number
+  nameAr: string
+  nameFr: string
+  number: number
+  versesCount: number
+  status: MemorizationStatus
+}
+
 export function ProfileClient() {
   const { data: session, isPending } = useSession()
   const user = session?.user as SessionUser | undefined
+  const [selectedSurah, setSelectedSurah] = useState<SelectedSurah | null>(null)
 
   const { data: progress, isLoading: progressLoading } = useQuery({
     queryKey: ['progress', user?.id],
@@ -36,9 +48,21 @@ export function ProfileClient() {
     enabled: !!user?.id,
   })
 
-  const surahsMemorized = progress?.filter(
-    (p) => p.status === 'memorized' || p.status === 'consolidated'
-  ).length ?? 0
+  const { data: allSurahs, isLoading: surahsLoading } = useQuery({
+    queryKey: ['surahs'],
+    queryFn: () => apiFetch<Surah[]>('/api/surahs'),
+  })
+
+  const progressMap = new Map(progress?.map((p) => [p.surahId, p.status]) ?? [])
+
+  const surahsWithStatus = allSurahs?.map((s) => ({
+    ...s,
+    status: progressMap.get(s.id) ?? 'not_started' as MemorizationStatus,
+  })) ?? []
+
+  const surahsMemorized = surahsWithStatus.filter(
+    (s) => s.status === 'memorized' || s.status === 'consolidated'
+  ).length
 
   const initials = user?.name
     ? user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
@@ -48,7 +72,6 @@ export function ProfileClient() {
   const longestStreak = Number(user?.longestStreak ?? 0)
   const xp = Number(user?.xp ?? 0)
 
-  // Données pour le heatmap (jours avec révision)
   const heatmapData = progress
     ?.filter((p) => p.lastRevisedAt)
     .map((p) => ({
@@ -57,7 +80,7 @@ export function ProfileClient() {
       duration: 0,
     })) ?? []
 
-  if (isPending || progressLoading) {
+  if (isPending || progressLoading || surahsLoading) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-32 bg-muted rounded-xl" />
@@ -99,7 +122,7 @@ export function ProfileClient() {
 
       {/* Calendrier de révision */}
       <div className="rounded-xl border bg-card p-6">
-        <h2 className="text-lg font-semibold mb-4">📅 Calendrier de révision</h2>
+        <h2 className="text-lg font-semibold mb-4">Calendrier de révision</h2>
         <Suspense fallback={<div className="h-24 bg-muted animate-pulse rounded-lg" />}>
           <HeatmapCalendar
             data={heatmapData}
@@ -111,11 +134,33 @@ export function ProfileClient() {
 
       {/* Arbre des sourates */}
       <div className="rounded-xl border bg-card p-6">
-        <h2 className="text-lg font-semibold mb-4">📖 Mes sourates</h2>
+        <h2 className="text-lg font-semibold mb-1">Mes sourates</h2>
+        <p className="text-sm text-muted-foreground mb-4">Cliquez sur une sourate pour mettre à jour votre progression</p>
         <Suspense fallback={<div className="h-48 bg-muted animate-pulse rounded-lg" />}>
-          <SurahTree surahs={[]} />
+          <SurahTree
+            surahs={surahsWithStatus}
+            onSurahClick={(surah) => {
+              setSelectedSurah({
+                surahId: surah.id,
+                nameAr: surah.nameAr,
+                nameFr: surah.nameFr,
+                number: surah.number,
+                versesCount: surah.versesCount,
+                status: surah.status,
+              })
+            }}
+          />
         </Suspense>
       </div>
+
+      {/* Modal mise à jour */}
+      {selectedSurah && user && (
+        <SurahUpdateModal
+          surah={selectedSurah}
+          userId={user.id}
+          onClose={() => setSelectedSurah(null)}
+        />
+      )}
     </div>
   )
 }

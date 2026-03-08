@@ -9,7 +9,21 @@
       "Bash(git push:*)",
       "Bash(gh issue:*)",
       "Bash(brew install:*)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(node:*)",
+      "Bash(convert:*)",
+      "Bash(python3:*)",
+      "Bash(rsvg-convert:*)",
+      "Bash(railway:*)",
+      "Bash(grep:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(vercel:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(git:*)",
+      "Bash(do:*)",
+      "Bash(cat:*)",
+      "Bash(/Users/ilyas/Desktop/claude/Ikraa/apps/web/src/components/quran/surah-update-modal.tsx:*)"
     ]
   }
 }

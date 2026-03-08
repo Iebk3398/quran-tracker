@@ -4,12 +4,11 @@
  * @description Méthodes d'authentification utilisables dans les composants React
  */
 import { createAuthClient } from 'better-auth/react'
-import { magicLinkClient } from 'better-auth/client/plugins'
+import { magicLinkClient, emailOTPClient } from 'better-auth/client/plugins'
 
 export const authClient = createAuthClient({
-  // Better Auth server is on the API (port 3001), not the Next.js app (port 3000)
   baseURL: process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001',
-  plugins: [magicLinkClient()],
+  plugins: [magicLinkClient(), emailOTPClient()],
 })
 
 export const {

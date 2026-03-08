@@ -4,7 +4,7 @@
  */
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { magicLink } from 'better-auth/plugins'
+import { magicLink, emailOTP } from 'better-auth/plugins'
 import { db, users, sessions, accounts, verifications } from '../../../../packages/db/src/index.ts'
 
 export const auth = betterAuth({
@@ -26,6 +26,29 @@ export const auth = betterAuth({
   ],
   emailAndPassword: { enabled: false },
   plugins: [
+    emailOTP({
+      async sendVerificationOTP({ email, otp }) {
+        console.log(`📧 [OTP] Sending to: ${email}, code: ${otp}`)
+        const { Resend } = await import('resend')
+        const resend = new Resend(process.env['RESEND_API_KEY'])
+        await resend.emails.send({
+          from: process.env['EMAIL_FROM'] ?? 'noreply@qurantracker.app',
+          to: email,
+          subject: '🕌 Votre code de connexion — Quran Tracker',
+          html: `
+            <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto;">
+              <h2 style="color: #10b981;">🕌 Quran Tracker</h2>
+              <p>Votre code de connexion :</p>
+              <div style="font-size: 48px; font-weight: bold; letter-spacing: 12px; color: #10b981; text-align: center; padding: 20px; background: #f0fdf4; border-radius: 12px; margin: 20px 0;">
+                ${otp}
+              </div>
+              <p style="color: #9ca3af; font-size: 14px;">Ce code expire dans 10 minutes. Ne le partagez pas.</p>
+            </div>
+          `,
+        })
+      },
+      expiresIn: 600,
+    }),
     magicLink({
       sendMagicLink: async ({ email, url }) => {
         console.log(`📧 [MagicLink] Sending to: ${email}`)
