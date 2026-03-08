@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Moon,
   BookOpen,
+  BookMarked,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store'
@@ -31,6 +32,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
   { href: '/profile', icon: User, labelKey: 'nav.profile' },
+  { href: '/surahs', icon: BookMarked, labelKey: 'nav.surahs' },
   { href: '/validate', icon: CheckCircle, labelKey: 'nav.validate', adminOnly: true },
   { href: '/settings', icon: Settings, labelKey: 'nav.settings' },
 ]

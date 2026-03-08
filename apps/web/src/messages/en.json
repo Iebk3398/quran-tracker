@@ -2,6 +2,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "profile": "My Profile",
+    "surahs": "My Surahs",
     "validate": "Validate",
     "settings": "Settings",
     "logout": "Log out"
