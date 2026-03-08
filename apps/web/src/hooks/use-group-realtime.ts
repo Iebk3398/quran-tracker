@@ -28,7 +28,7 @@ export function useGroupRealtime({ groupId, enabled = true }: UseGroupRealtimeOp
     if (!enabled || !groupId) return
 
     // Connexion Supabase Realtime (lazy import pour éviter l'import côté serveur)
-    let channel: ReturnType<typeof import('@supabase/supabase-js').createClient> extends Promise<infer T> ? T : never
+    let channel: { unsubscribe: () => void } | undefined
 
     async function setupRealtime() {
       const { createClient } = await import('@supabase/supabase-js')

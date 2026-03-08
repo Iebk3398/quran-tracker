@@ -54,6 +54,7 @@ export function ProfileClient() {
     .map((p) => ({
       date: new Date(p.lastRevisedAt!).toISOString().split('T')[0]!,
       count: 1,
+      duration: 0,
     })) ?? []
 
   if (isPending || progressLoading) {
@@ -112,7 +113,7 @@ export function ProfileClient() {
       <div className="rounded-xl border bg-card p-6">
         <h2 className="text-lg font-semibold mb-4">📖 Mes sourates</h2>
         <Suspense fallback={<div className="h-48 bg-muted animate-pulse rounded-lg" />}>
-          <SurahTree surahs={progress ?? []} />
+          <SurahTree surahs={[]} />
         </Suspense>
       </div>
     </div>

@@ -1,4 +1,4 @@
-# ─── Runtime (pas de build step — --experimental-strip-types) ─────────────────
+# ─── Runtime (--experimental-strip-types, pas de build step) ──────────────────
 FROM node:22-alpine
 
 WORKDIR /app
@@ -11,8 +11,8 @@ COPY tsconfig.base.json ./
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
-# Install deps (--omit=optional évite Prisma qui est peer dep optionnel de better-auth)
-RUN npm ci --omit=optional
+# Install deps (node:22-alpine >= 22.12, satisfait les peerDeps Prisma de better-auth)
+RUN npm ci
 
 EXPOSE 3001
 

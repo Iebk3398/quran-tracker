@@ -32,12 +32,21 @@ const app = new Hono()
 // ─── Middlewares globaux ────────────────────────────────────
 app.use('*', logger())
 app.use('*', prettyJSON())
+const allowedOrigins = [
+  process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000',
+  'http://localhost:3000',
+]
+
 app.use(
   '/api/*',
   cors({
-    origin: [
-      process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000',
-    ],
+    origin: (origin) => {
+      if (!origin) return allowedOrigins[0]!
+      if (allowedOrigins.includes(origin)) return origin
+      // Allow all Vercel preview deployments
+      if (origin.endsWith('.vercel.app')) return origin
+      return allowedOrigins[0]!
+    },
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],

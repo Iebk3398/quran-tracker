@@ -54,6 +54,7 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
     name: e.name,
     avatar: e.avatar,
     surahsMemorized: Number(e.surahsMemorized),
+    versesMemorized: 0,
     totalXp: Number(e.xp),
     currentStreak: Number(e.currentStreak),
     rank: i + 1,
