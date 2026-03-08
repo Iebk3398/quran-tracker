@@ -275,17 +275,32 @@ Total                     ████████████  99% ✅
 
 ---
 
-## 🚀 PROCHAINES ÉTAPES (Pour déployer en production)
+## ✅ DÉPLOIEMENT PRODUCTION (2026-03-08)
 
-1. ✅ DB Supabase configurée et migrée
-2. ✅ Seed 114 sourates + 8 badges appliqué
-3. ✅ Auth magic link fonctionnel en local
-4. ✅ Dashboard, Profil, Settings connectés aux vraies données API
-5. [ ] Déployer l'API sur Railway
-6. [ ] Déployer le frontend sur Vercel
-7. [ ] Configurer les variables d'environnement sur Vercel et Railway
-8. [ ] Tester le flux complet en production (inscription → dashboard → révision)
+### API → Railway
+- [x] Dockerfile `node:22-alpine` + `--experimental-strip-types` (pas de build step)
+- [x] `railway.json` avec builder DOCKERFILE
+- [x] Variables d'environnement Railway configurées : `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `RESEND_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- [x] Domaine Railway : **https://api-production-e758.up.railway.app**
+- [x] Health check : `GET /health` → `{ status: 'ok' }`
+
+### Frontend → Vercel
+- [x] `vercel.json` avec Turborepo + rootDirectory config
+- [x] Variables Vercel configurées : `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- [x] URL production : **https://quran-tracker-web.vercel.app**
+
+### CORS & Auth fix
+- [x] CORS Hono : origin function qui accepte tous les `*.vercel.app` (previews inclus)
+- [x] Better Auth `trustedOrigins` : regex `/^https:\/\/.*\.vercel\.app$/`
+- [x] `BETTER_AUTH_URL` = URL Railway (pour les redirects magic link)
+- [x] `callbackURL` magic link = URL absolue Vercel
+
+### Prochaines étapes (à valider)
+- [ ] Tester le flux magic link en production (email → /dashboard)
+- [ ] Tester Google OAuth (configurer redirect URI dans Google Console)
+- [ ] Activer Sentry + PostHog (monitoring)
+- [ ] Configurer domaine custom (qurantracker.app)
 
 ---
 
-*🤖 Dernière mise à jour : 2026-03-08 — Pages connectées API · Dashboard/Profil/Settings live · Auth magic link opérationnelle · IA GPT-4o reportée en v2*
+*🤖 Dernière mise à jour : 2026-03-08 — Déploiement production complet · API Railway · Frontend Vercel · CORS fix · Magic link production*

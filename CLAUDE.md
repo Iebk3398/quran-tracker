@@ -12,10 +12,11 @@
 |---|---|
 | Projet | Quran Tracker — Suivi de mémorisation du Coran en groupe |
 | Propriétaire | ilyas (iebk3398@gmail.com) |
-| Dernière mise à jour | 2026-03-08 |
-| Phase actuelle | ✅ Pages connectées à l'API — Dashboard/Profil/Settings live |
+| Dernière mise à jour | 2026-03-09 |
+| Phase actuelle | ✅ DÉPLOYÉ EN PRODUCTION — Vercel + Railway |
 | Repo GitHub | https://github.com/Iebk3398/quran-tracker |
-| URL App | ⬜ À déployer (Railway + Vercel) |
+| URL App (Frontend) | https://quran-tracker-web.vercel.app |
+| URL API (Backend) | https://api-production-e758.up.railway.app |
 
 ---
 

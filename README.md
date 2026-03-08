@@ -185,18 +185,63 @@ npm run test -- --coverage                # Avec coverage
 
 ## 🌍 Déploiement
 
-### Frontend → Vercel
-```bash
-vercel --prod
-# Ou automatiquement via GitHub Actions au push sur main
-```
-Variables Vercel : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_URL`.
+### URLs de production
+
+| Service | URL |
+|---------|-----|
+| **Frontend** | https://quran-tracker-web.vercel.app |
+| **API** | https://api-production-e758.up.railway.app |
+| **Health check** | https://api-production-e758.up.railway.app/health |
 
 ### Backend → Railway
+
+L'API est déployée via **Dockerfile** sur Railway (Node.js 22 Alpine, sans build step grâce à `--experimental-strip-types`).
+
 ```bash
-railway up
-# Ou automatiquement via GitHub Actions
+# Premier déploiement
+railway login
+railway link   # Lier au projet Railway existant
+railway up     # Deploy depuis la racine du monorepo
+
+# Vérifier les logs
+railway logs
+
+# Variables d'environnement requises sur Railway :
+# DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL,
+# NEXT_PUBLIC_APP_URL, RESEND_API_KEY,
+# GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 ```
+
+Le `railway.json` à la racine pointe sur `apps/api/Dockerfile` :
+```json
+{ "build": { "builder": "DOCKERFILE", "dockerfilePath": "apps/api/Dockerfile" } }
+```
+
+### Frontend → Vercel
+
+Le frontend est déployé sur **Vercel** depuis la racine du monorepo (Turborepo détecté automatiquement).
+
+```bash
+# Premier déploiement
+vercel login
+vercel --prod   # Depuis la racine du monorepo (pas apps/web/)
+
+# Variables d'environnement requises sur Vercel :
+# NEXT_PUBLIC_API_URL (= URL Railway)
+# NEXT_PUBLIC_APP_URL (= URL Vercel)
+# NEXT_PUBLIC_SUPABASE_URL
+# NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+> **Important :** Toujours déployer depuis la **racine du monorepo**, pas depuis `apps/web/`.
+> Vercel détecte Turborepo et installe les dépendances correctement pour tous les workspaces.
+
+### Notes CORS
+
+Le CORS est configuré pour accepter :
+- L'URL de production Vercel (`NEXT_PUBLIC_APP_URL`)
+- Toutes les URLs de preview Vercel (`*.vercel.app`)
+- `localhost:3000` en développement
 
 ---
 
