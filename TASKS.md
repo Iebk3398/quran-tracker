@@ -2,23 +2,24 @@
 
 > Fichier synchronisé avec `CLAUDE.md` et GitHub Issues.
 > **Mise à jour automatique par Claude après chaque tâche complétée.**
-> Dernière mise à jour : 2026-03-07
+> Dernière mise à jour : 2026-03-08
 
 ---
 
 ## 📊 Progression globale
 
 ```
-Phase 0 — Setup         ████████████ 100% ✅
+Phase 0 — Setup           ████████████ 100% ✅
 Phase 1 — Base de données ████████████ 100% ✅
-Phase 2 — API Backend   ████████████ 100% ✅
-Phase 3 — Frontend      ████████████ 100% ✅
-Phase 4 — Realtime      ████████████ 100% ✅
-Phase 5 — PWA           ████████████ 100% ✅
-Phase 6 — IA (v1)       ████████░░░░  75% 🟡 (GPT-4o en v2)
-Phase 7 — Tests/Deploy  ████████████ 100% ✅
+Phase 2 — API Backend     ████████████ 100% ✅
+Phase 3 — Frontend        ████████████ 100% ✅
+Phase 4 — Realtime        ████████████ 100% ✅
+Phase 5 — PWA             ████████████ 100% ✅
+Phase 6 — IA (v1)         ████████░░░░  75% 🟡 (GPT-4o en v2)
+Phase 7 — Tests/Deploy    ████████████ 100% ✅
+Run local (debug)         ████████████ 100% ✅
 
-Total                   ████████████  97% ✅
+Total                     ████████████  98% ✅
 ```
 
 ---
@@ -39,7 +40,6 @@ Total                   ████████████  97% ✅
 - `.env.example`
 - `.prettierrc`
 - `docker-compose.yml`
-- `scripts/init-db.sql`
 - `.github/workflows/ci.yml`
 - `.github/workflows/deploy.yml`
 
@@ -54,14 +54,14 @@ Total                   ████████████  97% ✅
 - [x] #10 — Algorithme SM-2 (Spaced Repetition)
 
 **Fichiers créés :**
-- `packages/db/schema/users.ts` — users, sessions, accounts, verifications
-- `packages/db/schema/groups.ts` — groups, group_members
-- `packages/db/schema/surahs.ts` — surahs (114 sourates)
-- `packages/db/schema/progress.ts` — memorization_progress, revision_sessions
-- `packages/db/schema/badges.ts` — badges, user_badges
-- `packages/db/schema/feed.ts` — group_feed, notifications
-- `packages/db/seed/surahs-data.ts` — 114 sourates complètes
-- `packages/db/seed/index.ts` — script de seeding
+- `packages/db/src/schema/users.ts` — users, sessions, accounts, verifications
+- `packages/db/src/schema/groups.ts` — groups, group_members
+- `packages/db/src/schema/surahs.ts` — surahs (114 sourates)
+- `packages/db/src/schema/progress.ts` — memorization_progress, revision_sessions
+- `packages/db/src/schema/badges.ts` — badges, user_badges
+- `packages/db/src/schema/feed.ts` — group_feed, notifications
+- `packages/db/src/seed/surahs-data.ts` — 114 sourates complètes
+- `packages/db/src/seed/index.ts` — script de seeding
 - `packages/db/src/lib/spaced-repetition.ts` — algorithme SM-2
 
 ---
@@ -90,7 +90,7 @@ Total                   ████████████  97% ✅
 ## ✅ PHASE 3 — Frontend Next.js 15 (Issues #19→#28)
 
 - [x] #19 — Layout racine (RTL, i18n, providers)
-- [x] #20 — Page de connexion (magic link + Google)
+- [x] #20 — Page de connexion (magic link + Google) — **fonctionnelle**
 - [x] #21 — Dashboard groupe (leaderboard + feed + stats)
 - [x] #22 — Profil utilisateur (progression + heatmap)
 - [x] #23 — Page validation sheikh
@@ -100,10 +100,11 @@ Total                   ████████████  97% ✅
 - [x] #27 — Zustand store global
 - [x] #28 — i18n (FR/AR/EN)
 
-**Fichiers créés :**
+**Fichiers créés/modifiés :**
+- `apps/web/src/app/page.tsx` — redirect vers /login
 - `apps/web/src/app/layout.tsx`
 - `apps/web/src/app/globals.css`
-- `apps/web/src/app/(auth)/login/page.tsx`
+- `apps/web/src/app/(auth)/login/page.tsx` — magic link réel
 - `apps/web/src/app/(dashboard)/layout.tsx`
 - `apps/web/src/app/(dashboard)/dashboard/page.tsx`
 - `apps/web/src/app/(dashboard)/profile/page.tsx`
@@ -114,7 +115,9 @@ Total                   ████████████  97% ✅
 - `apps/web/src/store/index.ts`
 - `apps/web/src/i18n/request.ts`
 - `apps/web/src/messages/{fr,ar,en}.json`
-- `apps/web/src/lib/{utils,trpc,auth-client}.ts`
+- `apps/web/src/lib/{utils,auth-client}.ts`
+- `apps/web/postcss.config.mjs` — Tailwind v4
+- `apps/web/tsconfig.json` — alias @/
 
 ---
 
@@ -156,8 +159,6 @@ Total                   ████████████  97% ✅
 - `packages/db/src/lib/spaced-repetition.ts` (SM-2 complet)
 - `apps/api/src/routes/ai.ts` (architecture prête, stubs pour v1)
 
-**Note :** Les fonctionnalités IA OpenAI seront développées dans la prochaine version (v2).
-
 ---
 
 ## ✅ PHASE 7 — Tests + CI/CD + Déploiement (Issues #41→#45)
@@ -181,21 +182,45 @@ Total                   ████████████  97% ✅
 
 ## 🐛 CORRECTIONS & HOTFIXES (2026-03-08)
 
-### Fix — Migration DB + ESM drizzle-kit
-- [x] Correction script `db:generate` : utilisation de `tsx` pour résoudre le conflit ESM/CJS avec drizzle-kit
-- [x] Migration `0001` générée et appliquée : colonne `email_verified` passée de `timestamp` → `boolean` (DROP + ADD COLUMN)
-- [x] Fichier migration corrigé manuellement (cast impossible via `ALTER COLUMN` en PostgreSQL)
+### Fix — Setup local complet (run local)
 
-**Fichiers modifiés :**
-- `packages/db/package.json` — script `db:generate` avec `tsx`
-- `packages/db/src/migrations/0001_odd_human_cannonball.sql` — migration email_verified
-- `packages/db/src/migrations/meta/_journal.json` — journal mis à jour
+**Problème de rendu frontend :**
+- [x] Créé `apps/web/src/app/page.tsx` (manquant → 404 sur `/`)
+- [x] Supprimé `apps/web/app/` vide qui shadowing `src/app/`
+- [x] Supprimé import Google Fonts (inaccessible en local)
+- [x] Corrigé `globals.css` : `@apply border-border` → CSS plain (Tailwind v4)
+- [x] Créé `apps/web/postcss.config.mjs` (requis pour Tailwind v4)
+- [x] Créé `apps/web/tsconfig.json` avec alias `@/` → `./src/`
 
-### Fix — Magic Link redirect vers le mauvais port
-- [x] `callbackURL` passé de `'/dashboard'` (relatif → redirigait vers `localhost:3001`) à URL absolue `http://localhost:3000/dashboard`
+**Fix packages Linux dans root package.json :**
+- [x] Retiré `@esbuild/linux-arm64`, `@next/swc-linux-arm64-gnu` (ajoutés par erreur en sandbox Linux)
+- [x] Retiré `next@16` ajouté par erreur (`npm i next@latest`)
 
-**Fichiers modifiés :**
-- `apps/web/src/app/(auth)/login/page.tsx` — callbackURL absolu via `NEXT_PUBLIC_APP_URL`
+**Fix ESM hoisting + chargement env :**
+- [x] Tous les scripts db (`migrate`, `seed`, `reset`) utilisent `--env-file-if-exists=../../.env.local`
+- [x] Script `dev` de l'API utilise `--env-file-if-exists=../../.env.local`
+- [x] Suppression des appels `dotenv.config()` dans `seed/index.ts` (inutiles car hissage ESM)
+- [x] Ajout `"type": "module"` dans `packages/db/package.json` et `apps/api/package.json`
+
+**Fix Better Auth :**
+- [x] `auth-client.ts` : `baseURL` pointe vers `localhost:3001` (API) via `NEXT_PUBLIC_API_URL`
+- [x] `auth.ts` : ajout `trustedOrigins: ['http://localhost:3000']`
+- [x] `auth.ts` : correction des clés schema `{ user, session, account, verification }` (singulier)
+- [x] `auth.ts` : montage direct `app.on(['GET','POST'], '/api/auth/*', ...)` au lieu du sub-router Hono
+- [x] `BETTER_AUTH_URL` mis à jour vers `http://localhost:3001` dans `.env.local`
+- [x] `NEXT_PUBLIC_API_URL=http://localhost:3001` ajouté dans `.env.local`
+
+**Fix schema Drizzle :**
+- [x] `emailVerified` : `timestamp` → `boolean` (Better Auth v1.x passe `true`/`false`)
+- [x] Migration `0001` générée et appliquée (ALTER TABLE users)
+- [x] `callbackURL` dans le formulaire login : URL absolue `http://localhost:3000/dashboard`
+
+**Fix dependencies :**
+- [x] `resend` installé dans `apps/api` (manquait → `ERR_MODULE_NOT_FOUND`)
+
+**Ajout script db:reset :**
+- [x] `packages/db/src/reset.ts` — nettoie toutes les tables/types/schéma drizzle
+- [x] `db:reset` ajouté dans `packages/db/package.json`, `package.json` (root), `turbo.json`
 
 ---
 
@@ -211,19 +236,22 @@ Total                   ████████████  97% ✅
 | Page offline PWA | Page dédiée mode hors ligne | 🟢 Basse |
 | Rate limiting | Middleware Upstash complet | 🟡 Moyenne |
 | Tests E2E | Playwright end-to-end tests | 🟡 Moyenne |
+| Dashboard page | Contenu réel (données live depuis l'API) | 🔴 Haute |
+| Google OAuth | Tester et activer le flow OAuth Google | 🟡 Moyenne |
 
 ---
 
 ## 🚀 PROCHAINES ÉTAPES (Pour déployer en production)
 
-1. Remplir `.env.local` avec les vraies clés
-2. Configurer le projet Supabase (créer les tables + RLS)
-3. Lancer `npm run db:migrate && npm run db:seed`
-4. Déployer l'API sur Railway
-5. Déployer le frontend sur Vercel
-6. Configurer les variables d'environnement sur Vercel et Railway
-7. Tester le flux complet (inscription → dashboard → révision)
+1. ✅ DB Supabase configurée et migrée
+2. ✅ Seed 114 sourates + 8 badges appliqué
+3. ✅ Auth magic link fonctionnel en local
+4. [ ] Connecter le dashboard aux vraies données API
+5. [ ] Déployer l'API sur Railway
+6. [ ] Déployer le frontend sur Vercel
+7. [ ] Configurer les variables d'environnement sur Vercel et Railway
+8. [ ] Tester le flux complet en production (inscription → dashboard → révision)
 
 ---
 
-*🤖 Dernière mise à jour : 2026-03-08 — Phases 0→7 complétées · Fix migration DB + magic link redirect · IA GPT-4o reportée en v2*
+*🤖 Dernière mise à jour : 2026-03-08 — Run local 100% fonctionnel · Auth magic link opérationnelle · Fix ESM/env/Drizzle/Better Auth · IA GPT-4o reportée en v2*

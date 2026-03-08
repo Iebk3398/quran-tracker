@@ -13,9 +13,9 @@
 | Projet | Quran Tracker — Suivi de mémorisation du Coran en groupe |
 | Propriétaire | ilyas (iebk3398@gmail.com) |
 | Dernière mise à jour | 2026-03-08 |
-| Phase actuelle | ✅ PHASES 0→7 — Architecture complète générée (v1) |
+| Phase actuelle | ✅ Run local 100% fonctionnel — Auth magic link opérationnelle |
 | Repo GitHub | https://github.com/Iebk3398/quran-tracker |
-| URL App | ⬜ À déployer |
+| URL App | ⬜ À déployer (Railway + Vercel) |
 
 ---
 
@@ -273,6 +273,12 @@ Les routes IA sont architecturalement prêtes dans `apps/api/src/routes/ai.ts` m
 | 2026-03-07 | Service Worker natif | Contrôle total du caching et des notifications push |
 | 2026-03-08 | `db:generate` via `tsx` | drizzle-kit (CJS) incompatible ESM — `tsx node_modules/.bin/drizzle-kit generate` requis |
 | 2026-03-08 | Magic link `callbackURL` absolu | URL relative redirige vers `baseURL` de l'API (3001) — toujours passer une URL absolue frontend |
+| 2026-03-08 | `--env-file-if-exists` Node 22 | Seul moyen fiable de charger l'env avant le hissage ESM des imports |
+| 2026-03-08 | Better Auth `trustedOrigins` | Sans cette config, les requêtes cross-port (3000→3001) sont rejetées (403) |
+| 2026-03-08 | Better Auth schema clés singulier | Le Drizzle adapter attend `{ user, session, account, verification }` (singulier) |
+| 2026-03-08 | Better Auth montage Hono direct | `app.on(['GET','POST'], '/api/auth/*', handler)` — le sub-router modifie l'URL et casse le routing Better Auth |
+| 2026-03-08 | `emailVerified` boolean | Better Auth v1.x passe `true`/`false` — colonne doit être `boolean`, pas `timestamp` |
+| 2026-03-08 | `BETTER_AUTH_URL` = port API | Doit pointer vers le serveur auth (3001), pas le frontend (3000) |
 
 ---
 
