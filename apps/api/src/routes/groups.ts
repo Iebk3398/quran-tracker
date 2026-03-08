@@ -42,6 +42,27 @@ groupRoutes.post('/', requireSheikh, zValidator('json', createGroupSchema), asyn
   return c.json({ success: true, data: group[0] }, 201)
 })
 
+/** GET /api/groups/me — Groupes de l'utilisateur connecté */
+groupRoutes.get('/me', requireAuth, async (c) => {
+  const user = c.get('user')
+
+  const myGroups = await db
+    .select({
+      id: groups.id,
+      name: groups.name,
+      description: groups.description,
+      inviteCode: groups.inviteCode,
+      sheikhId: groups.sheikhId,
+      createdAt: groups.createdAt,
+      role: groupMembers.role,
+    })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+    .where(eq(groupMembers.userId, user.id))
+
+  return c.json({ success: true, data: myGroups })
+})
+
 /** GET /api/groups/:id — Détails du groupe */
 groupRoutes.get('/:id', requireAuth, async (c) => {
   const groupId = c.req.param('id')

@@ -13,7 +13,7 @@
 | Projet | Quran Tracker — Suivi de mémorisation du Coran en groupe |
 | Propriétaire | ilyas (iebk3398@gmail.com) |
 | Dernière mise à jour | 2026-03-08 |
-| Phase actuelle | ✅ Run local 100% fonctionnel — Auth magic link opérationnelle |
+| Phase actuelle | ✅ Pages connectées à l'API — Dashboard/Profil/Settings live |
 | Repo GitHub | https://github.com/Iebk3398/quran-tracker |
 | URL App | ⬜ À déployer (Railway + Vercel) |
 
@@ -279,6 +279,9 @@ Les routes IA sont architecturalement prêtes dans `apps/api/src/routes/ai.ts` m
 | 2026-03-08 | Better Auth montage Hono direct | `app.on(['GET','POST'], '/api/auth/*', handler)` — le sub-router modifie l'URL et casse le routing Better Auth |
 | 2026-03-08 | `emailVerified` boolean | Better Auth v1.x passe `true`/`false` — colonne doit être `boolean`, pas `timestamp` |
 | 2026-03-08 | `BETTER_AUTH_URL` = port API | Doit pointer vers le serveur auth (3001), pas le frontend (3000) |
+| 2026-03-08 | `apiFetch` avec `credentials: 'include'` | Obligatoire pour envoyer le cookie de session cross-port (3000→3001) |
+| 2026-03-08 | `GET /api/groups/me` avant `GET /api/groups/:id` | Routes spécifiques déclarées avant les routes paramétrées dans Hono |
+| 2026-03-08 | Stats groupe calculées client-side | Évite un endpoint supplémentaire — calculées depuis le leaderboard |
 
 ---
 
@@ -325,4 +328,4 @@ npm run dev
 ---
 
 *🤖 Ce fichier est géré automatiquement par Claude. Ne pas éditer manuellement.*
-*Dernière mise à jour : 2026-03-08 — Phases 0→7 complétées (v1) · Fix migration DB + magic link redirect · IA GPT-4o prévue en v2*
+*Dernière mise à jour : 2026-03-08 — Pages connectées API · Dashboard/Profil/Settings live · IA GPT-4o prévue en v2*

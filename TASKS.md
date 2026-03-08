@@ -18,8 +18,9 @@ Phase 5 — PWA             ████████████ 100% ✅
 Phase 6 — IA (v1)         ████████░░░░  75% 🟡 (GPT-4o en v2)
 Phase 7 — Tests/Deploy    ████████████ 100% ✅
 Run local (debug)         ████████████ 100% ✅
+Pages connectées API      ████████████ 100% ✅
 
-Total                     ████████████  98% ✅
+Total                     ████████████  99% ✅
 ```
 
 ---
@@ -224,6 +225,40 @@ Total                     ████████████  98% ✅
 
 ---
 
+## ✅ PAGES CONNECTÉES À L'API (2026-03-08)
+
+### Dashboard — données live
+- [x] Endpoint `GET /api/groups/me` ajouté (groupes de l'utilisateur connecté)
+- [x] `apps/web/src/lib/api.ts` — utilitaire `apiFetch` (credentials + base URL)
+- [x] `dashboard-client.tsx` — leaderboard, stats groupe, feed, streaks depuis l'API
+- [x] Si aucun groupe : formulaire "Rejoindre avec code d'invitation"
+- [x] Stats groupe calculées client-side depuis le leaderboard
+
+### Profil — données réelles
+- [x] `profile-client.tsx` — session utilisateur, progression 114 sourates depuis l'API
+- [x] Nombre de sourates mémorisées calculé dynamiquement
+- [x] XP, streak, longestStreak depuis la session Better Auth
+- [x] HeatmapCalendar alimenté par les dates de révision réelles
+- [x] SurahTree alimenté par la progression réelle
+
+### Page Settings — nouvelle page
+- [x] `apps/web/src/app/(dashboard)/settings/page.tsx` créée (résout le 404)
+- [x] Sélecteur de langue (fr/ar/en) — connecté au Zustand store
+- [x] Sélecteur de thème (light/dark/system) — connecté au Zustand store
+- [x] Affichage infos compte (nom, email depuis session)
+- [x] Bouton déconnexion (signOut Better Auth + redirect /login)
+
+**Fichiers créés/modifiés :**
+- `apps/api/src/routes/groups.ts` — `GET /api/groups/me`
+- `apps/web/src/lib/api.ts` — `apiFetch` utility
+- `apps/web/src/app/(dashboard)/dashboard/dashboard-client.tsx` — nouveau
+- `apps/web/src/app/(dashboard)/dashboard/page.tsx` — simplifié
+- `apps/web/src/app/(dashboard)/profile/profile-client.tsx` — nouveau
+- `apps/web/src/app/(dashboard)/profile/page.tsx` — simplifié
+- `apps/web/src/app/(dashboard)/settings/page.tsx` — nouveau
+
+---
+
 ## 🔮 BACKLOG v2
 
 | Feature | Description | Priorité |
@@ -236,7 +271,6 @@ Total                     ████████████  98% ✅
 | Page offline PWA | Page dédiée mode hors ligne | 🟢 Basse |
 | Rate limiting | Middleware Upstash complet | 🟡 Moyenne |
 | Tests E2E | Playwright end-to-end tests | 🟡 Moyenne |
-| Dashboard page | Contenu réel (données live depuis l'API) | 🔴 Haute |
 | Google OAuth | Tester et activer le flow OAuth Google | 🟡 Moyenne |
 
 ---
@@ -246,7 +280,7 @@ Total                     ████████████  98% ✅
 1. ✅ DB Supabase configurée et migrée
 2. ✅ Seed 114 sourates + 8 badges appliqué
 3. ✅ Auth magic link fonctionnel en local
-4. [ ] Connecter le dashboard aux vraies données API
+4. ✅ Dashboard, Profil, Settings connectés aux vraies données API
 5. [ ] Déployer l'API sur Railway
 6. [ ] Déployer le frontend sur Vercel
 7. [ ] Configurer les variables d'environnement sur Vercel et Railway
@@ -254,4 +288,4 @@ Total                     ████████████  98% ✅
 
 ---
 
-*🤖 Dernière mise à jour : 2026-03-08 — Run local 100% fonctionnel · Auth magic link opérationnelle · Fix ESM/env/Drizzle/Better Auth · IA GPT-4o reportée en v2*
+*🤖 Dernière mise à jour : 2026-03-08 — Pages connectées API · Dashboard/Profil/Settings live · Auth magic link opérationnelle · IA GPT-4o reportée en v2*
