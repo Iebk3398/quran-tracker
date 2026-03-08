@@ -1,6 +1,6 @@
 'use client'
 /**
- * @file SurahsClient — Liste des 114 sourates avec CRUD inline
+ * @file SurahsClient — Mes 114 sourates avec mise à jour inline
  */
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -15,14 +15,42 @@ interface ProgressEntry {
   validatedBySheikhAt?: string | null
 }
 
-const STATUS_CONFIG: Record<MemorizationStatus, { label: string; emoji: string; color: string }> = {
-  not_started: { label: 'Non commencé', emoji: '⬜', color: 'bg-stone-100 text-stone-600 border-stone-200' },
-  in_progress:  { label: 'En cours',     emoji: '🟡', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  memorized:    { label: 'Mémorisé',     emoji: '🟢', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  consolidated: { label: 'Consolidé',    emoji: '🔵', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+const STATUS: Record<MemorizationStatus, { label: string; dot: string; pill: string; menu: string }> = {
+  not_started: {
+    label: 'Non commencé',
+    dot: 'bg-stone-300',
+    pill: 'bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
+    menu: 'hover:bg-stone-50 dark:hover:bg-stone-800',
+  },
+  in_progress: {
+    label: 'En cours',
+    dot: 'bg-amber-400',
+    pill: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    menu: 'hover:bg-amber-50 dark:hover:bg-amber-900/20',
+  },
+  memorized: {
+    label: 'Mémorisé',
+    dot: 'bg-emerald-500',
+    pill: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    menu: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/20',
+  },
+  consolidated: {
+    label: 'Consolidé',
+    dot: 'bg-blue-500',
+    pill: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    menu: 'hover:bg-blue-50 dark:hover:bg-blue-900/20',
+  },
 }
 
 const ALL_STATUSES = ['not_started', 'in_progress', 'memorized', 'consolidated'] as MemorizationStatus[]
+
+const FILTERS: { value: MemorizationStatus | 'all'; label: string }[] = [
+  { value: 'all', label: 'Toutes' },
+  { value: 'memorized', label: 'Mémorisées' },
+  { value: 'in_progress', label: 'En cours' },
+  { value: 'not_started', label: 'Non commencé' },
+  { value: 'consolidated', label: 'Consolidées' },
+]
 
 export function SurahsClient() {
   const { data: session } = useSession()
@@ -30,15 +58,15 @@ export function SurahsClient() {
   const queryClient = useQueryClient()
 
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<MemorizationStatus | 'all'>('all')
-  const [openDropdown, setOpenDropdown] = useState<number | null>(null)
+  const [filter, setFilter] = useState<MemorizationStatus | 'all'>('all')
+  const [openMenu, setOpenMenu] = useState<number | null>(null)
 
-  const { data: allSurahs = [], isLoading: surahsLoading } = useQuery({
+  const { data: allSurahs = [], isLoading: l1 } = useQuery({
     queryKey: ['surahs'],
     queryFn: () => apiFetch<Surah[]>('/api/surahs'),
   })
 
-  const { data: progress = [], isLoading: progressLoading } = useQuery({
+  const { data: progress = [], isLoading: l2 } = useQuery({
     queryKey: ['progress', user?.id],
     queryFn: () => apiFetch<ProgressEntry[]>(`/api/progress/${user!.id}`),
     enabled: !!user?.id,
@@ -46,197 +74,209 @@ export function SurahsClient() {
 
   const updateStatus = useMutation({
     mutationFn: ({ surahId, status }: { surahId: number; status: MemorizationStatus }) =>
-      apiFetch('/api/progress', {
-        method: 'POST',
-        body: JSON.stringify({ surahId, status }),
-      }),
-    onSuccess: () => {
+      apiFetch('/api/progress', { method: 'POST', body: JSON.stringify({ surahId, status }) }),
+    onMutate: async ({ surahId, status }) => {
+      // Optimistic update
+      await queryClient.cancelQueries({ queryKey: ['progress', user?.id] })
+      const prev = queryClient.getQueryData<ProgressEntry[]>(['progress', user?.id])
+      queryClient.setQueryData<ProgressEntry[]>(['progress', user?.id], (old = []) => {
+        const idx = old.findIndex(p => p.surahId === surahId)
+        if (idx >= 0) return old.map(p => p.surahId === surahId ? { ...p, status } : p)
+        return [...old, { surahId, status }]
+      })
+      setOpenMenu(null)
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['progress', user?.id], ctx.prev)
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['progress', user?.id] })
-      setOpenDropdown(null)
     },
   })
 
-  const progressMap = useMemo(
-    () => new Map(progress.map((p) => [p.surahId, p])),
-    [progress]
-  )
+  const pMap = useMemo(() => new Map(progress.map(p => [p.surahId, p])), [progress])
 
-  const surahsWithStatus = useMemo(
-    () => allSurahs.map((s) => ({
+  const enriched = useMemo(() =>
+    allSurahs.map(s => ({
       ...s,
-      status: progressMap.get(s.id)?.status ?? 'not_started' as MemorizationStatus,
-      nextReviewAt: progressMap.get(s.id)?.nextReviewAt,
-      validated: !!progressMap.get(s.id)?.validatedBySheikhAt,
-    })),
-    [allSurahs, progressMap]
-  )
+      status: pMap.get(s.id)?.status ?? 'not_started' as MemorizationStatus,
+      validated: !!pMap.get(s.id)?.validatedBySheikhAt,
+      dueReview: !!(pMap.get(s.id)?.nextReviewAt && new Date(pMap.get(s.id)!.nextReviewAt!) <= new Date()),
+    })), [allSurahs, pMap])
 
-  const filtered = useMemo(() => {
-    return surahsWithStatus.filter((s) => {
-      const matchSearch = search === '' ||
-        s.nameFr.toLowerCase().includes(search.toLowerCase()) ||
-        s.nameAr.includes(search) ||
-        String(s.number).includes(search)
-      const matchStatus = filterStatus === 'all' || s.status === filterStatus
-      return matchSearch && matchStatus
-    })
-  }, [surahsWithStatus, search, filterStatus])
-
-  // Stats
   const stats = useMemo(() => ({
-    memorized: surahsWithStatus.filter(s => s.status === 'memorized' || s.status === 'consolidated').length,
-    inProgress: surahsWithStatus.filter(s => s.status === 'in_progress').length,
-    notStarted: surahsWithStatus.filter(s => s.status === 'not_started').length,
-    toReview: surahsWithStatus.filter(s => s.nextReviewAt && new Date(s.nextReviewAt) <= new Date()).length,
-  }), [surahsWithStatus])
+    memorized: enriched.filter(s => s.status === 'memorized' || s.status === 'consolidated').length,
+    inProgress: enriched.filter(s => s.status === 'in_progress').length,
+    notStarted: enriched.filter(s => s.status === 'not_started').length,
+    toReview: enriched.filter(s => s.dueReview).length,
+  }), [enriched])
 
-  // Group by Juz
+  const filtered = useMemo(() =>
+    enriched.filter(s => {
+      const q = search.toLowerCase()
+      return (
+        (q === '' || s.nameFr.toLowerCase().includes(q) || s.nameAr.includes(search) || String(s.number) === search) &&
+        (filter === 'all' || s.status === filter)
+      )
+    }), [enriched, search, filter])
+
   const juzGroups = useMemo(() => {
-    const groups = new Map<number, typeof filtered>()
-    filtered.forEach(s => {
-      const list = groups.get(s.juzNumber) ?? []
-      list.push(s)
-      groups.set(s.juzNumber, list)
+    const map = new Map<number, typeof filtered>()
+    filtered.forEach(s => { map.set(s.juzNumber, [...(map.get(s.juzNumber) ?? []), s]) })
+    return [...map.entries()].sort(([a], [b]) => b - a).map(([juz, list]) => {
+      const done = list.filter(s => s.status === 'memorized' || s.status === 'consolidated').length
+      return { juz, list, pct: Math.round((done / list.length) * 100) }
     })
-    return Array.from(groups.entries())
-      .sort(([a], [b]) => b - a) // Juz 30 en premier (Juz Amma)
-      .map(([juz, surahs]) => {
-        const done = surahs.filter(s => s.status === 'memorized' || s.status === 'consolidated').length
-        const pct = Math.round((done / surahs.length) * 100)
-        const complete = pct === 100
-        return { juz, surahs, pct, complete }
-      })
   }, [filtered])
 
-  const isLoading = surahsLoading || progressLoading
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        <div className="grid grid-cols-4 gap-3">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-muted rounded-xl" />)}
-        </div>
-        {[...Array(5)].map((_, i) => <div key={i} className="h-32 bg-muted rounded-xl" />)}
-      </div>
-    )
-  }
+  if (l1 || l2) return <Skeleton />
 
   return (
-    <div className="space-y-5">
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatBox value={stats.memorized} label="Mémorisées" emoji="🟢" color="text-emerald-600" onClick={() => setFilterStatus(filterStatus === 'memorized' ? 'all' : 'memorized')} active={filterStatus === 'memorized'} />
-        <StatBox value={stats.inProgress} label="En cours" emoji="🟡" color="text-amber-600" onClick={() => setFilterStatus(filterStatus === 'in_progress' ? 'all' : 'in_progress')} active={filterStatus === 'in_progress'} />
-        <StatBox value={stats.notStarted} label="Non commencées" emoji="⬜" color="text-stone-600" onClick={() => setFilterStatus(filterStatus === 'not_started' ? 'all' : 'not_started')} active={filterStatus === 'not_started'} />
-        <StatBox value={stats.toReview} label="À réviser" emoji="🔵" color="text-blue-600" onClick={() => setFilterStatus('all')} active={false} />
+    <div className="space-y-4 pb-20 md:pb-0">
+
+      {/* Stats row */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { n: stats.memorized,  label: 'Mémorisées',     dot: 'bg-emerald-500', active: filter === 'memorized',    onClick: () => setFilter(f => f === 'memorized' ? 'all' : 'memorized') },
+          { n: stats.inProgress, label: 'En cours',       dot: 'bg-amber-400',   active: filter === 'in_progress',  onClick: () => setFilter(f => f === 'in_progress' ? 'all' : 'in_progress') },
+          { n: stats.notStarted, label: 'Non commencées', dot: 'bg-stone-300',   active: filter === 'not_started',  onClick: () => setFilter(f => f === 'not_started' ? 'all' : 'not_started') },
+          { n: stats.toReview,   label: 'À réviser',      dot: 'bg-blue-500',    active: false,                     onClick: () => {} },
+        ].map(({ n, label, dot, active, onClick }) => (
+          <button key={label} onClick={onClick}
+            className={`flex flex-col gap-1 p-3 rounded-xl border bg-card text-left transition-all active:scale-95 ${active ? 'ring-2 ring-emerald-500 ring-offset-1' : 'hover:bg-muted/40'}`}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+              <span className="text-xl font-bold tabular-nums">{n}</span>
+            </div>
+            <span className="text-[11px] text-muted-foreground leading-tight">{label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Search + Filter */}
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">🔍</span>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher une sourate..."
-            className="w-full pl-8 pr-4 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-        <select
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value as MemorizationStatus | 'all')}
-          className="px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        >
-          <option value="all">Tous les statuts</option>
-          <option value="not_started">⬜ Non commencé</option>
-          <option value="in_progress">🟡 En cours</option>
-          <option value="memorized">🟢 Mémorisé</option>
-          <option value="consolidated">🔵 Consolidé</option>
-        </select>
+      {/* Search */}
+      <div className="relative">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="search"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Al-Fatiha, An-Nas, 114…"
+          className="w-full pl-9 pr-4 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
+        />
       </div>
 
-      {/* List by Juz */}
+      {/* Filter pills */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {FILTERS.map(f => (
+          <button key={f.value} onClick={() => setFilter(f.value)}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              filter === f.value
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            {f.value !== 'all' && <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${STATUS[f.value as MemorizationStatus].dot}`} />}
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
       {juzGroups.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
-          <div className="text-4xl mb-2">🔍</div>
-          <p>Aucune sourate trouvée</p>
+          <div className="text-5xl mb-3">📭</div>
+          <p className="text-sm">Aucune sourate trouvée</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {juzGroups.map(({ juz, surahs: juzSurahs, pct, complete }) => (
-            <div key={juz} className="rounded-xl border bg-card overflow-hidden">
+        <div className="space-y-2">
+          {juzGroups.map(({ juz, list, pct }) => (
+            <div key={juz} className="rounded-2xl border bg-card overflow-hidden">
               {/* Juz header */}
-              <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b">
+              <div className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">Juz {juz}</span>
-                  {complete && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Complet ✅</span>}
+                  <span className="text-sm font-semibold">Juz {juz}</span>
+                  {pct === 100 && (
+                    <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+                      Complet
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-1 bg-muted rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-stone-400'}`}
+                      className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-400' : 'bg-stone-300'}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className={`text-xs font-bold ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-stone-500'}`}>{pct}%</span>
+                  <span className="text-xs font-semibold tabular-nums text-muted-foreground w-8 text-right">{pct}%</span>
                 </div>
               </div>
 
               {/* Surahs */}
-              <div className="divide-y">
-                {juzSurahs.map((surah) => (
-                  <div key={surah.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
+              <div className="divide-y divide-border/50">
+                {list.map(surah => (
+                  <div key={surah.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors">
+
                     {/* Number */}
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${STATUS_CONFIG[surah.status].color} border`}>
+                    <span className="w-8 text-center text-xs font-bold text-muted-foreground flex-shrink-0">
                       {surah.number}
-                    </div>
+                    </span>
 
-                    {/* Name */}
+                    {/* Names */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm">{surah.nameFr}</div>
-                      <div className="text-xs text-muted-foreground">{surah.versesCount} versets · {surah.revelationType === 'meccan' ? 'Mecquoise' : 'Médinoise'}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium truncate">{surah.nameFr}</span>
+                        {surah.validated && (
+                          <span className="text-[10px] text-emerald-600 font-semibold flex-shrink-0">✓ Sheikh</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{surah.versesCount}v</span>
                     </div>
 
-                    {/* Arabic name */}
-                    <div className="arabic-text text-base font-semibold text-right hidden sm:block">{surah.nameAr}</div>
+                    {/* Arabic */}
+                    <span className="arabic-text text-sm font-semibold hidden sm:block flex-shrink-0 text-right">{surah.nameAr}</span>
 
-                    {/* Status badge — inline dropdown */}
+                    {/* Status — inline dropdown */}
                     <div className="relative flex-shrink-0">
                       <button
-                        onClick={() => setOpenDropdown(openDropdown === surah.id ? null : surah.id)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all hover:opacity-80 ${STATUS_CONFIG[surah.status].color}`}
+                        onClick={() => setOpenMenu(openMenu === surah.id ? null : surah.id)}
+                        className={`flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80 active:scale-95 ${STATUS[surah.status].pill}`}
                       >
-                        {STATUS_CONFIG[surah.status].emoji}
-                        <span className="hidden sm:inline">{STATUS_CONFIG[surah.status].label}</span>
-                        <span className="text-[10px] opacity-60">▾</span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${STATUS[surah.status].dot}`} />
+                        <span className="hidden xs:inline sm:inline">{STATUS[surah.status].label}</span>
+                        <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        </svg>
                       </button>
 
-                      {openDropdown === surah.id && (
+                      {openMenu === surah.id && (
                         <>
-                          <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-20 bg-card border rounded-xl shadow-lg overflow-hidden w-44">
-                            {ALL_STATUSES.map(status => (
+                          <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
+                          <div className="absolute right-0 top-full mt-1 z-20 bg-card border shadow-lg rounded-2xl overflow-hidden w-44 py-1">
+                            {ALL_STATUSES.map(s => (
                               <button
-                                key={status}
-                                onClick={() => updateStatus.mutate({ surahId: surah.id, status })}
-                                className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-muted transition-colors text-left ${surah.status === status ? 'bg-muted font-medium' : ''}`}
+                                key={s}
+                                onClick={() => updateStatus.mutate({ surahId: surah.id, status: s })}
                                 disabled={updateStatus.isPending}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${STATUS[s].menu} ${surah.status === s ? 'font-semibold' : 'font-normal'}`}
                               >
-                                {STATUS_CONFIG[status].emoji}
-                                <span>{STATUS_CONFIG[status].label}</span>
-                                {surah.status === status && <span className="ml-auto text-emerald-600">✓</span>}
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS[s].dot}`} />
+                                <span>{STATUS[s].label}</span>
+                                {surah.status === s && (
+                                  <svg className="w-3.5 h-3.5 ml-auto text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
                               </button>
                             ))}
                           </div>
                         </>
                       )}
                     </div>
-
-                    {/* Sheikh validated */}
-                    {surah.validated && (
-                      <span className="text-xs text-emerald-600 font-medium hidden md:block flex-shrink-0">✓ Sheikh</span>
-                    )}
                   </div>
                 ))}
               </div>
@@ -248,17 +288,15 @@ export function SurahsClient() {
   )
 }
 
-function StatBox({ value, label, emoji, color, onClick, active }: {
-  value: number; label: string; emoji: string; color: string
-  onClick: () => void; active: boolean
-}) {
+function Skeleton() {
   return (
-    <button
-      onClick={onClick}
-      className={`p-4 rounded-xl border bg-card text-left transition-all hover:shadow-sm ${active ? 'ring-2 ring-emerald-500' : ''}`}
-    >
-      <div className={`text-2xl font-bold ${color}`}>{value}</div>
-      <div className="text-xs text-muted-foreground mt-0.5">{label} {emoji}</div>
-    </button>
+    <div className="space-y-4 animate-pulse">
+      <div className="grid grid-cols-4 gap-2">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-muted rounded-xl" />)}
+      </div>
+      <div className="h-10 bg-muted rounded-xl" />
+      <div className="flex gap-2">{[...Array(4)].map((_, i) => <div key={i} className="h-7 w-24 bg-muted rounded-full" />)}</div>
+      {[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-muted rounded-2xl" />)}
+    </div>
   )
 }

@@ -116,82 +116,88 @@ export function ProfileClient() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4 p-6 rounded-xl border bg-card">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-2xl font-bold text-emerald-600 flex-shrink-0 overflow-hidden">
-          {user?.image
-            ? <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
-            : initials}
-        </div>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold">{user?.name ?? 'Mon Profil'}</h1>
-          <p className="text-muted-foreground text-sm">{user?.email}</p>
-        </div>
-        {earnedBadges.length > 0 && (
-          <div className="flex gap-1">
-            {earnedBadges.slice(0, 3).map(b => (
-              <span key={b.id} title={b.name} className="text-2xl">{b.emoji}</span>
-            ))}
-          </div>
-        )}
-      </div>
+    <div className="space-y-4 pb-20 md:pb-0">
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl border bg-card text-center">
-          <div className="text-2xl font-bold text-emerald-600">{surahsMemorized}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Sourates</div>
+      {/* Hero header */}
+      <div className="rounded-2xl border bg-card p-5">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-xl font-bold text-emerald-600 overflow-hidden">
+              {user?.image
+                ? <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+                : initials}
+            </div>
+            {currentStreak > 0 && (
+              <span className="absolute -bottom-1 -right-1 text-sm leading-none">🔥</span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-base truncate">{user?.name ?? 'Mon Profil'}</h1>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+          </div>
+          {earnedBadges.length > 0 && (
+            <div className="flex gap-0.5 flex-shrink-0">
+              {earnedBadges.slice(0, 3).map(b => (
+                <span key={b.id} title={b.name} className="text-xl">{b.emoji}</span>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="p-4 rounded-xl border bg-card text-center">
-          <div className="text-2xl font-bold text-orange-500">{currentStreak}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Jours 🔥</div>
-        </div>
-        <div className="p-4 rounded-xl border bg-card text-center">
-          <div className="text-2xl font-bold text-amber-500">{xp.toLocaleString()}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">XP Total</div>
-        </div>
-        <div className="p-4 rounded-xl border bg-card text-center">
-          <div className="text-2xl font-bold text-blue-500">{longestStreak}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Record 🏆</div>
+
+        {/* Stats inline */}
+        <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t">
+          {[
+            { value: surahsMemorized, label: 'Sourates', color: 'text-emerald-600' },
+            { value: currentStreak, label: 'Jours streak', color: 'text-orange-500' },
+            { value: xp.toLocaleString(), label: 'XP total', color: 'text-amber-500' },
+            { value: longestStreak, label: 'Record', color: 'text-blue-500' },
+          ].map(({ value, label, color }) => (
+            <div key={label} className="text-center">
+              <div className={`text-lg font-bold tabular-nums ${color}`}>{value}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{label}</div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Activité */}
-      <div className="rounded-xl border bg-card p-5">
-        <h2 className="text-sm font-semibold mb-4">Activité — 12 derniers mois</h2>
-        <Suspense fallback={<div className="h-24 bg-muted animate-pulse rounded-lg" />}>
+      <div className="rounded-2xl border bg-card p-4">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Activité — 12 mois</p>
+        <Suspense fallback={<div className="h-20 bg-muted animate-pulse rounded-lg" />}>
           <HeatmapCalendar data={heatmapData} currentStreak={currentStreak} longestStreak={longestStreak} />
         </Suspense>
       </div>
 
       {/* Progression Coran */}
-      <div className="rounded-xl border bg-card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold">Progression Coran</h2>
-          <Link href="/surahs" className="text-xs text-emerald-600 hover:underline font-medium">
+      <div className="rounded-2xl border bg-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Progression Coran</p>
+          <Link href="/surahs" className="text-xs text-emerald-600 font-semibold hover:underline">
             Voir tout →
           </Link>
         </div>
 
         {juzProgress.length === 0 ? (
-          <div className="text-center py-6 text-muted-foreground text-sm">
-            <p>Aucune progression pour l&apos;instant</p>
-            <Link href="/surahs" className="text-emerald-600 hover:underline mt-1 inline-block">
+          <div className="text-center py-8">
+            <p className="text-sm text-muted-foreground mb-2">Aucune progression pour l'instant</p>
+            <Link href="/surahs"
+              className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 hover:underline"
+            >
               Commencer maintenant →
             </Link>
           </div>
         ) : (
           <div className="space-y-3">
             {juzProgress.map(({ juz, pct, firstName, lastName }) => (
-              <div key={juz}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm">Juz {juz} <span className="text-muted-foreground text-xs">({firstName} → {lastName})</span></span>
-                  <span className={`text-xs font-bold ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-stone-500'}`}>{pct}%</span>
+              <div key={juz} className="space-y-1">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-sm font-medium">Juz {juz}</span>
+                  <span className="text-xs text-muted-foreground">{firstName} → {lastName}</span>
+                  <span className={`text-xs font-bold tabular-nums ml-2 ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-stone-400'}`}>{pct}%</span>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-stone-400'}`}
+                    className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-stone-400'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
