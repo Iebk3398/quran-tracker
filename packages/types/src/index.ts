@@ -11,7 +11,6 @@ export type MemorizationStatus =
   | 'not_started'
   | 'in_progress'
   | 'memorized'
-  | 'consolidated'
 
 // ─── Types de révélation ───────────────────────────────────
 export type RevelationType = 'meccan' | 'medinan'

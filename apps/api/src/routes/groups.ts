@@ -143,7 +143,7 @@ groupRoutes.get('/:id/leaderboard', requireAuth, async (c) => {
       xp: users.xp,
       currentStreak: users.currentStreak,
       surahsMemorized: sql<number>`
-        COUNT(CASE WHEN ${memorizationProgress.status} IN ('memorized', 'consolidated') THEN 1 END)
+        COUNT(CASE WHEN ${memorizationProgress.status} = 'memorized' THEN 1 END)
       `.as('surahs_memorized'),
     })
     .from(groupMembers)

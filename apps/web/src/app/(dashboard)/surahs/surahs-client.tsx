@@ -37,22 +37,15 @@ const STATUS: Record<MemorizationStatus, { label: string; dot: string; pill: str
     pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
     bg: 'hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20',
   },
-  consolidated: {
-    label: 'Consolidé',
-    dot: 'bg-violet-500',
-    pill: 'bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800',
-    bg: 'hover:bg-violet-50/80 dark:hover:bg-violet-900/20',
-  },
 }
 
-const ALL_STATUSES = ['not_started', 'in_progress', 'memorized', 'consolidated'] as MemorizationStatus[]
+const ALL_STATUSES = ['not_started', 'in_progress', 'memorized'] as MemorizationStatus[]
 
 const FILTERS: { value: MemorizationStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Toutes' },
   { value: 'memorized', label: 'Mémorisées' },
   { value: 'in_progress', label: 'En cours' },
   { value: 'not_started', label: 'Non commencé' },
-  { value: 'consolidated', label: 'Consolidées' },
 ]
 
 interface MenuState {
@@ -150,7 +143,7 @@ export function SurahsClient() {
     })), [allSurahs, pMap])
 
   const stats = useMemo(() => ({
-    memorized: enriched.filter(s => s.status === 'memorized' || s.status === 'consolidated').length,
+    memorized: enriched.filter(s => s.status === 'memorized').length,
     inProgress: enriched.filter(s => s.status === 'in_progress').length,
     notStarted: enriched.filter(s => s.status === 'not_started').length,
     toReview: enriched.filter(s => s.dueReview).length,
@@ -169,7 +162,7 @@ export function SurahsClient() {
     const map = new Map<number, typeof filtered>()
     filtered.forEach(s => { map.set(s.juzNumber, [...(map.get(s.juzNumber) ?? []), s]) })
     return [...map.entries()].sort(([a], [b]) => b - a).map(([juz, list]) => {
-      const done = list.filter(s => s.status === 'memorized' || s.status === 'consolidated').length
+      const done = list.filter(s => s.status === 'memorized').length
       return { juz, list, pct: Math.round((done / list.length) * 100) }
     })
   }, [filtered])
@@ -364,30 +357,13 @@ export function SurahsClient() {
               </button>
             ))}
 
-            {/* Groupe exclusif : Consolidé OU À réviser */}
+            {/* À réviser — planifie une révision immédiate (SM-2) */}
             <div className="mt-1 pt-1.5 border-t">
-              <p className="px-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Avancé</p>
-              <button
-                onClick={() => setMenu(m => m ? { ...m, pendingStatus: 'consolidated', markForReview: false } : null)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                  (menu.pendingStatus ?? menu.currentStatus) === 'consolidated' && !menu.markForReview
-                    ? `${STATUS.consolidated.pill} font-semibold`
-                    : `text-foreground ${STATUS.consolidated.bg}`
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS.consolidated.dot}`} />
-                Consolidé
-                {(menu.pendingStatus ?? menu.currentStatus) === 'consolidated' && !menu.markForReview && (
-                  <svg className="w-3.5 h-3.5 ml-auto text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </button>
               <button
                 onClick={() => setMenu(m => m ? {
                   ...m,
-                  pendingStatus: (m.currentStatus === 'consolidated' || m.currentStatus === 'memorized') ? m.currentStatus : 'memorized',
-                  markForReview: true,
+                  pendingStatus: m.currentStatus === 'memorized' ? 'memorized' : 'memorized',
+                  markForReview: !m.markForReview,
                 } : null)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                   menu.markForReview

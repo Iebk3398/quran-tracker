@@ -12,7 +12,6 @@ export const memorizationStatusEnum = pgEnum('memorization_status', [
   'not_started',
   'in_progress',
   'memorized',
-  'consolidated',
 ])
 
 /** Table de progression de mémorisation */

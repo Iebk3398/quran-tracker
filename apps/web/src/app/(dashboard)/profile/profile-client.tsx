@@ -21,10 +21,17 @@ interface SessionUser {
   name: string
   email: string
   image?: string | null
-  role?: string
-  xp?: string
-  currentStreak?: string
-  longestStreak?: string
+}
+
+interface UserProfile {
+  id: string
+  name: string
+  email: string
+  role: 'student' | 'sheikh' | 'parent' | 'super_admin'
+  avatar: string | null
+  xp: string
+  currentStreak: string
+  longestStreak: string
 }
 
 const ROLES = [
@@ -42,9 +49,19 @@ const BADGE_DEFS = [
 ]
 
 export function ProfileClient() {
-  const { data: session, isPending } = useSession()
-  const user = session?.user as SessionUser | undefined
+  const { data: session, isPending: sessionLoading } = useSession()
+  const sessionUser = session?.user as SessionUser | undefined
   const queryClient = useQueryClient()
+
+  // ── Full profile from API (includes role, xp, streaks) ──
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ['user-profile'],
+    queryFn: () => apiFetch<UserProfile>('/api/users/me'),
+    enabled: !!sessionUser?.id,
+  })
+
+  // Merge: session for identity, profile for extended fields
+  const user = profile ?? (sessionUser ? { ...sessionUser, role: 'student' as const, avatar: sessionUser.image ?? null, xp: '0', currentStreak: '0', longestStreak: '0' } : undefined)
 
   // ── Edit profile state ──
   const [isEditing, setIsEditing] = useState(false)
@@ -57,7 +74,7 @@ export function ProfileClient() {
     mutationFn: (body: { name?: string; avatar?: string | null; role?: string }) =>
       apiFetch('/api/users/me', { method: 'PATCH', body: JSON.stringify(body) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] })
       setIsEditing(false)
       setSaveError('')
     },
@@ -66,7 +83,7 @@ export function ProfileClient() {
 
   function openEdit() {
     setEditName(user?.name ?? '')
-    setEditAvatar(user?.image ?? '')
+    setEditAvatar(user?.avatar ?? '')
     setEditRole((user?.role as 'student' | 'sheikh' | 'parent') ?? 'student')
     setSaveError('')
     setIsEditing(true)
@@ -100,7 +117,7 @@ export function ProfileClient() {
   })) ?? []
 
   const surahsMemorized = surahsWithStatus.filter(
-    s => s.status === 'memorized' || s.status === 'consolidated'
+    s => s.status === 'memorized'
   ).length
 
   // Juz progression — top 5 with most progress
@@ -108,7 +125,7 @@ export function ProfileClient() {
     const juz = i + 1
     const juzSurahs = surahsWithStatus.filter(s => s.juzNumber === juz)
     if (juzSurahs.length === 0) return null
-    const done = juzSurahs.filter(s => s.status === 'memorized' || s.status === 'consolidated').length
+    const done = juzSurahs.filter(s => s.status === 'memorized').length
     const pct = Math.round((done / juzSurahs.length) * 100)
     const firstName = juzSurahs[0]?.nameFr ?? ''
     const lastName = juzSurahs[juzSurahs.length - 1]?.nameFr ?? ''
@@ -123,7 +140,7 @@ export function ProfileClient() {
     if (b.id === 'first_surah') return surahsMemorized >= 1
     if (b.id === 'juz_amma') {
       const juz30 = surahsWithStatus.filter(s => s.juzNumber === 30)
-      return juz30.length > 0 && juz30.every(s => s.status === 'memorized' || s.status === 'consolidated')
+      return juz30.length > 0 && juz30.every(s => s.status === 'memorized')
     }
     if (b.id === 'streak_7') return Number(user?.currentStreak ?? 0) >= 7
     if (b.id === 'streak_30') return Number(user?.currentStreak ?? 0) >= 30
@@ -147,7 +164,7 @@ export function ProfileClient() {
       duration: 0,
     })) ?? []
 
-  if (isPending || progressLoading) {
+  if (sessionLoading || profileLoading || progressLoading) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-36 bg-muted rounded-xl" />
@@ -261,8 +278,8 @@ export function ProfileClient() {
         <div className="flex items-center gap-4">
           <div className="relative flex-shrink-0">
             <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-xl font-bold text-emerald-600 overflow-hidden">
-              {user?.image
-                ? <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+              {user?.avatar
+                ? <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                 : initials}
             </div>
             {currentStreak > 0 && (

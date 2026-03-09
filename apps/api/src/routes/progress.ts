@@ -14,7 +14,7 @@ export const progressRoutes = new Hono()
 
 const updateProgressSchema = z.object({
   surahId: z.number().int().min(1).max(114),
-  status: z.enum(['not_started', 'in_progress', 'memorized', 'consolidated']),
+  status: z.enum(['not_started', 'in_progress', 'memorized']),
   verseFrom: z.number().int().min(1).nullish(), // accepte number | null | undefined
   verseTo: z.number().int().min(1).nullish(),
   markForReview: z.boolean().optional(), // "À réviser" — programme une révision immédiate
@@ -124,7 +124,6 @@ progressRoutes.get('/group/:groupId', requireAuth, async (c) => {
       name: users.name,
       avatar: users.avatar,
       memorized: sql<number>`COUNT(CASE WHEN ${memorizationProgress.status} = 'memorized' THEN 1 END)`,
-      consolidated: sql<number>`COUNT(CASE WHEN ${memorizationProgress.status} = 'consolidated' THEN 1 END)`,
       inProgress: sql<number>`COUNT(CASE WHEN ${memorizationProgress.status} = 'in_progress' THEN 1 END)`,
     })
     .from(users)

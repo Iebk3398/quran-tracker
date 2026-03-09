@@ -11,7 +11,6 @@ export interface BadgeCondition {
 
 export interface UserStats {
   memorizedCount: number
-  consolidatedCount: number
   currentStreak: number
   totalXP: number
   hasCompletedJuzAmma: boolean
