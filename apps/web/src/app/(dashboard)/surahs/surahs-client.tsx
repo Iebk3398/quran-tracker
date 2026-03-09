@@ -330,8 +330,8 @@ export function SurahsClient() {
 
           <div
             ref={menuRef}
-            className="fixed z-[200] bg-card border shadow-2xl rounded-2xl w-56 p-1.5"
-            style={{ top: menu.rect.top, right: menu.rect.right }}
+            className="fixed z-[200] bg-card border shadow-2xl rounded-2xl w-56 p-1.5 overflow-y-auto overscroll-contain"
+            style={{ top: menu.rect.top, right: menu.rect.right, maxHeight: `calc(100dvh - ${menu.rect.top + 8}px)` }}
           >
             {/* Nom de la sourate */}
             {(() => {
