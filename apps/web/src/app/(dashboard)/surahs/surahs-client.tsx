@@ -62,6 +62,8 @@ interface MenuState {
   verseFrom: number | null
   verseTo: number | null
   pendingStatus: MemorizationStatus | null
+  /** "À réviser" = memorized + markForReview, exclusive avec "Consolidé" */
+  markForReview: boolean
   /** Position fixe du dropdown pour échapper au overflow-hidden */
   rect?: { top: number; right: number }
 }
@@ -107,13 +109,14 @@ export function SurahsClient() {
   })
 
   const updateStatus = useMutation({
-    mutationFn: ({ surahId, status, verseFrom, verseTo }: {
+    mutationFn: ({ surahId, status, verseFrom, verseTo, markForReview }: {
       surahId: number; status: MemorizationStatus
       verseFrom?: number | null; verseTo?: number | null
+      markForReview?: boolean
     }) =>
       apiFetch('/api/progress', {
         method: 'POST',
-        body: JSON.stringify({ surahId, status, verseFrom: verseFrom ?? null, verseTo: verseTo ?? null }),
+        body: JSON.stringify({ surahId, status, verseFrom: verseFrom ?? null, verseTo: verseTo ?? null, markForReview: markForReview ?? false }),
       }),
     onMutate: async ({ surahId, status }) => {
       await queryClient.cancelQueries({ queryKey: ['progress', user?.id] })
@@ -180,6 +183,7 @@ export function SurahsClient() {
       verseFrom: s.verseFrom,
       verseTo: s.verseTo,
       pendingStatus: null,
+      markForReview: false,
       rect: { top: r.bottom + 6, right: window.innerWidth - r.right },
     })
   }
@@ -192,6 +196,7 @@ export function SurahsClient() {
       status,
       verseFrom: menu.verseFrom,
       verseTo: menu.verseTo,
+      markForReview: menu.markForReview,
     })
   }
 
@@ -339,25 +344,66 @@ export function SurahsClient() {
               ) : null
             })()}
 
-            {/* Options de statut */}
-            {ALL_STATUSES.map(s => (
+            {/* Options de statut — Non commencé / En cours / Mémorisé */}
+            {(['not_started', 'in_progress', 'memorized'] as MemorizationStatus[]).map(s => (
               <button key={s}
-                onClick={() => setMenu(m => m ? { ...m, pendingStatus: s } : null)}
+                onClick={() => setMenu(m => m ? { ...m, pendingStatus: s, markForReview: false } : null)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                  (menu.pendingStatus ?? menu.currentStatus) === s
+                  (menu.pendingStatus ?? menu.currentStatus) === s && !menu.markForReview
                     ? `${STATUS[s].pill} font-semibold`
                     : `text-foreground ${STATUS[s].bg}`
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS[s].dot}`} />
                 {STATUS[s].label}
-                {(menu.pendingStatus ?? menu.currentStatus) === s && (
+                {(menu.pendingStatus ?? menu.currentStatus) === s && !menu.markForReview && (
                   <svg className="w-3.5 h-3.5 ml-auto text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
               </button>
             ))}
+
+            {/* Groupe exclusif : Consolidé OU À réviser */}
+            <div className="mt-1 pt-1.5 border-t">
+              <p className="px-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Avancé</p>
+              <button
+                onClick={() => setMenu(m => m ? { ...m, pendingStatus: 'consolidated', markForReview: false } : null)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  (menu.pendingStatus ?? menu.currentStatus) === 'consolidated' && !menu.markForReview
+                    ? `${STATUS.consolidated.pill} font-semibold`
+                    : `text-foreground ${STATUS.consolidated.bg}`
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS.consolidated.dot}`} />
+                Consolidé
+                {(menu.pendingStatus ?? menu.currentStatus) === 'consolidated' && !menu.markForReview && (
+                  <svg className="w-3.5 h-3.5 ml-auto text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              <button
+                onClick={() => setMenu(m => m ? {
+                  ...m,
+                  pendingStatus: (m.currentStatus === 'consolidated' || m.currentStatus === 'memorized') ? m.currentStatus : 'memorized',
+                  markForReview: true,
+                } : null)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  menu.markForReview
+                    ? 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 font-semibold'
+                    : 'text-foreground hover:bg-orange-50/80 dark:hover:bg-orange-900/20'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full flex-shrink-0 bg-orange-400" />
+                À réviser
+                {menu.markForReview && (
+                  <svg className="w-3.5 h-3.5 ml-auto text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            </div>
 
             {/* Plage de versets si "En cours" */}
             {(menu.pendingStatus ?? menu.currentStatus) === 'in_progress' && (

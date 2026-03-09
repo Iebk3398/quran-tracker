@@ -17,6 +17,7 @@ const updateProgressSchema = z.object({
   status: z.enum(['not_started', 'in_progress', 'memorized', 'consolidated']),
   verseFrom: z.number().int().min(1).nullish(), // accepte number | null | undefined
   verseTo: z.number().int().min(1).nullish(),
+  markForReview: z.boolean().optional(), // "À réviser" — programme une révision immédiate
 })
 
 const validateSchema = z.object({
@@ -51,7 +52,7 @@ progressRoutes.get('/:userId', requireAuth, async (c) => {
 /** POST /api/progress — Enregistrer ou mettre à jour la progression */
 progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), async (c) => {
   const user = c.get('user')
-  const { surahId, status, verseFrom, verseTo } = c.req.valid('json')
+  const { surahId, status, verseFrom, verseTo, markForReview } = c.req.valid('json')
 
   const existing = await db
     .select()
@@ -67,6 +68,7 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
         verseFrom: verseFrom ?? null,
         verseTo: verseTo ?? null,
         lastRevisedAt: new Date(),
+        ...(markForReview && { nextReviewAt: new Date() }),
         updatedAt: new Date(),
       })
       .where(eq(memorizationProgress.id, existing[0].id))
@@ -84,6 +86,7 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
       verseFrom: verseFrom ?? null,
       verseTo: verseTo ?? null,
       lastRevisedAt: new Date(),
+      ...(markForReview && { nextReviewAt: new Date() }),
     })
     .returning()
 

@@ -21,10 +21,17 @@ interface SessionUser {
   name: string
   email: string
   image?: string | null
+  role?: string
   xp?: string
   currentStreak?: string
   longestStreak?: string
 }
+
+const ROLES = [
+  { value: 'student', label: 'Étudiant / Hafiz', emoji: '📖' },
+  { value: 'sheikh', label: 'Sheikh / Enseignant', emoji: '🎓' },
+  { value: 'parent', label: 'Parent', emoji: '👨‍👩‍👧' },
+] as const
 
 const BADGE_DEFS = [
   { id: 'first_surah', name: 'Premier pas', emoji: '🌱', desc: 'Première sourate mémorisée' },
@@ -43,10 +50,11 @@ export function ProfileClient() {
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editAvatar, setEditAvatar] = useState('')
+  const [editRole, setEditRole] = useState<'student' | 'sheikh' | 'parent'>('student')
   const [saveError, setSaveError] = useState('')
 
   const updateProfile = useMutation({
-    mutationFn: (body: { name?: string; avatar?: string | null }) =>
+    mutationFn: (body: { name?: string; avatar?: string | null; role?: string }) =>
       apiFetch('/api/users/me', { method: 'PATCH', body: JSON.stringify(body) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['session'] })
@@ -59,6 +67,7 @@ export function ProfileClient() {
   function openEdit() {
     setEditName(user?.name ?? '')
     setEditAvatar(user?.image ?? '')
+    setEditRole((user?.role as 'student' | 'sheikh' | 'parent') ?? 'student')
     setSaveError('')
     setIsEditing(true)
   }
@@ -68,6 +77,7 @@ export function ProfileClient() {
     updateProfile.mutate({
       name: editName.trim() || undefined,
       avatar: editAvatar.trim() || null,
+      role: editRole,
     })
   }
 
@@ -194,6 +204,28 @@ export function ProfileClient() {
                 />
               </div>
 
+              {/* Rôle */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Mon rôle</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {ROLES.map(r => (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => setEditRole(r.value)}
+                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border text-center transition-all ${
+                        editRole === r.value
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500 ring-offset-1'
+                          : 'border-border hover:border-emerald-300 hover:bg-muted/50'
+                      }`}
+                    >
+                      <span className="text-xl">{r.emoji}</span>
+                      <span className="text-[10px] font-semibold leading-tight">{r.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Email (read-only) */}
               <div>
                 <label className="text-xs font-medium text-muted-foreground block mb-1">Email (non modifiable)</label>
@@ -239,7 +271,14 @@ export function ProfileClient() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-base truncate">{user?.name ?? 'Mon Profil'}</h1>
-            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              {user?.role && (
+                <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                  {ROLES.find(r => r.value === user.role)?.label ?? user.role}
+                </span>
+              )}
+            </div>
           </div>
           {earnedBadges.length > 0 && (
             <div className="flex gap-0.5 flex-shrink-0">
