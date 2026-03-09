@@ -26,6 +26,7 @@ import { feedRoutes } from './routes/feed.ts'
 import { notificationRoutes } from './routes/notifications.ts'
 import { surahRoutes } from './routes/surahs.ts'
 import aiRoutes from './routes/ai.ts'
+import { userRoutes } from './routes/users.ts'
 
 const app = new Hono()
 
@@ -74,6 +75,7 @@ app.route('/api/feed', feedRoutes)
 app.route('/api/notifications', notificationRoutes)
 app.route('/api/surahs', surahRoutes)
 app.route('/api/ai', aiRoutes) // v2: Full AI features (GPT-4o, Whisper)
+app.route('/api/users', userRoutes)
 
 // ─── 404 handler ───────────────────────────────────────────
 app.notFound((c) =>

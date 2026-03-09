@@ -2,8 +2,8 @@
 /**
  * @file ProfileClient — Profil utilisateur (stats + heatmap + progression Juz)
  */
-import { Suspense } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { Suspense, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from '@/lib/auth-client'
 import { apiFetch } from '@/lib/api'
 import { HeatmapCalendar } from '@/components/quran/heatmap-calendar'
@@ -37,6 +37,39 @@ const BADGE_DEFS = [
 export function ProfileClient() {
   const { data: session, isPending } = useSession()
   const user = session?.user as SessionUser | undefined
+  const queryClient = useQueryClient()
+
+  // ── Edit profile state ──
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editAvatar, setEditAvatar] = useState('')
+  const [saveError, setSaveError] = useState('')
+
+  const updateProfile = useMutation({
+    mutationFn: (body: { name?: string; avatar?: string | null }) =>
+      apiFetch('/api/users/me', { method: 'PATCH', body: JSON.stringify(body) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['session'] })
+      setIsEditing(false)
+      setSaveError('')
+    },
+    onError: (e: Error) => setSaveError(e.message),
+  })
+
+  function openEdit() {
+    setEditName(user?.name ?? '')
+    setEditAvatar(user?.image ?? '')
+    setSaveError('')
+    setIsEditing(true)
+  }
+
+  function submitEdit(e: React.FormEvent) {
+    e.preventDefault()
+    updateProfile.mutate({
+      name: editName.trim() || undefined,
+      avatar: editAvatar.trim() || null,
+    })
+  }
 
   const { data: progress, isLoading: progressLoading } = useQuery({
     queryKey: ['progress', user?.id],
@@ -118,6 +151,79 @@ export function ProfileClient() {
   return (
     <div className="space-y-4 pb-20 md:pb-0">
 
+      {/* ── Modal d'édition du profil ── */}
+      {isEditing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsEditing(false)} />
+          <div className="relative w-full max-w-sm bg-card rounded-2xl border shadow-xl p-6 space-y-4">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-bold text-base">Modifier le profil</h2>
+              <button onClick={() => setIsEditing(false)} className="w-7 h-7 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground text-sm">✕</button>
+            </div>
+
+            <form onSubmit={submitEdit} className="space-y-4">
+              {/* Avatar preview */}
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-xl font-bold text-emerald-600 overflow-hidden flex-shrink-0">
+                  {editAvatar
+                    ? <img src={editAvatar} alt="avatar" className="w-full h-full object-cover" onError={() => setEditAvatar('')} />
+                    : (editName ? editName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : initials)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">URL avatar (optionnel)</label>
+                  <input
+                    type="url"
+                    value={editAvatar}
+                    onChange={e => setEditAvatar(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Nom complet */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">Nom complet</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="Ex : Ahmed Benali"
+                  required
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Email (read-only) */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">Email (non modifiable)</label>
+                <input
+                  type="email"
+                  value={user?.email ?? ''}
+                  readOnly
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border bg-muted text-muted-foreground cursor-not-allowed"
+                />
+              </div>
+
+              {saveError && (
+                <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{saveError}</p>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setIsEditing(false)}
+                  className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition-colors">
+                  Annuler
+                </button>
+                <button type="submit" disabled={updateProfile.isPending}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors disabled:opacity-50">
+                  {updateProfile.isPending ? 'Enregistrement…' : 'Sauvegarder'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Hero header */}
       <div className="rounded-2xl border bg-card p-5">
         <div className="flex items-center gap-4">
@@ -142,6 +248,11 @@ export function ProfileClient() {
               ))}
             </div>
           )}
+          {/* Bouton éditer */}
+          <button onClick={openEdit}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold hover:bg-muted transition-colors">
+            ✏️ Modifier
+          </button>
         </div>
 
         {/* Stats inline */}

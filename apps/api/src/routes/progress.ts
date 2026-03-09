@@ -15,8 +15,8 @@ export const progressRoutes = new Hono()
 const updateProgressSchema = z.object({
   surahId: z.number().int().min(1).max(114),
   status: z.enum(['not_started', 'in_progress', 'memorized', 'consolidated']),
-  verseFrom: z.number().int().min(1).optional(),
-  verseTo: z.number().int().min(1).optional(),
+  verseFrom: z.number().int().min(1).nullish(), // accepte number | null | undefined
+  verseTo: z.number().int().min(1).nullish(),
 })
 
 const validateSchema = z.object({

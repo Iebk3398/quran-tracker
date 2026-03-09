@@ -2,7 +2,8 @@
 /**
  * @file SurahsClient — Mes 114 sourates avec CRUD inline
  */
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from '@/lib/auth-client'
 import { apiFetch } from '@/lib/api'
@@ -61,6 +62,8 @@ interface MenuState {
   verseFrom: number | null
   verseTo: number | null
   pendingStatus: MemorizationStatus | null
+  /** Position fixe du dropdown pour échapper au overflow-hidden */
+  rect?: { top: number; right: number }
 }
 
 export function SurahsClient() {
@@ -72,6 +75,8 @@ export function SurahsClient() {
   const [filter, setFilter] = useState<MemorizationStatus | 'all'>('all')
   const [menu, setMenu] = useState<MenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   // Close menu on outside click or Escape
   useEffect(() => {
@@ -166,7 +171,8 @@ export function SurahsClient() {
     })
   }, [filtered])
 
-  function openMenu(s: typeof enriched[0]) {
+  function openMenu(s: typeof enriched[0], btnEl: HTMLButtonElement) {
+    const r = btnEl.getBoundingClientRect()
     setMenu({
       surahId: s.id,
       versesCount: s.versesCount,
@@ -174,6 +180,7 @@ export function SurahsClient() {
       verseFrom: s.verseFrom,
       verseTo: s.verseTo,
       pendingStatus: null,
+      rect: { top: r.bottom + 6, right: window.innerWidth - r.right },
     })
   }
 
@@ -287,9 +294,12 @@ export function SurahsClient() {
                     <span className="arabic-text text-sm font-bold hidden sm:block flex-shrink-0 text-right opacity-80">{surah.nameAr}</span>
 
                     {/* Status button */}
-                    <div className="relative flex-shrink-0" ref={menu?.surahId === surah.id ? menuRef : undefined}>
+                    <div className="flex-shrink-0">
                       <button
-                        onClick={() => menu?.surahId === surah.id ? setMenu(null) : openMenu(surah)}
+                        onClick={(e) => menu?.surahId === surah.id
+                          ? setMenu(null)
+                          : openMenu(surah, e.currentTarget as HTMLButtonElement)
+                        }
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 ${STATUS[surah.status].pill}`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS[surah.status].dot}`} />
@@ -298,69 +308,6 @@ export function SurahsClient() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
-
-                      {menu?.surahId === surah.id && (
-                        <div className="absolute right-0 top-full mt-1.5 z-30 bg-card border shadow-xl rounded-2xl overflow-hidden w-52 p-1">
-                          {/* Status options */}
-                          {ALL_STATUSES.map(s => (
-                            <button key={s}
-                              onClick={() => setMenu(m => m ? { ...m, pendingStatus: s } : null)}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
-                                (menu.pendingStatus ?? menu.currentStatus) === s
-                                  ? `${STATUS[s].pill} font-semibold`
-                                  : `text-foreground ${STATUS[s].bg}`
-                              }`}
-                            >
-                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS[s].dot}`} />
-                              {STATUS[s].label}
-                              {(menu.pendingStatus ?? menu.currentStatus) === s && (
-                                <svg className="w-3.5 h-3.5 ml-auto text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </button>
-                          ))}
-
-                          {/* Verse range (when in_progress selected) */}
-                          {(menu.pendingStatus ?? menu.currentStatus) === 'in_progress' && (
-                            <div className="px-2 pb-1 mt-1 pt-1 border-t">
-                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Où en es-tu ?</p>
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1">
-                                  <label className="text-[10px] text-muted-foreground">De</label>
-                                  <input type="number" min={1} max={surah.versesCount}
-                                    value={menu.verseFrom ?? ''}
-                                    onChange={e => setMenu(m => m ? { ...m, verseFrom: e.target.value ? Number(e.target.value) : null } : null)}
-                                    placeholder="1"
-                                    className="w-full mt-0.5 px-2 py-1 text-xs rounded-lg border bg-background focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                                  />
-                                </div>
-                                <span className="text-muted-foreground text-xs mt-4">→</span>
-                                <div className="flex-1">
-                                  <label className="text-[10px] text-muted-foreground">À</label>
-                                  <input type="number" min={1} max={surah.versesCount}
-                                    value={menu.verseTo ?? ''}
-                                    onChange={e => setMenu(m => m ? { ...m, verseTo: e.target.value ? Number(e.target.value) : null } : null)}
-                                    placeholder={String(surah.versesCount)}
-                                    className="w-full mt-0.5 px-2 py-1 text-xs rounded-lg border bg-background focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Save button */}
-                          <div className="px-2 pb-2 mt-1 pt-1 border-t">
-                            <button
-                              onClick={confirmSave}
-                              disabled={updateStatus.isPending}
-                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                            >
-                              {updateStatus.isPending ? 'Enregistrement…' : 'Enregistrer'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -368,6 +315,94 @@ export function SurahsClient() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* ── Dropdown portal — échappe au overflow-hidden des cartes ── */}
+      {mounted && menu && menu.rect && createPortal(
+        <>
+          {/* Backdrop transparent pour fermer au clic extérieur */}
+          <div className="fixed inset-0 z-[199]" onClick={() => setMenu(null)} />
+
+          <div
+            ref={menuRef}
+            className="fixed z-[200] bg-card border shadow-2xl rounded-2xl w-56 p-1.5"
+            style={{ top: menu.rect.top, right: menu.rect.right }}
+          >
+            {/* Nom de la sourate */}
+            {(() => {
+              const s = enriched.find(e => e.id === menu.surahId)
+              return s ? (
+                <div className="px-3 py-2 mb-1 border-b">
+                  <p className="text-xs font-bold truncate">{s.nameFr}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.versesCount} versets</p>
+                </div>
+              ) : null
+            })()}
+
+            {/* Options de statut */}
+            {ALL_STATUSES.map(s => (
+              <button key={s}
+                onClick={() => setMenu(m => m ? { ...m, pendingStatus: s } : null)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  (menu.pendingStatus ?? menu.currentStatus) === s
+                    ? `${STATUS[s].pill} font-semibold`
+                    : `text-foreground ${STATUS[s].bg}`
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS[s].dot}`} />
+                {STATUS[s].label}
+                {(menu.pendingStatus ?? menu.currentStatus) === s && (
+                  <svg className="w-3.5 h-3.5 ml-auto text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            ))}
+
+            {/* Plage de versets si "En cours" */}
+            {(menu.pendingStatus ?? menu.currentStatus) === 'in_progress' && (
+              <div className="px-2 pb-1 mt-1 pt-2 border-t">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Où en es-tu ?</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] text-muted-foreground">De</label>
+                    <input type="number" min={1} max={menu.versesCount}
+                      value={menu.verseFrom ?? ''}
+                      onChange={e => setMenu(m => m ? { ...m, verseFrom: e.target.value ? Number(e.target.value) : null } : null)}
+                      placeholder="1"
+                      className="w-full mt-0.5 px-2 py-1.5 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <span className="text-muted-foreground text-xs mt-4">→</span>
+                  <div className="flex-1">
+                    <label className="text-[10px] text-muted-foreground">À</label>
+                    <input type="number" min={1} max={menu.versesCount}
+                      value={menu.verseTo ?? ''}
+                      onChange={e => setMenu(m => m ? { ...m, verseTo: e.target.value ? Number(e.target.value) : null } : null)}
+                      placeholder={String(menu.versesCount)}
+                      className="w-full mt-0.5 px-2 py-1.5 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Bouton Enregistrer */}
+            <div className="px-1 pb-1 mt-2 pt-2 border-t">
+              <button
+                onClick={confirmSave}
+                disabled={updateStatus.isPending}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {updateStatus.isPending
+                  ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enregistrement…</>
+                  : '✓ Enregistrer'
+                }
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
       )}
     </div>
   )
