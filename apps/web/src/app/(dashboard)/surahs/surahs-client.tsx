@@ -41,11 +41,12 @@ const STATUS: Record<MemorizationStatus, { label: string; dot: string; pill: str
 
 const ALL_STATUSES = ['not_started', 'in_progress', 'memorized'] as MemorizationStatus[]
 
-const FILTERS: { value: MemorizationStatus | 'all'; label: string }[] = [
+const FILTERS: { value: MemorizationStatus | 'all' | 'to_review'; label: string }[] = [
   { value: 'all', label: 'Toutes' },
   { value: 'memorized', label: 'Mémorisées' },
   { value: 'in_progress', label: 'En cours' },
   { value: 'not_started', label: 'Non commencé' },
+  { value: 'to_review', label: 'À réviser' },
 ]
 
 interface MenuState {
@@ -67,7 +68,7 @@ export function SurahsClient() {
   const queryClient = useQueryClient()
 
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<MemorizationStatus | 'all'>('all')
+  const [filter, setFilter] = useState<MemorizationStatus | 'all' | 'to_review'>('all')
   const [menu, setMenu] = useState<MenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
@@ -111,13 +112,17 @@ export function SurahsClient() {
         method: 'POST',
         body: JSON.stringify({ surahId, status, verseFrom: verseFrom ?? null, verseTo: verseTo ?? null, markForReview: markForReview ?? false }),
       }),
-    onMutate: async ({ surahId, status }) => {
+    onMutate: async ({ surahId, status, markForReview }) => {
       await queryClient.cancelQueries({ queryKey: ['progress', user?.id] })
       const prev = queryClient.getQueryData<ProgressEntry[]>(['progress', user?.id])
       queryClient.setQueryData<ProgressEntry[]>(['progress', user?.id], (old = []) => {
+        const patch = {
+          status,
+          ...(markForReview && { nextReviewAt: new Date().toISOString() }),
+        }
         const idx = old.findIndex(p => p.surahId === surahId)
-        if (idx >= 0) return old.map(p => p.surahId === surahId ? { ...p, status } : p)
-        return [...old, { surahId, status }]
+        if (idx >= 0) return old.map(p => p.surahId === surahId ? { ...p, ...patch } : p)
+        return [...old, { surahId, ...patch }]
       })
       return { prev }
     },
@@ -152,10 +157,12 @@ export function SurahsClient() {
   const filtered = useMemo(() =>
     enriched.filter(s => {
       const q = search.toLowerCase()
-      return (
-        (q === '' || s.nameFr.toLowerCase().includes(q) || s.nameAr.includes(search) || String(s.number) === search) &&
-        (filter === 'all' || s.status === filter)
-      )
+      const matchSearch = q === '' || s.nameFr.toLowerCase().includes(q) || s.nameAr.includes(search) || String(s.number) === search
+      const matchFilter =
+        filter === 'all' ? true :
+        filter === 'to_review' ? s.dueReview :
+        s.status === filter
+      return matchSearch && matchFilter
     }), [enriched, search, filter])
 
   const juzGroups = useMemo(() => {
@@ -240,7 +247,9 @@ export function SurahsClient() {
                 : 'bg-card border text-muted-foreground hover:text-foreground hover:border-foreground/20'
             }`}
           >
-            {f.value !== 'all' && <span className={`w-1.5 h-1.5 rounded-full ${STATUS[f.value as MemorizationStatus].dot}`} />}
+            {f.value !== 'all' && (
+              <span className={`w-1.5 h-1.5 rounded-full ${f.value === 'to_review' ? 'bg-orange-400' : STATUS[f.value as MemorizationStatus].dot}`} />
+            )}
             {f.label}
           </button>
         ))}
@@ -298,10 +307,14 @@ export function SurahsClient() {
                           ? setMenu(null)
                           : openMenu(surah, e.currentTarget as HTMLButtonElement)
                         }
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 ${STATUS[surah.status].pill}`}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+                          surah.dueReview
+                            ? 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800'
+                            : STATUS[surah.status].pill
+                        }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS[surah.status].dot}`} />
-                        <span className="hidden sm:inline">{STATUS[surah.status].label}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${surah.dueReview ? 'bg-orange-400' : STATUS[surah.status].dot}`} />
+                        <span className="hidden sm:inline">{surah.dueReview ? 'À réviser' : STATUS[surah.status].label}</span>
                         <svg className={`w-3 h-3 opacity-40 transition-transform ${menu?.surahId === surah.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                         </svg>

@@ -25,6 +25,16 @@ export const auth = betterAuth({
     /^https:\/\/.*\.vercel\.app$/,
   ],
   emailAndPassword: { enabled: false },
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        required: false,
+        defaultValue: 'student',
+        input: false, // non modifiable via Better Auth directement
+      },
+    },
+  },
   plugins: [
     emailOTP({
       async sendVerificationOTP({ email, otp }) {
