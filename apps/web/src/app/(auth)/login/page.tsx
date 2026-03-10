@@ -103,10 +103,14 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => authClient.signIn.social({
-                    provider: 'google',
-                    callbackURL: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://quran-tracker-web.vercel.app'}/dashboard`,
-                  })}
+                  onClick={() => {
+                    // Navigation directe (pas de fetch) pour éviter le blocage SameSite des cookies OAuth cross-origin
+                    const callbackURL = encodeURIComponent(
+                      `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://quran-tracker-web.vercel.app'}/dashboard`
+                    )
+                    const apiURL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api-production-e758.up.railway.app'
+                    window.location.href = `${apiURL}/api/auth/sign-in/social?provider=google&callbackURL=${callbackURL}`
+                  }}
                   className="w-full mt-4 py-2.5 border rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-muted transition-colors"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
