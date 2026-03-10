@@ -12,7 +12,7 @@ export const userRoutes = new Hono()
 
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  avatar: z.string().url().nullish(),
+  avatar: z.string().nullish(), // accepte toute chaîne ou null (pas de validation URL stricte)
   role: z.enum(['student', 'sheikh', 'parent']).optional(),
 })
 

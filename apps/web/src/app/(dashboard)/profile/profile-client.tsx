@@ -58,10 +58,16 @@ export function ProfileClient() {
     queryKey: ['user-profile'],
     queryFn: () => apiFetch<UserProfile>('/api/users/me'),
     enabled: !!sessionUser?.id,
+    retry: 2,
   })
 
-  // Merge: session for identity, profile for extended fields
-  const user = profile ?? (sessionUser ? { ...sessionUser, role: 'student' as const, avatar: sessionUser.image ?? null, xp: '0', currentStreak: '0', longestStreak: '0' } : undefined)
+  // Merge: profile API en priorité, session comme fallback garanti
+  const email = profile?.email ?? sessionUser?.email ?? ''
+  const user = profile
+    ? { ...profile, email }
+    : sessionUser
+      ? { id: sessionUser.id, name: sessionUser.name, email, role: 'student' as const, avatar: sessionUser.image ?? null, xp: '0', currentStreak: '0', longestStreak: '0' }
+      : undefined
 
   // ── Edit profile state ──
   const [isEditing, setIsEditing] = useState(false)
@@ -199,7 +205,7 @@ export function ProfileClient() {
                 <div className="flex-1 min-w-0">
                   <label className="text-xs font-medium text-muted-foreground block mb-1">URL avatar (optionnel)</label>
                   <input
-                    type="url"
+                    type="text"
                     value={editAvatar}
                     onChange={e => setEditAvatar(e.target.value)}
                     placeholder="https://..."
