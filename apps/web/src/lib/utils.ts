@@ -48,7 +48,6 @@ export function getStatusColor(status: string): string {
     not_started: 'bg-stone-200 dark:bg-stone-700',
     in_progress: 'bg-amber-400 dark:bg-amber-500',
     memorized: 'bg-emerald-500 dark:bg-emerald-400',
-    consolidated: 'bg-blue-500 dark:bg-blue-400',
   }
   return colors[status] ?? colors['not_started'] ?? 'bg-stone-200'
 }

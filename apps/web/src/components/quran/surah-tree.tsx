@@ -19,14 +19,12 @@ const STATUS_COLORS: Record<MemorizationStatus, string> = {
   not_started: 'bg-muted border-border text-muted-foreground',
   in_progress: 'bg-amber-50 border-amber-300 text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300',
   memorized: 'bg-emerald-50 border-emerald-300 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-300',
-  consolidated: 'bg-blue-50 border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300',
 }
 
 const STATUS_EMOJI: Record<MemorizationStatus, string> = {
   not_started: '⬜',
   in_progress: '🟡',
   memorized: '🟢',
-  consolidated: '🔵',
 }
 
 type FilterType = 'all' | MemorizationStatus | number // number = juz
@@ -38,7 +36,7 @@ export function SurahTree({ surahs, onSurahClick }: SurahTreeProps) {
   const [filter, setFilter] = useState<FilterType>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'juz'>('grid')
 
-  const memorized = surahs.filter((s) => s.status === 'memorized' || s.status === 'consolidated').length
+  const memorized = surahs.filter((s) => s.status === 'memorized').length
   const progressPercent = Math.round((memorized / 114) * 100)
 
   const filtered = surahs.filter((s) => {
@@ -79,7 +77,7 @@ export function SurahTree({ surahs, onSurahClick }: SurahTreeProps) {
         >
           Tout (114)
         </button>
-        {(['not_started', 'in_progress', 'memorized', 'consolidated'] as MemorizationStatus[]).map((status) => (
+        {(['not_started', 'in_progress', 'memorized'] as MemorizationStatus[]).map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}
@@ -115,7 +113,7 @@ export function SurahTree({ surahs, onSurahClick }: SurahTreeProps) {
         <div className="space-y-4">
           {juzGroups.map(({ juz, surahs: juzSurahs }) => {
             const juzMemorized = juzSurahs.filter(
-              (s) => s.status === 'memorized' || s.status === 'consolidated'
+              (s) => s.status === 'memorized'
             ).length
             return (
               <div key={juz} className="border rounded-lg p-3">

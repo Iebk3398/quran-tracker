@@ -27,7 +27,6 @@ const STATUS_OPTIONS: { value: MemorizationStatus; label: string; emoji: string;
   { value: 'not_started', label: 'Non commencé', emoji: '⬜', color: 'border-border bg-muted text-muted-foreground' },
   { value: 'in_progress', label: 'En cours', emoji: '🟡', color: 'border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300' },
   { value: 'memorized', label: 'Mémorisé', emoji: '🟢', color: 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300' },
-  { value: 'consolidated', label: 'Consolidé', emoji: '🔵', color: 'border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' },
 ]
 
 const QUALITY_OPTIONS = [
