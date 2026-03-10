@@ -103,7 +103,10 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => authClient.signIn.social({ provider: 'google', callbackURL: '/dashboard' })}
+                  onClick={() => authClient.signIn.social({
+                    provider: 'google',
+                    callbackURL: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://quran-tracker-web.vercel.app'}/dashboard`,
+                  })}
                   className="w-full mt-4 py-2.5 border rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-muted transition-colors"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
