@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "node --experimental-strip-types apps/api/src/index.ts",
+    "startCommand": "npm run db:migrate && node --experimental-strip-types apps/api/src/index.ts",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",
