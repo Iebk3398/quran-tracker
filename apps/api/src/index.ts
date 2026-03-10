@@ -64,6 +64,52 @@ app.get('/health', (c) =>
   })
 )
 
+// ─── Google OAuth redirect (server-side initiation) ─────────
+// Le frontend fait window.location.href vers cet endpoint (GET, même domaine que l'API).
+// L'API génère l'URL Google via Better Auth, pose le cookie d'état en contexte same-site,
+// puis redirige le navigateur vers Google. Évite le state_mismatch cross-origin.
+app.get('/auth/google', async (c) => {
+  const apiURL = (process.env['BETTER_AUTH_URL'] ?? 'https://api-production-e758.up.railway.app').trim()
+  const appURL = (process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://quran-tracker-web.vercel.app').trim()
+  const callbackURL = c.req.query('callbackURL') ?? `${appURL}/dashboard`
+
+  try {
+    // POST interne à Better Auth pour générer l'URL Google + le cookie d'état
+    const internalReq = new Request(`${apiURL}/api/auth/sign-in/social`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': apiURL,
+        'Host': new URL(apiURL).host,
+      },
+      body: JSON.stringify({ provider: 'google', callbackURL }),
+    })
+
+    const authRes = await auth.handler(internalReq)
+    const data = await authRes.json() as { url?: string; error?: string }
+
+    if (!data.url) {
+      console.error('[Google OAuth] No URL returned:', data)
+      return c.redirect(`${appURL}/login?error=oauth_failed`)
+    }
+
+    // Transférer les Set-Cookie (état OAuth) vers la réponse navigateur
+    const setCookies = authRes.headers.getSetCookie
+      ? authRes.headers.getSetCookie()
+      : (authRes.headers.get('set-cookie') ? [authRes.headers.get('set-cookie')!] : [])
+
+    for (const cookie of setCookies) {
+      c.header('Set-Cookie', cookie, { append: true })
+    }
+
+    // Rediriger le navigateur vers Google OAuth
+    return c.redirect(data.url, 302)
+  } catch (err) {
+    console.error('[Google OAuth] Error:', err)
+    return c.redirect(`${appURL}/login?error=oauth_failed`)
+  }
+})
+
 // ─── Auth (Better Auth — doit recevoir l'URL complète) ─────
 app.on(['GET', 'POST'], ['/api/auth', '/api/auth/*'], (c) =>
   auth.handler(c.req.raw)

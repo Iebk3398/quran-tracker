@@ -103,24 +103,15 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <button
-                  onClick={async () => {
-                    setLoading(true)
-                    setError(null)
-                    try {
-                      // POST via le SDK Better Auth → reçoit l'URL Google → redirige le navigateur
-                      const appURL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://quran-tracker-web.vercel.app').trim()
-                      await authClient.signIn.social({
-                        provider: 'google',
-                        callbackURL: `${appURL}/dashboard`,
-                      })
-                      // Le SDK Better Auth redirige automatiquement vers Google OAuth
-                    } catch {
-                      setError('Erreur lors de la connexion Google. Réessayez.')
-                      setLoading(false)
-                    }
+                  onClick={() => {
+                    // Redirection directe vers l'endpoint API server-side
+                    // → l'API initie le flow OAuth côté serveur (same-site) → plus de state_mismatch
+                    const appURL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://quran-tracker-web.vercel.app').trim()
+                    const apiURL = (process.env.NEXT_PUBLIC_API_URL ?? 'https://api-production-e758.up.railway.app').trim()
+                    const callbackURL = encodeURIComponent(`${appURL}/dashboard`)
+                    window.location.href = `${apiURL}/auth/google?callbackURL=${callbackURL}`
                   }}
-                  disabled={loading}
-                  className="w-full mt-4 py-2.5 border rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-muted transition-colors disabled:opacity-50"
+                  className="w-full mt-4 py-2.5 border rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-muted transition-colors"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
