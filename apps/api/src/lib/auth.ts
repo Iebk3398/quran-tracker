@@ -21,8 +21,11 @@ export const auth = betterAuth({
   baseURL: process.env['BETTER_AUTH_URL'] ?? 'http://localhost:3001',
   trustedOrigins: [
     (process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000').trim(),
+    (process.env['BETTER_AUTH_URL'] ?? 'https://api-production-e758.up.railway.app').trim(),
     'http://localhost:3000',
-    /^https:\/\/.*\.vercel\.app$/,
+    'http://localhost:3001',
+    /^https:\/\/.*\.vercel\.app/,   // permet les chemins (/dashboard, etc.)
+    /^https:\/\/.*\.railway\.app/,  // loopback inter-service Railway
   ],
   emailAndPassword: { enabled: false },
   user: {

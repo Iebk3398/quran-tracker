@@ -74,29 +74,31 @@ app.get('/auth/google', async (c) => {
   const callbackURL = c.req.query('callbackURL') ?? `${appURL}/dashboard`
 
   try {
-    // POST interne à Better Auth pour générer l'URL Google + le cookie d'état
-    const internalReq = new Request(`${apiURL}/api/auth/sign-in/social`, {
+    // Vrai fetch loopback — passe par tout le pipeline Hono/Better Auth normalement
+    // Origin = appURL (vercel.app) = origine de confiance dans trustedOrigins
+    const port = process.env['PORT'] ?? '3001'
+    const res = await fetch(`http://localhost:${port}/api/auth/sign-in/social`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': apiURL,
-        'Host': new URL(apiURL).host,
+        'Origin': appURL,
+        'Accept': 'application/json',
       },
       body: JSON.stringify({ provider: 'google', callbackURL }),
+      signal: AbortSignal.timeout(10000),
     })
 
-    const authRes = await auth.handler(internalReq)
-    const data = await authRes.json() as { url?: string; error?: string }
+    const data = await res.json() as { url?: string; error?: string; redirect?: boolean }
 
     if (!data.url) {
-      console.error('[Google OAuth] No URL returned:', data)
+      console.error('[Google OAuth] No URL returned:', data, 'status:', res.status)
       return c.redirect(`${appURL}/login?error=oauth_failed`)
     }
 
     // Transférer les Set-Cookie (état OAuth) vers la réponse navigateur
-    const setCookies = authRes.headers.getSetCookie
-      ? authRes.headers.getSetCookie()
-      : (authRes.headers.get('set-cookie') ? [authRes.headers.get('set-cookie')!] : [])
+    const setCookies: string[] = typeof res.headers.getSetCookie === 'function'
+      ? res.headers.getSetCookie()
+      : (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : [])
 
     for (const cookie of setCookies) {
       c.header('Set-Cookie', cookie, { append: true })
