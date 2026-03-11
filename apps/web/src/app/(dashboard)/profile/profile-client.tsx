@@ -88,17 +88,22 @@ export function ProfileClient() {
   })
 
   function openEdit() {
-    setEditName(user?.name ?? '')
+    // Fallback: si le nom est vide (cas OTP), on pré-remplit avec le préfixe email
+    const fallbackName = user?.name?.trim() || email.split('@')[0] || ''
+    setEditName(fallbackName)
     setEditAvatar(user?.avatar ?? '')
-    setEditRole((user?.role as 'student' | 'sheikh' | 'parent') ?? 'student')
+    const validRoles: ('student' | 'sheikh' | 'parent')[] = ['student', 'sheikh', 'parent']
+    setEditRole(validRoles.includes(user?.role as 'student') ? (user!.role as 'student' | 'sheikh' | 'parent') : 'student')
     setSaveError('')
     setIsEditing(true)
   }
 
   function submitEdit(e: React.FormEvent) {
     e.preventDefault()
+    // Fallback name si vide : préfixe email
+    const nameToSend = editName.trim() || email.split('@')[0] || 'Utilisateur'
     updateProfile.mutate({
-      name: editName.trim() || undefined,
+      name: nameToSend,
       avatar: editAvatar.trim() || null,
       role: editRole,
     })
@@ -162,13 +167,24 @@ export function ProfileClient() {
     ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : 'U'
 
-  const heatmapData = progress
-    ?.filter(p => p.lastRevisedAt)
-    .map(p => ({
-      date: new Date(p.lastRevisedAt!).toISOString().split('T')[0]!,
-      count: 1,
-      duration: 0,
-    })) ?? []
+  // Total verses memorized
+  const totalVersesMemorized = surahsWithStatus
+    .filter(s => s.status === 'memorized')
+    .reduce((acc, s) => acc + (s.versesCount ?? 0), 0)
+  const totalVerses = allSurahs?.reduce((acc, s) => acc + (s.versesCount ?? 0), 0) ?? 6236
+  const completionPct = allSurahs?.length ? Math.round((surahsMemorized / 114) * 100) : 0
+
+  // Group revisions by date (sum per day)
+  const heatmapData = (() => {
+    const map = new Map<string, number>()
+    progress
+      ?.filter(p => p.lastRevisedAt)
+      .forEach(p => {
+        const date = new Date(p.lastRevisedAt!).toISOString().split('T')[0]!
+        map.set(date, (map.get(date) ?? 0) + 1)
+      })
+    return Array.from(map.entries()).map(([date, count]) => ({ date, count, duration: 0 }))
+  })()
 
   if (sessionLoading || profileLoading || progressLoading) {
     return (
@@ -222,7 +238,6 @@ export function ProfileClient() {
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
                   placeholder="Ex : Ahmed Benali"
-                  required
                   className="w-full px-3 py-2.5 text-sm rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -254,7 +269,7 @@ export function ProfileClient() {
                 <label className="text-xs font-medium text-muted-foreground block mb-1">Email (non modifiable)</label>
                 <input
                   type="email"
-                  value={user?.email ?? ''}
+                  value={email}
                   readOnly
                   className="w-full px-3 py-2.5 text-sm rounded-xl border bg-muted text-muted-foreground cursor-not-allowed"
                 />
@@ -318,24 +333,44 @@ export function ProfileClient() {
         </div>
 
         {/* Stats inline */}
-        <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t">
-          {[
-            { value: surahsMemorized, label: 'Sourates', color: 'text-emerald-600' },
-            { value: currentStreak, label: 'Jours streak', color: 'text-orange-500' },
-            { value: xp.toLocaleString(), label: 'XP total', color: 'text-amber-500' },
-            { value: longestStreak, label: 'Record', color: 'text-blue-500' },
-          ].map(({ value, label, color }) => (
-            <div key={label} className="text-center">
-              <div className={`text-lg font-bold tabular-nums ${color}`}>{value}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{label}</div>
+        <div className="mt-4 pt-4 border-t space-y-3">
+          {/* Barre de progression globale */}
+          <div>
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-xs font-semibold text-muted-foreground">Progression du Coran</span>
+              <span className="text-xs font-bold text-emerald-600">{surahsMemorized}/114 sourates · {completionPct}%</span>
             </div>
-          ))}
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                style={{ width: `${completionPct}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+              <span>{totalVersesMemorized.toLocaleString()} versets mémorisés</span>
+              <span>{(totalVerses - totalVersesMemorized).toLocaleString()} restants</span>
+            </div>
+          </div>
+          {/* Stat cards */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { value: surahsMemorized, sub: 'Mémorisées', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+              { value: `${currentStreak}🔥`, sub: 'Jours streak', color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+              { value: xp.toLocaleString(), sub: 'XP total', color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+              { value: longestStreak, sub: 'Record', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+            ].map(({ value, sub, color, bg }) => (
+              <div key={sub} className={`rounded-xl p-2.5 text-center ${bg}`}>
+                <div className={`text-base font-bold tabular-nums ${color}`}>{value}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{sub}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Activité */}
       <div className="rounded-2xl border bg-card p-4">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Activité — 12 mois</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Mon activité</p>
         <Suspense fallback={<div className="h-20 bg-muted animate-pulse rounded-lg" />}>
           <HeatmapCalendar data={heatmapData} currentStreak={currentStreak} longestStreak={longestStreak} />
         </Suspense>
@@ -346,27 +381,51 @@ export function ProfileClient() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Progression Coran</p>
           <Link href="/surahs" className="text-xs text-emerald-600 font-semibold hover:underline">
-            Voir tout →
+            Tout voir →
           </Link>
         </div>
 
         {juzProgress.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground mb-2">Aucune progression pour l'instant</p>
+            <div className="text-4xl mb-2">📖</div>
+            <p className="text-sm text-muted-foreground mb-3">Aucune progression pour l'instant</p>
             <Link href="/surahs"
-              className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 hover:underline"
+              className="inline-flex items-center gap-1 text-sm font-medium bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors"
             >
               Commencer maintenant →
             </Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {juzProgress.map(({ juz, pct, firstName, lastName }) => (
+          <div className="space-y-2">
+            {/* Résumé global */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 p-2.5 text-center">
+                <div className="text-base font-bold text-emerald-600">{surahsWithStatus.filter(s => s.status === 'memorized').length}</div>
+                <div className="text-[10px] text-muted-foreground">Mémorisées</div>
+              </div>
+              <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 p-2.5 text-center">
+                <div className="text-base font-bold text-amber-600">{surahsWithStatus.filter(s => s.status === 'in_progress').length}</div>
+                <div className="text-[10px] text-muted-foreground">En cours</div>
+              </div>
+              <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 p-2.5 text-center">
+                <div className="text-base font-bold text-blue-600">{juzProgress.filter(j => j.pct === 100).length}/30</div>
+                <div className="text-[10px] text-muted-foreground">Juz complets</div>
+              </div>
+            </div>
+
+            {/* Top juz en cours */}
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Meilleure progression</p>
+            {juzProgress.map(({ juz, pct, done, total, firstName, lastName }) => (
               <div key={juz} className="space-y-1">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-sm font-medium">Juz {juz}</span>
-                  <span className="text-xs text-muted-foreground">{firstName} → {lastName}</span>
-                  <span className={`text-xs font-bold tabular-nums ml-2 ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-stone-400'}`}>{pct}%</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-muted-foreground w-10">Juz {juz}</span>
+                    <span className="text-[10px] text-muted-foreground truncate max-w-32">{firstName} → {lastName}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-[10px] text-muted-foreground">{done}/{total}</span>
+                    <span className={`text-xs font-bold tabular-nums w-9 text-right ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-stone-400'}`}>{pct}%</span>
+                  </div>
                 </div>
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                   <div

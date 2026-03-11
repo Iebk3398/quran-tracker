@@ -7,7 +7,6 @@ import type { UserStats } from './badges.js'
 
 const baseStats: UserStats = {
   memorizedCount: 0,
-  consolidatedCount: 0,
   currentStreak: 0,
   totalXP: 0,
   hasCompletedJuzAmma: false,

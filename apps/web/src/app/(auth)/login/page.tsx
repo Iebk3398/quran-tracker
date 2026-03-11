@@ -106,8 +106,8 @@ export default function LoginPage() {
                   onClick={() => {
                     // Redirection directe vers l'endpoint API server-side
                     // → l'API initie le flow OAuth côté serveur (same-site) → plus de state_mismatch
-                    const appURL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://quran-tracker-web.vercel.app').trim()
-                    const apiURL = (process.env.NEXT_PUBLIC_API_URL ?? 'https://api-production-e758.up.railway.app').trim()
+                    const appURL = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').trim()
+                    const apiURL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').trim()
                     const callbackURL = encodeURIComponent(`${appURL}/dashboard`)
                     window.location.href = `${apiURL}/auth/google?callbackURL=${callbackURL}`
                   }}

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { DashboardSidebar } from '@/components/shared/sidebar'
 import { DashboardTopbar } from '@/components/shared/topbar'
+import { SessionBootstrap } from '@/components/shared/session-bootstrap'
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -13,6 +14,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="flex h-screen bg-stone-50 dark:bg-stone-950">
+      <SessionBootstrap />
       {/* Sidebar */}
       <DashboardSidebar />
 

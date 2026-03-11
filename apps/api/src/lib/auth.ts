@@ -4,7 +4,7 @@
  */
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { magicLink, emailOTP } from 'better-auth/plugins'
+import { magicLink, emailOTP, bearer } from 'better-auth/plugins'
 import { db, users, sessions, accounts, verifications } from '../../../../packages/db/src/index.ts'
 
 export const auth = betterAuth({
@@ -36,6 +36,8 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    // Permet l'auth via Authorization: Bearer <token> (cross-origin Vercel → Railway)
+    bearer(),
     emailOTP({
       async sendVerificationOTP({ email, otp }) {
         console.log(`📧 [OTP] Sending to: ${email}, code: ${otp}`)
