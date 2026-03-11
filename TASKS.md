@@ -259,19 +259,69 @@ Total                     ████████████  99% ✅
 
 ---
 
+## ✅ CORRECTIONS UX + AUTH (2026-03-11)
+
+### Fix — Bearer token + Google OAuth local
+
+- [x] `bearer()` plugin ajouté à Better Auth (auth cross-origin Vercel → Railway)
+- [x] `auth-client.ts` : `onResponse` capture `set-auth-token` → stocké dans `localStorage`
+- [x] `api.ts` : `apiFetch` envoie `Authorization: Bearer <token>` sur tous les appels
+- [x] `SessionBootstrap` component : bootstrap du bearer token après Google OAuth (redirect serveur)
+- [x] `dashboard/layout.tsx` : `<SessionBootstrap />` monté au chargement du dashboard
+- [x] `login/page.tsx` : fallback localhost pour Google OAuth en dev local
+- [x] `apps/web/.env.local` créé : `NEXT_PUBLIC_API_URL` + `NEXT_PUBLIC_APP_URL` pour Next.js
+- [x] Google Console : URI `http://localhost:3001/api/auth/callback/google` enregistrée
+- [x] Google Console : URI incorrecte `http://localhost:3000/api/auth/callback/google` supprimée
+
+### Fix — Profile edit (OTP users)
+
+- [x] `profile-client.tsx` : `openEdit()` pré-remplit le nom depuis l'email si vide
+- [x] Champ nom : attribut `required` supprimé (bloquait la sauvegarde OTP users)
+- [x] Correction rôle `super_admin` dans le formulaire d'édition
+
+### Fix — Page Sourates
+
+- [x] Sauvegarde statut : `onSuccess` ferme le menu, `onError` garde le menu ouvert + affiche l'erreur
+- [x] Mise à jour optimiste inclut `verseFrom`/`verseTo`
+- [x] Sections Juz repliables (état `Set<number>` + bouton chevron)
+
+### Améliorations UX
+
+- [x] `ThemeSync` component : applique la classe `.dark` sur `<html>` depuis Zustand store
+- [x] Page Settings : changement de langue avec `router.refresh()` + infos profil complètes (avatar, rôle)
+- [x] `HeatmapCalendar` : 3 vues (7 jours / ce mois / 12 mois) avec tab switcher
+- [x] Page Profil : barre de progression, stats colorées, section progression Coran enrichie
+
+**Fichiers modifiés :**
+- `apps/api/src/lib/auth.ts` — bearer plugin
+- `apps/api/src/lib/badges.test.ts` — fix test baseStats
+- `apps/web/src/lib/auth-client.ts` — onResponse capture token
+- `apps/web/src/lib/api.ts` — Bearer header dans apiFetch
+- `apps/web/src/components/shared/session-bootstrap.tsx` — nouveau
+- `apps/web/src/components/shared/providers.tsx` — ThemeSync
+- `apps/web/src/app/(dashboard)/layout.tsx` — SessionBootstrap
+- `apps/web/src/app/(auth)/login/page.tsx` — fallback localhost OAuth
+- `apps/web/src/app/(dashboard)/profile/profile-client.tsx` — UX améliorée
+- `apps/web/src/app/(dashboard)/settings/page.tsx` — profil + locale fix
+- `apps/web/src/app/(dashboard)/surahs/surahs-client.tsx` — save fix + Juz repliable
+- `apps/web/src/components/quran/heatmap-calendar.tsx` — 3 vues
+- `apps/web/.env.local` — env vars Next.js local
+
+---
+
 ## 🔮 BACKLOG v2
 
 | Feature | Description | Priorité |
 |---------|-------------|----------|
 | GPT-4o Suggestions | Suggestions de révision intelligentes | 🔴 Haute |
 | Whisper STT | Validation vocale des récitations | 🟡 Moyenne |
+| Objectifs partagés | Fixer des objectifs de mémorisation + partage entre users | 🔴 Haute |
 | Sentry Integration | Monitoring des erreurs en production | 🟡 Moyenne |
 | PostHog Analytics | Analytics comportementales | 🟢 Basse |
 | packages/ui | Composants UI partagés entre web et api | 🟡 Moyenne |
 | Page offline PWA | Page dédiée mode hors ligne | 🟢 Basse |
 | Rate limiting | Middleware Upstash complet | 🟡 Moyenne |
 | Tests E2E | Playwright end-to-end tests | 🟡 Moyenne |
-| Google OAuth | Tester et activer le flow OAuth Google | 🟡 Moyenne |
 
 ---
 
@@ -296,11 +346,11 @@ Total                     ████████████  99% ✅
 - [x] `callbackURL` magic link = URL absolue Vercel
 
 ### Prochaines étapes (à valider)
-- [ ] Tester le flux magic link en production (email → /dashboard)
-- [ ] Tester Google OAuth (configurer redirect URI dans Google Console)
+- [x] Google OAuth local fonctionnel (URI enregistrée dans Google Console)
 - [ ] Activer Sentry + PostHog (monitoring)
 - [ ] Configurer domaine custom (qurantracker.app)
+- [ ] Implémenter objectifs partagés (feature demandée)
 
 ---
 
-*🤖 Dernière mise à jour : 2026-03-08 — Déploiement production complet · API Railway · Frontend Vercel · CORS fix · Magic link production*
+*🤖 Dernière mise à jour : 2026-03-11 — Fix auth bearer token · Google OAuth local · UX surahs/profil/settings · Heatmap 3 vues*

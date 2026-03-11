@@ -283,6 +283,10 @@ Les routes IA sont architecturalement prêtes dans `apps/api/src/routes/ai.ts` m
 | 2026-03-08 | `apiFetch` avec `credentials: 'include'` | Obligatoire pour envoyer le cookie de session cross-port (3000→3001) |
 | 2026-03-08 | `GET /api/groups/me` avant `GET /api/groups/:id` | Routes spécifiques déclarées avant les routes paramétrées dans Hono |
 | 2026-03-08 | Stats groupe calculées client-side | Évite un endpoint supplémentaire — calculées depuis le leaderboard |
+| 2026-03-11 | `bearer()` plugin Better Auth | Auth cross-origin Vercel→Railway via `Authorization: Bearer` + `set-auth-token` header |
+| 2026-03-11 | `SessionBootstrap` component | Bootstrappe le bearer token après Google OAuth (redirect serveur ne passe pas par onResponse) |
+| 2026-03-11 | `apps/web/.env.local` requis | Next.js ne lit pas le `.env.local` racine — `NEXT_PUBLIC_*` doivent être dans `apps/web/.env.local` |
+| 2026-03-11 | Google OAuth local : URI port 3001 uniquement | Seul `http://localhost:3001/api/auth/callback/google` dans Google Console — pas le port 3000 |
 
 ---
 
@@ -329,4 +333,4 @@ npm run dev
 ---
 
 *🤖 Ce fichier est géré automatiquement par Claude. Ne pas éditer manuellement.*
-*Dernière mise à jour : 2026-03-08 — Pages connectées API · Dashboard/Profil/Settings live · IA GPT-4o prévue en v2*
+*Dernière mise à jour : 2026-03-11 — Fix auth bearer token · Google OAuth local · UX surahs/profil/settings · Heatmap 3 vues*
