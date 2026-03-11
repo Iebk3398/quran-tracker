@@ -2,20 +2,36 @@
 /**
  * @file Page de connexion — OTP 6 chiffres par email
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { authClient } from '@/lib/auth-client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 type Step = 'email' | 'otp'
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  unable_to_create_user: 'Impossible de créer le compte. Réessayez ou contactez le support.',
+  oauth_error: 'Erreur Google OAuth. Réessayez.',
+  invalid_token: 'Lien invalide ou expiré.',
+  user_not_found: 'Aucun compte trouvé avec cet email.',
+}
+
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Affiche l'erreur renvoyée par Better Auth via redirect (?error=...)
+  useEffect(() => {
+    const err = searchParams.get('error')
+    if (err) {
+      setError(AUTH_ERROR_MESSAGES[err] ?? `Erreur : ${err}`)
+    }
+  }, [searchParams])
 
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault()
