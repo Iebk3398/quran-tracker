@@ -54,6 +54,19 @@ app.use(
   })
 )
 
+// ─── Root — absorbe les redirects d'erreur Better Auth ──────
+// Better Auth redirige vers BETTER_AUTH_URL/?error=... en cas d'échec OAuth.
+// Sans cette route, le navigateur reçoit un 404 Hono.
+// On redirige vers le frontend avec l'erreur dans l'URL.
+app.get('/', (c) => {
+  const error = c.req.query('error')
+  const appURL = (process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://quran-tracker-web.vercel.app').trim()
+  if (error) {
+    return c.redirect(`${appURL}/login?error=${encodeURIComponent(error)}`, 302)
+  }
+  return c.json({ status: 'ok', service: 'quran-tracker-api', version: '1.0.0' })
+})
+
 // ─── Health check ───────────────────────────────────────────
 app.get('/health', (c) =>
   c.json({
