@@ -19,6 +19,24 @@ export const auth = betterAuth({
   }),
   secret: process.env['BETTER_AUTH_SECRET'],
   baseURL: process.env['BETTER_AUTH_URL'] ?? 'http://localhost:3001',
+  /**
+   * Hook exécuté avant chaque création d'utilisateur.
+   * Garantit que `name` n'est jamais vide (contrainte NOT NULL en DB).
+   * Lors d'un magic link / OTP, Better Auth ne dispose que de l'email
+   * → on utilise le préfixe email comme nom par défaut.
+   */
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => ({
+          data: {
+            ...user,
+            name: user.name?.trim() || (user.email as string).split('@')[0] || 'Utilisateur',
+          },
+        }),
+      },
+    },
+  },
   trustedOrigins: [
     (process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000').trim(),
     (process.env['BETTER_AUTH_URL'] ?? 'https://api-production-e758.up.railway.app').trim(),
