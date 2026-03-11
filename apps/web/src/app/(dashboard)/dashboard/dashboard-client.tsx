@@ -10,6 +10,7 @@ import { GroupStats } from '@/components/group/group-stats'
 import { Leaderboard } from '@/components/group/leaderboard'
 import { GroupFeed } from '@/components/group/group-feed'
 import { ActiveStreaks } from '@/components/group/active-streaks'
+import { GroupGoal } from '@/components/group/group-goal'
 import type { GroupStats as GroupStatsType, LeaderboardEntry, FeedItem } from '@quran-tracker/types'
 
 interface MyGroup {
@@ -259,6 +260,8 @@ export function DashboardClient() {
       </div>
 
       <GroupStats stats={groupStats} />
+
+      <GroupGoal groupId={group.id} isSheikh={group.sheikhId === session?.user?.id} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">

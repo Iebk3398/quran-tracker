@@ -5,8 +5,8 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
-import { db, groups, groupMembers, users, memorizationProgress } from '../../../../packages/db/src/index.ts'
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { db, groups, groupMembers, users, memorizationProgress, groupGoals } from '../../../../packages/db/src/index.ts'
+import { eq, and, desc, sql, isNull } from 'drizzle-orm'
 import { requireAuth, requireSheikh } from '../middleware/auth.ts'
 
 export const groupRoutes = new Hono()
@@ -166,4 +166,124 @@ groupRoutes.delete('/:id/members/:userId', requireSheikh, async (c) => {
     .where(and(eq(groupMembers.userId, targetUserId), eq(groupMembers.groupId, groupId)))
 
   return c.json({ success: true, data: { removed: true } })
+})
+
+// ─── Objectifs communs ──────────────────────────────────────────────────────
+
+const goalSchema = z.object({
+  title: z.string().min(2).max(150),
+  description: z.string().max(500).optional(),
+  surahFrom: z.number().int().min(1).max(114).optional(),
+  surahTo: z.number().int().min(1).max(114).optional(),
+  targetCount: z.number().int().min(1).max(114).optional(),
+  deadline: z.string().datetime({ offset: true }).optional(),
+})
+
+/**
+ * POST /api/groups/:id/goals — Créer un objectif commun (sheikh uniquement).
+ * Désactive tous les objectifs actifs précédents du groupe avant d'en créer un nouveau.
+ */
+groupRoutes.post('/:id/goals', requireSheikh, zValidator('json', goalSchema), async (c) => {
+  const user = c.get('user')
+  const groupId = c.req.param('id')
+  const body = c.req.valid('json')
+
+  // Désactiver les objectifs actifs existants
+  await db
+    .update(groupGoals)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(and(eq(groupGoals.groupId, groupId), eq(groupGoals.isActive, true)))
+
+  const goal = await db
+    .insert(groupGoals)
+    .values({
+      id: nanoid(),
+      groupId,
+      createdByUserId: user.id,
+      title: body.title,
+      description: body.description ?? null,
+      surahFrom: body.surahFrom ?? null,
+      surahTo: body.surahTo ?? null,
+      targetCount: body.targetCount ?? null,
+      deadline: body.deadline ? new Date(body.deadline) : null,
+      isActive: true,
+    })
+    .returning()
+
+  return c.json({ success: true, data: goal[0] }, 201)
+})
+
+/**
+ * GET /api/groups/:id/goals/active — Objectif actif avec progression par membre.
+ * Retourne null si aucun objectif actif.
+ */
+groupRoutes.get('/:id/goals/active', requireAuth, async (c) => {
+  const groupId = c.req.param('id')
+
+  const [goal] = await db
+    .select()
+    .from(groupGoals)
+    .where(and(eq(groupGoals.groupId, groupId), eq(groupGoals.isActive, true)))
+    .limit(1)
+
+  if (!goal) return c.json({ success: true, data: null })
+
+  // Calcul de progression pour chaque membre
+  const members = await db
+    .select({
+      userId: users.id,
+      name: users.name,
+      avatar: users.avatar,
+      memorized: sql<number>`
+        COUNT(CASE WHEN ${memorizationProgress.status} = 'memorized'
+          ${goal.surahFrom !== null ? sql`AND ${memorizationProgress.surahId} >= ${goal.surahFrom}` : sql``}
+          ${goal.surahTo !== null ? sql`AND ${memorizationProgress.surahId} <= ${goal.surahTo}` : sql``}
+          THEN 1 END)
+      `.as('memorized'),
+    })
+    .from(groupMembers)
+    .innerJoin(users, eq(groupMembers.userId, users.id))
+    .leftJoin(memorizationProgress, eq(memorizationProgress.userId, users.id))
+    .where(eq(groupMembers.groupId, groupId))
+    .groupBy(users.id, users.name, users.avatar)
+
+  const target = goal.targetCount ?? (goal.surahTo !== null && goal.surahFrom !== null
+    ? goal.surahTo - goal.surahFrom + 1
+    : 114)
+
+  const totalMembers = members.length
+  const totalMemorized = members.reduce((sum, m) => sum + Number(m.memorized), 0)
+  const groupProgressPercent = totalMembers > 0
+    ? Math.round((totalMemorized / (totalMembers * target)) * 100)
+    : 0
+
+  return c.json({
+    success: true,
+    data: {
+      goal,
+      target,
+      groupProgressPercent: Math.min(groupProgressPercent, 100),
+      members: members.map((m) => ({
+        userId: m.userId,
+        name: m.name,
+        avatar: m.avatar,
+        memorized: Number(m.memorized),
+        progressPercent: Math.min(Math.round((Number(m.memorized) / target) * 100), 100),
+      })),
+    },
+  })
+})
+
+/**
+ * DELETE /api/groups/:id/goals/:goalId — Supprimer un objectif (sheikh uniquement).
+ */
+groupRoutes.delete('/:id/goals/:goalId', requireSheikh, async (c) => {
+  const goalId = c.req.param('goalId')
+  const groupId = c.req.param('id')
+
+  await db
+    .delete(groupGoals)
+    .where(and(eq(groupGoals.id, goalId), eq(groupGoals.groupId, groupId)))
+
+  return c.json({ success: true, data: { deleted: true } })
 })
