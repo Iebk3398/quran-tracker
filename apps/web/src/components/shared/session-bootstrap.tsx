@@ -27,9 +27,12 @@ export function SessionBootstrap() {
     if (typeof localStorage === 'undefined') return
 
     // Toujours re-valider — même si un token existe déjà (peut être expiré)
+    // Better Auth retourne { data: { user, session } | null, error }
     getSession()
-      .then((session) => {
-        if (!session?.user) {
+      .then((result) => {
+        const user = (result as { data?: { user?: unknown } | null })?.data?.user
+
+        if (!user) {
           // Token invalide ou expiré → nettoyer et renvoyer vers le login
           localStorage.removeItem(AUTH_TOKEN_KEY)
           router.push('/login')
@@ -37,19 +40,20 @@ export function SessionBootstrap() {
         }
 
         // Hydrate le store Zustand avec les infos de l'utilisateur connecté
-        const raw = session.user as {
+        const raw = user as {
           id: string
           name?: string | null
-          email: string
+          email?: string | null
           image?: string | null
           role?: string
           createdAt?: string | Date
         }
 
+        const email = raw.email ?? ''
         setUser({
           id: raw.id,
-          name: raw.name?.trim() || raw.email.split('@')[0] || 'Utilisateur',
-          email: raw.email,
+          name: raw.name?.trim() || email.split('@')[0] || 'Utilisateur',
+          email,
           role: (['super_admin', 'sheikh', 'student', 'parent'].includes(raw.role ?? '')
             ? raw.role
             : 'student') as User['role'],
