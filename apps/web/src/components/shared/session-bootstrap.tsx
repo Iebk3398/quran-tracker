@@ -14,32 +14,37 @@
  *    session, on hydrate le store pour que la Topbar affiche le bon utilisateur.
  */
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { getSession, AUTH_TOKEN_KEY } from '@/lib/auth-client'
 import { useAppStore } from '@/store'
 import type { User } from '@quran-tracker/types'
 
 export function SessionBootstrap() {
   const setUser = useAppStore((s) => s.setUser)
-  const router = useRouter()
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
 
-    // Toujours re-valider — même si un token existe déjà (peut être expiré)
-    // Better Auth retourne { data: { user, session } | null, error }
+    // Appelle getSession() au montage pour deux raisons :
+    // 1. Après OAuth/magic-link (redirect serveur), onResponse n'a jamais
+    //    capturé le set-auth-token → cet appel force le plugin bearer à
+    //    émettre un nouveau token, que onResponse stocke en localStorage.
+    // 2. Si un token valide existe déjà, hydrate store.user pour la Topbar.
+    //
+    // ⚠️ Ne pas rediriger vers /login ici : en prod cross-origin, juste après
+    // un redirect OAuth, getSession() peut retourner null avant que le cookie
+    // soit disponible → ce serait une boucle infinie. L'auth guard est géré
+    // au niveau page/middleware, pas ici.
     getSession()
       .then((result) => {
         const user = (result as { data?: { user?: unknown } | null })?.data?.user
 
         if (!user) {
-          // Token invalide ou expiré → nettoyer et renvoyer vers le login
+          // Pas de session → nettoyer un éventuel token périmé
           localStorage.removeItem(AUTH_TOKEN_KEY)
-          router.push('/login')
           return
         }
 
-        // Hydrate le store Zustand avec les infos de l'utilisateur connecté
+        // Hydrate le store Zustand pour que la Topbar affiche le bon user
         const raw = user as {
           id: string
           name?: string | null
@@ -62,7 +67,6 @@ export function SessionBootstrap() {
         })
       })
       .catch(() => {
-        // Erreur réseau ou token définitivement invalide
         localStorage.removeItem(AUTH_TOKEN_KEY)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
