@@ -47,6 +47,14 @@ export const auth = betterAuth({
   ],
   emailAndPassword: { enabled: false },
   user: {
+    /**
+     * Mappe les noms de champs Better Auth vers les colonnes Drizzle.
+     * Better Auth utilise "image" pour l'avatar ; notre schéma utilise "avatar".
+     * Sans ce mapping, le Drizzle adapter lève BetterAuthError: field "image" does not exist.
+     */
+    fields: {
+      image: 'avatar',
+    },
     additionalFields: {
       role: {
         type: 'string',
