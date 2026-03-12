@@ -46,6 +46,18 @@ export const auth = betterAuth({
     /^https:\/\/.*\.railway\.app/,  // loopback inter-service Railway
   ],
   emailAndPassword: { enabled: false },
+  advanced: {
+    /**
+     * SameSite=None; Secure obligatoire pour le cross-origin Vercel → Railway.
+     * SameSite=Lax bloque les cookies dans les requêtes XHR cross-origin (fetch),
+     * ce qui empêche toute session après OAuth Google en production.
+     * SameSite=None + Secure permet l'envoi du cookie avec credentials: 'include'.
+     */
+    defaultCookieAttributes: {
+      sameSite: 'none' as const,
+      secure: true,
+    },
+  },
   user: {
     /**
      * Mappe les noms de champs Better Auth vers les colonnes Drizzle.
