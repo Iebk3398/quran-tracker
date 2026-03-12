@@ -25,6 +25,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Si déjà connecté → redirige vers le dashboard
+  useEffect(() => {
+    authClient.getSession().then((result) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const user = (result as any)?.data?.user
+      if (user) router.replace('/dashboard')
+    }).catch(() => { /* pas de session */ })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Affiche l'erreur renvoyée par Better Auth via redirect (?error=...)
   useEffect(() => {
     const err = searchParams.get('error')
