@@ -33,17 +33,10 @@ export function GroupStats({ stats }: GroupStatsProps) {
       color: 'text-amber-600',
       bg: 'bg-amber-50 dark:bg-amber-900/20',
     },
-    {
-      label: 'Streak moyen',
-      value: `${stats?.averageStreak ?? 0} jours`,
-      icon: '🔥',
-      color: 'text-orange-600',
-      bg: 'bg-orange-50 dark:bg-orange-900/20',
-    },
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-3 gap-4">
       {cards.map((card, i) => (
         <motion.div
           key={card.label}

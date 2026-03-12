@@ -67,16 +67,9 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{entry.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {entry.surahsMemorized} sourate{entry.surahsMemorized > 1 ? 's' : ''} · {entry.totalXp} XP
+                  {entry.surahsMemorized} sourate{entry.surahsMemorized > 1 ? 's' : ''} mémorisée{entry.surahsMemorized > 1 ? 's' : ''}
                 </p>
               </div>
-
-              {/* Streak */}
-              {entry.currentStreak > 0 && (
-                <span className="text-sm font-medium text-orange-500">
-                  {entry.currentStreak} 🔥
-                </span>
-              )}
 
               {/* Barre de progression */}
               <div className="w-20 hidden sm:block">
