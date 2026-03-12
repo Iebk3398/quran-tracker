@@ -9,7 +9,6 @@ import { apiFetch } from '@/lib/api'
 import { GroupStats } from '@/components/group/group-stats'
 import { Leaderboard } from '@/components/group/leaderboard'
 import { GroupFeed } from '@/components/group/group-feed'
-import { ActiveStreaks } from '@/components/group/active-streaks'
 import { GroupGoal } from '@/components/group/group-goal'
 import type { GroupStats as GroupStatsType, LeaderboardEntry, FeedItem } from '@quran-tracker/types'
 
@@ -26,26 +25,18 @@ interface ApiLeaderboardEntry {
   userId: string
   name: string
   avatar: string | null
-  xp: string
-  currentStreak: string
   surahsMemorized: number
 }
 
 /** Calcule les stats du groupe depuis le leaderboard */
 function computeGroupStats(entries: ApiLeaderboardEntry[]): GroupStatsType {
   const totalMembers = entries.length
-  const activeMembers = entries.filter(
-    (e) => e.surahsMemorized > 0 || Number(e.currentStreak) > 0
-  ).length
+  const activeMembers = entries.filter((e) => e.surahsMemorized > 0).length
   const totalSurahsMemorized = entries.reduce((sum, e) => sum + Number(e.surahsMemorized), 0)
   const groupProgressPercent =
     totalMembers > 0 ? Math.round((totalSurahsMemorized / (totalMembers * 114)) * 100) : 0
-  const averageStreak =
-    totalMembers > 0
-      ? Math.round(entries.reduce((sum, e) => sum + Number(e.currentStreak), 0) / totalMembers)
-      : 0
 
-  return { totalMembers, activeMembers, totalSurahsMemorized, groupProgressPercent, averageStreak }
+  return { totalMembers, activeMembers, totalSurahsMemorized, groupProgressPercent, averageStreak: 0 }
 }
 
 /** Mappe la réponse API vers le type LeaderboardEntry */
@@ -56,8 +47,8 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
     avatar: e.avatar,
     surahsMemorized: Number(e.surahsMemorized),
     versesMemorized: 0,
-    totalXp: Number(e.xp),
-    currentStreak: Number(e.currentStreak),
+    totalXp: 0,
+    currentStreak: 0,
     rank: i + 1,
   }))
 }
@@ -223,14 +214,6 @@ export function DashboardClient() {
 
   const leaderboard = rawLeaderboard ? mapLeaderboard(rawLeaderboard) : []
   const groupStats = rawLeaderboard ? computeGroupStats(rawLeaderboard) : undefined
-  const streakMembers = rawLeaderboard
-    ?.filter((e) => Number(e.currentStreak) > 0)
-    .map((e) => ({
-      userId: e.userId,
-      name: e.name,
-      avatar: e.avatar,
-      currentStreak: Number(e.currentStreak),
-    })) ?? []
 
   return (
     <>
@@ -263,14 +246,7 @@ export function DashboardClient() {
 
       <GroupGoal groupId={group.id} isSheikh={group.sheikhId === session?.user?.id} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Leaderboard entries={leaderboard} isLoading={lbLoading} />
-        </div>
-        <div>
-          <ActiveStreaks members={streakMembers} />
-        </div>
-      </div>
+      <Leaderboard entries={leaderboard} isLoading={lbLoading} />
 
       <GroupFeed items={feedItems ?? []} isLoading={feedLoading} />
     </>

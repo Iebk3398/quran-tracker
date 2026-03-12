@@ -14,8 +14,6 @@ interface RevisionDay {
 
 interface HeatmapCalendarProps {
   data: RevisionDay[]
-  currentStreak: number
-  longestStreak: number
 }
 
 type View = 'week' | 'month' | 'year'
@@ -210,7 +208,7 @@ function YearView({ dataMap }: { dataMap: Map<string, RevisionDay> }) {
 /**
  * Calendrier de révision avec vues Semaine / Mois / Année
  */
-export function HeatmapCalendar({ data, currentStreak, longestStreak }: HeatmapCalendarProps) {
+export function HeatmapCalendar({ data }: HeatmapCalendarProps) {
   const [view, setView] = useState<View>('month')
 
   const dataMap = useMemo(() => {
@@ -234,16 +232,8 @@ export function HeatmapCalendar({ data, currentStreak, longestStreak }: HeatmapC
       <div className="flex items-center justify-between">
         <div className="flex gap-3 text-xs">
           <div className="flex items-center gap-1">
-            <span className="text-orange-500 font-bold text-base">{currentStreak}</span>
-            <span className="text-muted-foreground">🔥 streak</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="font-bold text-base">{longestStreak}</span>
-            <span className="text-muted-foreground">record</span>
-          </div>
-          <div className="flex items-center gap-1">
             <span className="font-bold text-base">{totalRevisions}</span>
-            <span className="text-muted-foreground">total · {activeDays}j actifs</span>
+            <span className="text-muted-foreground">révisions · {activeDays}j actifs</span>
           </div>
         </div>
         <div className="flex gap-1 bg-muted rounded-lg p-0.5">

@@ -35,6 +35,7 @@ export default function LoginPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+
   // Affiche l'erreur renvoyée par Better Auth via redirect (?error=...)
   useEffect(() => {
     const err = searchParams.get('error')

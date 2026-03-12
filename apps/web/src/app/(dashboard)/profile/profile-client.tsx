@@ -29,9 +29,6 @@ interface UserProfile {
   email: string
   role: 'student' | 'sheikh' | 'parent' | 'super_admin'
   avatar: string | null
-  xp: string
-  currentStreak: string
-  longestStreak: string
 }
 
 const ROLES = [
@@ -40,13 +37,6 @@ const ROLES = [
   { value: 'parent', label: 'Parent', emoji: '👨‍👩‍👧' },
 ] as const
 
-const BADGE_DEFS = [
-  { id: 'first_surah', name: 'Premier pas', emoji: '🌱', desc: 'Première sourate mémorisée' },
-  { id: 'juz_amma', name: 'Juz Amma', emoji: '📖', desc: 'Juz 30 complet' },
-  { id: 'streak_7', name: 'Série 7j', emoji: '🔥', desc: '7 jours de suite' },
-  { id: 'streak_30', name: 'Série 30j', emoji: '⚡', desc: '30 jours de suite' },
-  { id: 'hafiz', name: 'Hafiz', emoji: '🏆', desc: '114 sourates mémorisées' },
-]
 
 export function ProfileClient() {
   const { data: session, isPending: sessionLoading } = useSession()
@@ -66,7 +56,7 @@ export function ProfileClient() {
   const user = profile
     ? { ...profile, email }
     : sessionUser
-      ? { id: sessionUser.id, name: sessionUser.name, email, role: 'student' as const, avatar: sessionUser.image ?? null, xp: '0', currentStreak: '0', longestStreak: '0' }
+      ? { id: sessionUser.id, name: sessionUser.name, email, role: 'student' as const, avatar: sessionUser.image ?? null }
       : undefined
 
   // ── Edit profile state ──
@@ -145,23 +135,6 @@ export function ProfileClient() {
     .filter((j): j is NonNullable<typeof j> => j !== null && j.pct > 0)
     .sort((a, b) => b.pct - a.pct)
     .slice(0, 5)
-
-  // Earned badges (simple logic based on progress)
-  const earnedBadges = BADGE_DEFS.filter(b => {
-    if (b.id === 'first_surah') return surahsMemorized >= 1
-    if (b.id === 'juz_amma') {
-      const juz30 = surahsWithStatus.filter(s => s.juzNumber === 30)
-      return juz30.length > 0 && juz30.every(s => s.status === 'memorized')
-    }
-    if (b.id === 'streak_7') return Number(user?.currentStreak ?? 0) >= 7
-    if (b.id === 'streak_30') return Number(user?.currentStreak ?? 0) >= 30
-    if (b.id === 'hafiz') return surahsMemorized >= 114
-    return false
-  })
-
-  const currentStreak = Number(user?.currentStreak ?? 0)
-  const longestStreak = Number(user?.longestStreak ?? 0)
-  const xp = Number(user?.xp ?? 0)
 
   const initials = user?.name
     ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -297,15 +270,12 @@ export function ProfileClient() {
       {/* Hero header */}
       <div className="rounded-2xl border bg-card p-5">
         <div className="flex items-center gap-4">
-          <div className="relative flex-shrink-0">
+          <div className="flex-shrink-0">
             <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-xl font-bold text-emerald-600 overflow-hidden">
               {user?.avatar
                 ? <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                 : initials}
             </div>
-            {currentStreak > 0 && (
-              <span className="absolute -bottom-1 -right-1 text-sm leading-none">🔥</span>
-            )}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-base truncate">{user?.name ?? 'Mon Profil'}</h1>
@@ -318,13 +288,6 @@ export function ProfileClient() {
               )}
             </div>
           </div>
-          {earnedBadges.length > 0 && (
-            <div className="flex gap-0.5 flex-shrink-0">
-              {earnedBadges.slice(0, 3).map(b => (
-                <span key={b.id} title={b.name} className="text-xl">{b.emoji}</span>
-              ))}
-            </div>
-          )}
           {/* Bouton éditer */}
           <button onClick={openEdit}
             className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold hover:bg-muted transition-colors">
@@ -351,20 +314,6 @@ export function ProfileClient() {
               <span>{(totalVerses - totalVersesMemorized).toLocaleString()} restants</span>
             </div>
           </div>
-          {/* Stat cards */}
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { value: surahsMemorized, sub: 'Mémorisées', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-              { value: `${currentStreak}🔥`, sub: 'Jours streak', color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-              { value: xp.toLocaleString(), sub: 'XP total', color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-              { value: longestStreak, sub: 'Record', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-            ].map(({ value, sub, color, bg }) => (
-              <div key={sub} className={`rounded-xl p-2.5 text-center ${bg}`}>
-                <div className={`text-base font-bold tabular-nums ${color}`}>{value}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{sub}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -372,7 +321,7 @@ export function ProfileClient() {
       <div className="rounded-2xl border bg-card p-4">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Mon activité</p>
         <Suspense fallback={<div className="h-20 bg-muted animate-pulse rounded-lg" />}>
-          <HeatmapCalendar data={heatmapData} currentStreak={currentStreak} longestStreak={longestStreak} />
+          <HeatmapCalendar data={heatmapData} />
         </Suspense>
       </div>
 
