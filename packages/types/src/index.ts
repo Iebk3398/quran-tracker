@@ -146,6 +146,7 @@ export interface LeaderboardEntry {
   versesMemorized: number
   currentStreak: number
   totalXp: number
+  hizbsRead?: number
   rank: number
 }
 

@@ -5,7 +5,7 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { db, users } from '../../../../packages/db/src/index.ts'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { requireAuth } from '../middleware/auth.ts'
 
 export const userRoutes = new Hono()
@@ -34,6 +34,28 @@ userRoutes.patch('/me', requireAuth, zValidator('json', updateUserSchema), async
 
   return c.json({ success: true, data: updated[0] })
 })
+
+/** POST /api/users/me/hizb — Enregistrer des hizbs lus (incrémente le compteur) */
+userRoutes.post(
+  '/me/hizb',
+  requireAuth,
+  zValidator('json', z.object({ count: z.number().int().min(1).max(60) })),
+  async (c) => {
+    const user = c.get('user')
+    const { count } = c.req.valid('json')
+
+    const updated = await db
+      .update(users)
+      .set({
+        hizbsRead: sql`${users.hizbsRead} + ${count}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id))
+      .returning({ hizbsRead: users.hizbsRead })
+
+    return c.json({ success: true, data: { hizbsRead: updated[0]?.hizbsRead ?? 0 } })
+  }
+)
 
 /** GET /api/users/me — Profil complet */
 userRoutes.get('/me', requireAuth, async (c) => {

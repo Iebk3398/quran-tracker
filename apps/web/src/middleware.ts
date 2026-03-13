@@ -1,41 +1,52 @@
 /**
  * @file Next.js Middleware — Protection des routes
- * @description Couche légère de redirection basée sur le cookie `ba-logged-in`.
+ * @description Deux niveaux de protection :
  *
- * Architecture à deux niveaux :
- * 1. Middleware (serveur, sans JS) :
+ * 1. Middleware (serveur, edge) :
  *    - Redirige les utilisateurs connectés (/login → /dashboard)
- *    - NE bloque PAS les routes protégées (car le cookie n'est pas encore
- *      posé après un redirect OAuth → AuthGuard gère ça côté client)
+ *    - Bloque les routes protégées pour les non-connectés → /login
+ *    - Le cookie `ba-logged-in` est posé par AuthGuard après vérification
  *
  * 2. AuthGuard (client) :
- *    - Appelle getSession() à chaque montage du layout protégé
- *    - Redirige vers /login si aucune session valide
- *    - Pose le cookie `ba-logged-in` après succès (pour les visites suivantes)
+ *    - Appelle getSession() à chaque montage → vrai barrière de sécurité
+ *    - Efface le cookie si la session est expirée → déclenche re-check
  *
- * ⚠️ Le middleware ne peut pas lire le cookie de session Railway
- *    (domaine api.railway.app) — il ne peut lire que les cookies Vercel.
- *    C'est pourquoi AuthGuard reste la vraie barrière de sécurité UI.
+ * Flow OAuth Google :
+ *    API (Railway) → redirect /dashboard → middleware voit pas de cookie
+ *    → redirect /login → login page détecte la session → redirect /dashboard
+ *    → middleware voit le cookie (posé par AuthGuard au 1er passage) → OK
  */
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-/** Cookie posé par AuthGuard après vérification de session (domaine Vercel) */
+/** Cookie posé par AuthGuard après vérification de session */
 const SESSION_COOKIE = 'ba-logged-in'
 
 /** Routes réservées aux visiteurs non connectés */
 const AUTH_PATHS = ['/login']
+
+/** Routes nécessitant d'être authentifié */
+const PROTECTED_PATHS = ['/dashboard', '/profile', '/settings', '/surahs', '/validate']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isLoggedIn = request.cookies.has(SESSION_COOKIE)
 
   const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p))
+  const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p))
 
-  // Utilisateur connecté sur la page de login → redirige directement vers le dashboard
+  // Utilisateur connecté sur la page de login → redirige vers le dashboard
   if (isAuthPage && isLoggedIn) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
+  // Utilisateur non connecté sur une route protégée → redirige vers /login
+  // Après OAuth : login page détecte la session existante et redirige vers /dashboard
+  if (isProtected && !isLoggedIn) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
@@ -44,13 +55,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Applique le middleware à toutes les routes sauf :
-     * - _next/static (fichiers statiques)
-     * - _next/image (optimisation d'images)
-     * - favicon.ico, manifest.json, sw.js (PWA)
-     * - /api/* (route handlers Next.js)
-     */
     '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons|api).*)',
   ],
 }

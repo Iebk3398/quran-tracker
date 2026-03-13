@@ -10,6 +10,7 @@ import { GroupStats } from '@/components/group/group-stats'
 import { Leaderboard } from '@/components/group/leaderboard'
 import { GroupFeed } from '@/components/group/group-feed'
 import { GroupGoal } from '@/components/group/group-goal'
+import { HizbTracker } from '@/components/group/hizb-tracker'
 import type { GroupStats as GroupStatsType, LeaderboardEntry, FeedItem } from '@quran-tracker/types'
 
 interface MyGroup {
@@ -26,6 +27,8 @@ interface ApiLeaderboardEntry {
   name: string
   avatar: string | null
   surahsMemorized: number
+  xp?: string
+  hizbsRead?: number
 }
 
 /** Calcule les stats du groupe depuis le leaderboard */
@@ -47,7 +50,8 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
     avatar: e.avatar,
     surahsMemorized: Number(e.surahsMemorized),
     versesMemorized: 0,
-    totalXp: 0,
+    totalXp: Number(e.xp ?? 0),
+    hizbsRead: e.hizbsRead ?? 0,
     currentStreak: 0,
     rank: i + 1,
   }))
@@ -245,6 +249,8 @@ export function DashboardClient() {
       <GroupStats stats={groupStats} />
 
       <GroupGoal groupId={group.id} isSheikh={group.sheikhId === session?.user?.id} />
+
+      <HizbTracker groupId={group.id} currentUserId={session?.user?.id ?? ''} />
 
       <Leaderboard entries={leaderboard} isLoading={lbLoading} />
 

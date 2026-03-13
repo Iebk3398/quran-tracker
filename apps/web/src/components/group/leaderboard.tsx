@@ -71,6 +71,13 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
                 </p>
               </div>
 
+              {/* XP */}
+              {entry.totalXp > 0 && (
+                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex-shrink-0 hidden sm:block">
+                  ⭐ {entry.totalXp} XP
+                </span>
+              )}
+
               {/* Barre de progression */}
               <div className="w-20 hidden sm:block">
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden">

@@ -10,6 +10,27 @@ import { eq, and, sql } from 'drizzle-orm'
 import { requireAuth, requireSheikh } from '../middleware/auth.ts'
 import { calculateSM2 } from '../../../../packages/db/src/lib/spaced-repetition.ts'
 
+/** XP accordé selon la transition de statut */
+function computeXpGain(
+  previousStatus: string | undefined,
+  newStatus: string,
+  markForReview: boolean | undefined
+): number {
+  if (newStatus === 'memorized' && previousStatus !== 'memorized') return 100
+  if (newStatus === 'in_progress' && (previousStatus === 'not_started' || !previousStatus)) return 20
+  if (markForReview) return 10
+  return 0
+}
+
+/** Incrémente le XP d'un utilisateur */
+async function awardXp(userId: string, xpGain: number): Promise<void> {
+  if (xpGain <= 0) return
+  await db
+    .update(users)
+    .set({ xp: sql`(${users.xp}::integer + ${xpGain})::text` })
+    .where(eq(users.id, userId))
+}
+
 export const progressRoutes = new Hono()
 
 const updateProgressSchema = z.object({
@@ -60,6 +81,8 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
     .where(and(eq(memorizationProgress.userId, user.id), eq(memorizationProgress.surahId, surahId)))
     .limit(1)
 
+  const xpGain = computeXpGain(existing[0]?.status, status, markForReview)
+
   if (existing[0]) {
     const updated = await db
       .update(memorizationProgress)
@@ -73,7 +96,9 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
       })
       .where(eq(memorizationProgress.id, existing[0].id))
       .returning()
-    return c.json({ success: true, data: updated[0] })
+
+    await awardXp(user.id, xpGain)
+    return c.json({ success: true, data: updated[0], xpGain })
   }
 
   const created = await db
@@ -90,7 +115,8 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
     })
     .returning()
 
-  return c.json({ success: true, data: created[0] }, 201)
+  await awardXp(user.id, xpGain)
+  return c.json({ success: true, data: created[0], xpGain }, 201)
 })
 
 /** POST /api/progress/:id/validate — Validation sheikh */
@@ -98,6 +124,13 @@ progressRoutes.post('/:id/validate', requireSheikh, zValidator('json', validateS
   const sheikh = c.get('user')
   const progressId = c.req.param('id')
   const { notes } = c.req.valid('json')
+
+  // Récupère le propriétaire et le statut actuel avant la mise à jour
+  const [existing] = await db
+    .select({ userId: memorizationProgress.userId, status: memorizationProgress.status })
+    .from(memorizationProgress)
+    .where(eq(memorizationProgress.id, progressId))
+    .limit(1)
 
   const updated = await db
     .update(memorizationProgress)
@@ -110,6 +143,12 @@ progressRoutes.post('/:id/validate', requireSheikh, zValidator('json', validateS
     })
     .where(eq(memorizationProgress.id, progressId))
     .returning()
+
+  // +100 XP si pas déjà mémorisé + 50 XP bonus validation sheikh
+  if (existing) {
+    const xpGain = (existing.status !== 'memorized' ? 100 : 0) + 50
+    await awardXp(existing.userId, xpGain)
+  }
 
   return c.json({ success: true, data: updated[0] })
 })
