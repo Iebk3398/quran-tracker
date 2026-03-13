@@ -20,6 +20,16 @@ export const authClient = createAuthClient({
      * Le cookie doit être SameSite=None; Secure côté serveur pour que ça fonctionne.
      */
     credentials: 'include' as RequestCredentials,
+    // Envoie le bearer token stocké en localStorage sur chaque requête auth
+    // Nécessaire en production cross-origin (Vercel → Railway) quand les cookies
+    // ne sont pas disponibles (ex: après expiration ou première visite)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onRequest(ctx: any) {
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null
+      if (token) {
+        ctx.options.headers = { ...ctx.options.headers, Authorization: `Bearer ${token}` }
+      }
+    },
     // Capture le token de session renvoyé par le plugin bearer (production cross-origin)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onResponse(ctx: any) {
