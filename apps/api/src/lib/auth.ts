@@ -48,14 +48,13 @@ export const auth = betterAuth({
   emailAndPassword: { enabled: false },
   advanced: {
     /**
-     * SameSite=None; Secure obligatoire pour le cross-origin Vercel → Railway.
-     * SameSite=Lax bloque les cookies dans les requêtes XHR cross-origin (fetch),
-     * ce qui empêche toute session après OAuth Google en production.
-     * SameSite=None + Secure permet l'envoi du cookie avec credentials: 'include'.
+     * Production : SameSite=None; Secure obligatoire pour Vercel → Railway cross-origin.
+     * Local (HTTP) : secure:false car le flag Secure interdit les cookies sur HTTP —
+     * le navigateur refuse de les stocker, ce qui casse toute session en dev.
      */
     defaultCookieAttributes: {
       sameSite: 'none' as const,
-      secure: true,
+      secure: process.env['NODE_ENV'] === 'production',
     },
   },
   user: {
