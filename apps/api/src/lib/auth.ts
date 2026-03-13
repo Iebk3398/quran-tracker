@@ -48,12 +48,15 @@ export const auth = betterAuth({
   emailAndPassword: { enabled: false },
   advanced: {
     /**
-     * Production : SameSite=None; Secure obligatoire pour Vercel → Railway cross-origin.
-     * Local (HTTP) : secure:false car le flag Secure interdit les cookies sur HTTP —
-     * le navigateur refuse de les stocker, ce qui casse toute session en dev.
+     * Production : SameSite=None; Secure requis pour cross-origin Vercel → Railway.
+     * Local HTTP : SameSite=Lax; Secure=false.
+     *   - Chrome exige que SameSite=None implique Secure=true → on ne peut pas
+     *     faire SameSite=None sans Secure sur HTTP (cookie rejeté → state_mismatch).
+     *   - localhost:3000 et localhost:3001 sont same-site (même eTLD+1 = "localhost"),
+     *     donc SameSite=Lax permet l'envoi du cookie entre les deux ports.
      */
     defaultCookieAttributes: {
-      sameSite: 'none' as const,
+      sameSite: (process.env['NODE_ENV'] === 'production' ? 'none' : 'lax') as 'none' | 'lax',
       secure: process.env['NODE_ENV'] === 'production',
     },
   },
