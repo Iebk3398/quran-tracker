@@ -131,17 +131,14 @@ export default function LoginPage() {
                 </div>
                 <button
                   onClick={() => {
-                    // Flow OAuth via relay :
-                    // 1. /auth/google → initie OAuth côté serveur (same-origin, pas de state_mismatch)
-                    // 2. Google → /api/auth/callback/google → Better Auth crée la session
-                    // 3. Better Auth redirige vers /auth/relay (same-domain API)
-                    // 4. /auth/relay lit le cookie de session (same-origin → pas de blocage tiers)
-                    //    et redirige vers /dashboard?token=xxx
-                    // 5. AuthGuard lit ?token, le stocke en localStorage, supprime de l'URL
+                    // Flow OAuth server-side (évite state_mismatch cross-origin) :
+                    // 1. /auth/google → loopback sign-in/social → Google
+                    // 2. Google → /api/auth/callback/google → session créée
+                    // 3. Redirect vers /dashboard (cookie SameSite=Lax local / SameSite=None;Secure prod)
+                    // 4. AuthGuard appelle getSession() → onResponse capture set-auth-token → localStorage
                     const appURL = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').trim()
                     const apiURL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').trim()
-                    const relayURL = `${apiURL}/auth/relay?redirect=${encodeURIComponent(`${appURL}/dashboard`)}`
-                    const callbackURL = encodeURIComponent(relayURL)
+                    const callbackURL = encodeURIComponent(`${appURL}/dashboard`)
                     window.location.href = `${apiURL}/auth/google?callbackURL=${callbackURL}`
                   }}
                   className="w-full mt-4 py-2.5 border rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-muted transition-colors"
