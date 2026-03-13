@@ -1,20 +1,16 @@
 /**
  * @file Next.js Middleware — Protection des routes
- * @description Deux niveaux de protection :
+ * @description Couche légère : redirige les utilisateurs DÉJÀ connectés de /login → /dashboard.
  *
- * 1. Middleware (serveur, edge) :
- *    - Redirige les utilisateurs connectés (/login → /dashboard)
- *    - Bloque les routes protégées pour les non-connectés → /login
- *    - Le cookie `ba-logged-in` est posé par AuthGuard après vérification
+ * ⚠️ Le middleware NE bloque PAS les routes protégées.
+ * Raison : le cookie `ba-logged-in` est posé par AuthGuard APRÈS un getSession() réussi.
+ * Si le middleware bloque /dashboard avant qu'AuthGuard tourne, le cookie n'est jamais
+ * posé → boucle infinie /dashboard → /login → /dashboard.
  *
- * 2. AuthGuard (client) :
- *    - Appelle getSession() à chaque montage → vrai barrière de sécurité
- *    - Efface le cookie si la session est expirée → déclenche re-check
- *
- * Flow OAuth Google :
- *    API (Railway) → redirect /dashboard → middleware voit pas de cookie
- *    → redirect /login → login page détecte la session → redirect /dashboard
- *    → middleware voit le cookie (posé par AuthGuard au 1er passage) → OK
+ * La vraie barrière de sécurité est AuthGuard (client) :
+ *   - Appelle getSession() au montage du layout protégé
+ *   - Redirige vers /login si aucune session valide
+ *   - Pose `ba-logged-in` après succès (pour les visites suivantes)
  */
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -25,28 +21,16 @@ const SESSION_COOKIE = 'ba-logged-in'
 /** Routes réservées aux visiteurs non connectés */
 const AUTH_PATHS = ['/login']
 
-/** Routes nécessitant d'être authentifié */
-const PROTECTED_PATHS = ['/dashboard', '/profile', '/settings', '/surahs', '/validate']
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isLoggedIn = request.cookies.has(SESSION_COOKIE)
 
   const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p))
-  const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p))
 
-  // Utilisateur connecté sur la page de login → redirige vers le dashboard
+  // Utilisateur déjà connecté sur /login → redirige directement vers le dashboard
   if (isAuthPage && isLoggedIn) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
-
-  // Utilisateur non connecté sur une route protégée → redirige vers /login
-  // Après OAuth : login page détecte la session existante et redirige vers /dashboard
-  if (isProtected && !isLoggedIn) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
