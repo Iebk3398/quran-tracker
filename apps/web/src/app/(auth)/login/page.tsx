@@ -65,12 +65,17 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
     const { error } = await authClient.signIn.emailOtp({ email, otp })
-    setLoading(false)
     if (error) {
+      setLoading(false)
       setError(error.message ?? 'Code invalide ou expiré')
       return
     }
-    router.push('/dashboard')
+    // Warm-up : force le plugin bearer à émettre set-auth-token dans onResponse.
+    // Sans cet appel, AuthGuard peut appeler getSession() avant que le token
+    // soit disponible en localStorage → boucle infinie /login ↔ /dashboard.
+    await authClient.getSession().catch(() => {})
+    // Rechargement complet pour éviter les race conditions React avec AuthGuard
+    window.location.href = '/dashboard'
   }
 
   return (
@@ -204,7 +209,7 @@ export default function LoginPage() {
                     onClick={() => { setStep('email'); setOtp(''); setError(null) }}
                     className="text-sm text-muted-foreground hover:underline"
                   >
-                    ← Changer d'email
+                    ← Changer d&apos;email
                   </button>
                 </div>
               </motion.div>

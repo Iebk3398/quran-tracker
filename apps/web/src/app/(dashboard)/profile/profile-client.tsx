@@ -337,7 +337,7 @@ export function ProfileClient() {
         {juzProgress.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-4xl mb-2">📖</div>
-            <p className="text-sm text-muted-foreground mb-3">Aucune progression pour l'instant</p>
+            <p className="text-sm text-muted-foreground mb-3">Aucune progression pour l&apos;instant</p>
             <Link href="/surahs"
               className="inline-flex items-center gap-1 text-sm font-medium bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors"
             >

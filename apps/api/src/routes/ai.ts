@@ -29,9 +29,9 @@ import {
 } from '../../../../packages/db/src/schema/index.ts'
 import { eq, desc, gte } from 'drizzle-orm'
 import { requireAuth } from '../middleware/auth.ts'
-import type { Variables } from '../index.ts'
 
-const ai = new Hono<{ Variables: Variables }>()
+// Variables injected via module augmentation in middleware/auth.ts
+const ai = new Hono()
 
 // ─── Schémas ──────────────────────────────────────────────────────────────────
 

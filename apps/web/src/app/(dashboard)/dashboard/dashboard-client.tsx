@@ -26,6 +26,9 @@ interface ApiLeaderboardEntry {
   name: string
   avatar: string | null
   surahsMemorized: number
+  xp?: string | number
+  currentStreak?: string | number
+  badges?: Array<{ name: string; iconUrl: string }>
 }
 
 /** Calcule les stats du groupe depuis le leaderboard */
@@ -47,9 +50,10 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
     avatar: e.avatar,
     surahsMemorized: Number(e.surahsMemorized),
     versesMemorized: 0,
-    totalXp: 0,
-    currentStreak: 0,
+    totalXp: Number(e.xp ?? 0),
+    currentStreak: Number(e.currentStreak ?? 0),
     rank: i + 1,
+    badges: e.badges ?? [],
   }))
 }
 

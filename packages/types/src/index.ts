@@ -138,6 +138,13 @@ export interface Notification {
 }
 
 // ─── Dashboard & Leaderboard ──────────────────────────────
+
+/** Badge simplifié pour l'affichage dans le leaderboard */
+export interface BadgeSummary {
+  name: string
+  iconUrl: string
+}
+
 export interface LeaderboardEntry {
   userId: string
   name: string
@@ -147,6 +154,8 @@ export interface LeaderboardEntry {
   currentStreak: number
   totalXp: number
   rank: number
+  /** Badges obtenus par ce membre */
+  badges?: BadgeSummary[]
 }
 
 export interface GroupStats {

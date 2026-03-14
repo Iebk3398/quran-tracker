@@ -5,8 +5,8 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
-import { db, groups, groupMembers, users, memorizationProgress, groupGoals } from '../../../../packages/db/src/index.ts'
-import { eq, and, desc, sql, isNull } from 'drizzle-orm'
+import { db, groups, groupMembers, users, memorizationProgress, groupGoals, userBadges, badges } from '../../../../packages/db/src/index.ts'
+import { eq, and, desc, sql, isNull, inArray } from 'drizzle-orm'
 import { requireAuth, requireSheikh } from '../middleware/auth.ts'
 
 export const groupRoutes = new Hono()
@@ -131,7 +131,7 @@ groupRoutes.get('/:id/members', requireAuth, async (c) => {
   return c.json({ success: true, data: members })
 })
 
-/** GET /api/groups/:id/leaderboard — Classement du groupe */
+/** GET /api/groups/:id/leaderboard — Classement du groupe avec badges */
 groupRoutes.get('/:id/leaderboard', requireAuth, async (c) => {
   const groupId = c.req.param('id')
 
@@ -153,7 +153,36 @@ groupRoutes.get('/:id/leaderboard', requireAuth, async (c) => {
     .groupBy(users.id, users.name, users.avatar, users.xp, users.currentStreak)
     .orderBy(desc(sql`surahs_memorized`))
 
-  return c.json({ success: true, data: leaderboard })
+  // Récupérer les badges de tous les membres en une seule requête
+  const memberIds = leaderboard.map((e) => e.userId)
+  const memberBadges = memberIds.length > 0
+    ? await db
+        .select({
+          userId: userBadges.userId,
+          badgeName: badges.name,
+          badgeIconUrl: badges.iconUrl,
+        })
+        .from(userBadges)
+        .innerJoin(badges, eq(userBadges.badgeId, badges.id))
+        .where(inArray(userBadges.userId, memberIds))
+    : []
+
+  // Regrouper les badges par userId
+  const badgesByUser = memberBadges.reduce<Record<string, Array<{ name: string; iconUrl: string }>>>(
+    (acc, b) => {
+      if (!acc[b.userId]) acc[b.userId] = []
+      acc[b.userId]!.push({ name: b.badgeName, iconUrl: b.badgeIconUrl })
+      return acc
+    },
+    {}
+  )
+
+  const result = leaderboard.map((entry) => ({
+    ...entry,
+    badges: badgesByUser[entry.userId] ?? [],
+  }))
+
+  return c.json({ success: true, data: result })
 })
 
 /** DELETE /api/groups/:id/members/:userId — Retirer un membre */

@@ -37,13 +37,14 @@ export const auth = betterAuth({
       },
     },
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   trustedOrigins: [
     (process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000').trim(),
     (process.env['BETTER_AUTH_URL'] ?? 'https://api-production-e758.up.railway.app').trim(),
     'http://localhost:3000',
     'http://localhost:3001',
-    /^https:\/\/.*\.vercel\.app/,   // permet les chemins (/dashboard, etc.)
-    /^https:\/\/.*\.railway\.app/,  // loopback inter-service Railway
+    /^https:\/\/.*\.vercel\.app/ as any,   // permet les chemins (/dashboard, etc.)
+    /^https:\/\/.*\.railway\.app/ as any,  // loopback inter-service Railway
   ],
   emailAndPassword: { enabled: false },
   advanced: {

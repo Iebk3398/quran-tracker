@@ -134,19 +134,22 @@ function MonthView({ dataMap }: { dataMap: Map<string, RevisionDay> }) {
 
 /** Vue Année — heatmap 52 semaines */
 function YearView({ dataMap }: { dataMap: Map<string, RevisionDay> }) {
-  const today = new Date()
-  const startDate = startOfWeek(subWeeks(today, 51), { weekStartsOn: 1 })
+  const today = useMemo(() => new Date(), [])
+  const startDate = useMemo(() => startOfWeek(subWeeks(today, 51), { weekStartsOn: 1 }), [today])
   const allDays = useMemo(() => eachDayOfInterval({ start: startDate, end: today }), [startDate, today])
 
-  const weeks: Date[][] = []
-  let currentWeek: Date[] = []
-  allDays.forEach((day, i) => {
-    currentWeek.push(day)
-    if (currentWeek.length === 7 || i === allDays.length - 1) {
-      weeks.push(currentWeek)
-      currentWeek = []
-    }
-  })
+  const weeks = useMemo(() => {
+    const result: Date[][] = []
+    let currentWeek: Date[] = []
+    allDays.forEach((day, i) => {
+      currentWeek.push(day)
+      if (currentWeek.length === 7 || i === allDays.length - 1) {
+        result.push(currentWeek)
+        currentWeek = []
+      }
+    })
+    return result
+  }, [allDays])
 
   // Month labels
   const monthLabels = useMemo(() => {
