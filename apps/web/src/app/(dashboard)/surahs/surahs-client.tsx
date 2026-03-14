@@ -37,6 +37,12 @@ const STATUS: Record<MemorizationStatus, { label: string; dot: string; pill: str
     pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
     bg: 'hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20',
   },
+  consolidated: {
+    label: 'Consolidé',
+    dot: 'bg-emerald-700',
+    pill: 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700',
+    bg: 'hover:bg-emerald-100/80 dark:hover:bg-emerald-900/30',
+  },
 }
 
 const ALL_STATUSES = ['not_started', 'in_progress', 'memorized'] as MemorizationStatus[]

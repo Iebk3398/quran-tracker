@@ -19,12 +19,14 @@ const STATUS_COLORS: Record<MemorizationStatus, string> = {
   not_started: 'bg-muted border-border text-muted-foreground',
   in_progress: 'bg-amber-50 border-amber-300 text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300',
   memorized: 'bg-emerald-50 border-emerald-300 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-300',
+  consolidated: 'bg-emerald-100 border-emerald-400 text-emerald-900 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-200',
 }
 
 const STATUS_EMOJI: Record<MemorizationStatus, string> = {
   not_started: '⬜',
   in_progress: '🟡',
   memorized: '🟢',
+  consolidated: '💎',
 }
 
 type FilterType = 'all' | MemorizationStatus | number // number = juz
