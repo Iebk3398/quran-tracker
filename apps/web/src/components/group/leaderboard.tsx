@@ -62,7 +62,7 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
 
       {entries.length === 0 ? (
         <p className="text-muted-foreground text-sm text-center py-8">
-          Aucun membre pour l'instant
+          Aucun membre pour l&apos;instant
         </p>
       ) : (
         <div className="space-y-2">

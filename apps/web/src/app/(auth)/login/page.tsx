@@ -207,7 +207,7 @@ export default function LoginPage() {
                     onClick={() => { setStep('email'); setOtp(''); setError(null) }}
                     className="text-sm text-muted-foreground hover:underline"
                   >
-                    ← Changer d'email
+                    ← Changer d&apos;email
                   </button>
                 </div>
               </motion.div>

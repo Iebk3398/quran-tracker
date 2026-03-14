@@ -136,7 +136,7 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">La langue s'applique au rechargement de la page</p>
+        <p className="text-xs text-muted-foreground">La langue s&apos;applique au rechargement de la page</p>
       </section>
 
       {/* Déconnexion */}
