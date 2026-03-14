@@ -287,6 +287,7 @@ Les routes IA sont architecturalement prêtes dans `apps/api/src/routes/ai.ts` m
 | 2026-03-11 | `SessionBootstrap` component | Bootstrappe le bearer token après Google OAuth (redirect serveur ne passe pas par onResponse) |
 | 2026-03-11 | `apps/web/.env.local` requis | Next.js ne lit pas le `.env.local` racine — `NEXT_PUBLIC_*` doivent être dans `apps/web/.env.local` |
 | 2026-03-11 | Google OAuth local : URI port 3001 uniquement | Seul `http://localhost:3001/api/auth/callback/google` dans Google Console — pas le port 3000 |
+| 2026-03-14 | Niveaux dual-condition (AND) | `getXpLevel(xp, surahs)` — niveau le plus élevé où XP ≥ seuil ET sourates ≥ seuil. Murîd(0/0), Taleb(500/1), Qari(1500/5), Hafiz(4000/20), Sheikh(10000/57) |
 
 ---
 
@@ -333,4 +334,4 @@ npm run dev
 ---
 
 *🤖 Ce fichier est géré automatiquement par Claude. Ne pas éditer manuellement.*
-*Dernière mise à jour : 2026-03-11 — Fix auth bearer token · Google OAuth local · UX surahs/profil/settings · Heatmap 3 vues*
+*Dernière mise à jour : 2026-03-14 — Niveaux dual-condition XP + sourates · Badges niveau mis à jour · referrerPolicy avatar fix · XP hizbs · Leaderboard XP*
