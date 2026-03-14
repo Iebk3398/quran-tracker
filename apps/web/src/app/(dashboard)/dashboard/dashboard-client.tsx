@@ -11,6 +11,7 @@ import { Leaderboard } from '@/components/group/leaderboard'
 import { GroupFeed } from '@/components/group/group-feed'
 import { GroupGoal } from '@/components/group/group-goal'
 import { HizbTracker } from '@/components/group/hizb-tracker'
+import { useGroupRealtime } from '@/hooks/use-group-realtime'
 import type { GroupStats as GroupStatsType, LeaderboardEntry, FeedItem } from '@quran-tracker/types'
 
 interface MyGroup {
@@ -27,9 +28,10 @@ interface ApiLeaderboardEntry {
   name: string
   avatar: string | null
   surahsMemorized: number
-  xp?: string
+  xp?: string | number
   hizbsRead?: number
-  currentStreak?: number
+  currentStreak?: string | number
+  badges?: Array<{ name: string; iconUrl: string }>
 }
 
 /** Calcule les stats du groupe depuis le leaderboard */
@@ -53,8 +55,9 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
     versesMemorized: 0,
     totalXp: Number(e.xp ?? 0),
     hizbsRead: e.hizbsRead ?? 0,
-    currentStreak: e.currentStreak ?? 0,
+    currentStreak: Number(e.currentStreak ?? 0),
     rank: i + 1,
+    badges: e.badges ?? [],
   }))
 }
 
@@ -80,16 +83,21 @@ export function DashboardClient() {
   const groupId = group?.id
 
   const { data: rawLeaderboard, isLoading: lbLoading } = useQuery({
-    queryKey: ['leaderboard', groupId],
+    queryKey: ['group', groupId, 'leaderboard'],
     queryFn: () => apiFetch<ApiLeaderboardEntry[]>(`/api/groups/${groupId}/leaderboard`),
     enabled: !!groupId,
   })
 
   const { data: feedItems, isLoading: feedLoading } = useQuery({
-    queryKey: ['feed', groupId],
+    queryKey: ['group', groupId, 'feed'],
     queryFn: () => apiFetch<FeedItem[]>(`/api/feed/group/${groupId}`),
     enabled: !!groupId,
+    // Polling de secours si Supabase Realtime n'est pas configuré
+    refetchInterval: 30_000,
   })
+
+  // Realtime WebSocket — met à jour le feed et le leaderboard automatiquement
+  useGroupRealtime({ groupId: groupId ?? '', enabled: !!groupId })
 
   const createGroup = useMutation({
     mutationFn: ({ name, description }: { name: string; description?: string }) =>
@@ -198,7 +206,7 @@ export function DashboardClient() {
               <input
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                placeholder="Code d'invitation (ex: ABC12345)"
+                placeholder="Code d&apos;invitation (ex: ABC12345)"
                 maxLength={12}
                 className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
               />

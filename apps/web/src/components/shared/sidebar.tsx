@@ -15,7 +15,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Moon,
   BookOpen,
   BookMarked,
 } from 'lucide-react'
