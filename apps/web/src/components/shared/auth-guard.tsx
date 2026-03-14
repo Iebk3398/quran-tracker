@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getSession } from '@/lib/auth-client'
+import { getSession, AUTH_TOKEN_KEY } from '@/lib/auth-client'
 import { useAppStore } from '@/store'
 import type { User } from '@quran-tracker/types'
 
@@ -41,6 +41,20 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const [status, setStatus] = useState<'checking' | 'ok' | 'redirect'>('checking')
 
   useEffect(() => {
+    // Capture le bearer token passé dans l'URL après OAuth relay (?token=xxx)
+    // Le relay endpoint l'a ajouté car les cookies tiers sont bloqués par le navigateur
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const urlToken = params.get('token')
+      if (urlToken) {
+        localStorage.setItem(AUTH_TOKEN_KEY, urlToken)
+        // Nettoie l'URL (sécurité + URL propre)
+        const cleanURL = new URL(window.location.href)
+        cleanURL.searchParams.delete('token')
+        window.history.replaceState({}, '', cleanURL.toString())
+      }
+    }
+
     getSession()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((result: any) => {

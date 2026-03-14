@@ -1,6 +1,6 @@
 'use client'
 /**
- * @file Leaderboard — Classement XP du groupe avec niveaux et badges
+ * @file Leaderboard — Classement XP du groupe
  */
 import { motion } from 'framer-motion'
 import type { LeaderboardEntry } from '@quran-tracker/types'
@@ -12,10 +12,7 @@ interface LeaderboardProps {
 
 const RANK_MEDALS = ['🥇', '🥈', '🥉']
 
-/**
- * Niveaux : condition double (XP ET sourates mémorisées).
- * Un membre ne passe au niveau suivant que s'il remplit les deux seuils.
- */
+/** Niveaux : condition double (XP ET sourates mémorisées) */
 const LEVELS = [
   { min: 0,     minSurahs: 0,  max: 499,      name: 'Murîd',  emoji: '🌱' },
   { min: 500,   minSurahs: 1,  max: 1499,     name: 'Taleb',  emoji: '📖' },
@@ -81,19 +78,18 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className={`
-                  flex items-start gap-3 p-3 rounded-lg
+                  flex items-center gap-3 p-3 rounded-lg
                   ${isFirst ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800' : 'bg-muted/50'}
                 `}
               >
                 {/* Rang */}
-                <span className="w-8 text-center font-bold flex-shrink-0 pt-1">
+                <span className="w-8 text-center font-bold flex-shrink-0">
                   {index < 3 ? RANK_MEDALS[index] : `#${index + 1}`}
                 </span>
 
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center overflow-hidden flex-shrink-0">
                   {entry.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={entry.avatar} alt={entry.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <span className="text-lg font-bold text-emerald-600">
@@ -102,7 +98,7 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
                   )}
                 </div>
 
-                {/* Infos + barre de niveau + badges */}
+                {/* Infos + barre de niveau */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <p className="font-medium truncate text-sm">{entry.name}</p>
@@ -120,27 +116,6 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
                       {entry.surahsMemorized} s.
                     </span>
                   </div>
-
-                  {/* Badges obtenus par ce membre */}
-                  {entry.badges && entry.badges.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {entry.badges.map((badge) => (
-                        <span
-                          key={badge.name}
-                          title={badge.name}
-                          className="inline-flex items-center gap-0.5 text-[9px] font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full px-1.5 py-0.5"
-                        >
-                          {badge.iconUrl.startsWith('http') ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={badge.iconUrl} alt={badge.name} className="w-3 h-3 rounded-full" referrerPolicy="no-referrer" />
-                          ) : (
-                            <span>{badge.iconUrl}</span>
-                          )}
-                          {badge.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* XP + streak */}

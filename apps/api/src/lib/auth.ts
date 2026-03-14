@@ -37,26 +37,29 @@ export const auth = betterAuth({
       },
     },
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   trustedOrigins: [
     (process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000').trim(),
     (process.env['BETTER_AUTH_URL'] ?? 'https://api-production-e758.up.railway.app').trim(),
     'http://localhost:3000',
     'http://localhost:3001',
-    /^https:\/\/.*\.vercel\.app/ as any,   // permet les chemins (/dashboard, etc.)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /^https:\/\/.*\.vercel\.app/ as any,   // Better Auth supporte RegExp en runtime
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     /^https:\/\/.*\.railway\.app/ as any,  // loopback inter-service Railway
   ],
   emailAndPassword: { enabled: false },
   advanced: {
     /**
-     * SameSite=None; Secure obligatoire pour le cross-origin Vercel → Railway.
-     * SameSite=Lax bloque les cookies dans les requêtes XHR cross-origin (fetch),
-     * ce qui empêche toute session après OAuth Google en production.
-     * SameSite=None + Secure permet l'envoi du cookie avec credentials: 'include'.
+     * Production : SameSite=None; Secure requis pour cross-origin Vercel → Railway.
+     * Local HTTP : SameSite=Lax; Secure=false.
+     *   - Chrome exige que SameSite=None implique Secure=true → on ne peut pas
+     *     faire SameSite=None sans Secure sur HTTP (cookie rejeté → state_mismatch).
+     *   - localhost:3000 et localhost:3001 sont same-site (même eTLD+1 = "localhost"),
+     *     donc SameSite=Lax permet l'envoi du cookie entre les deux ports.
      */
     defaultCookieAttributes: {
-      sameSite: 'none' as const,
-      secure: true,
+      sameSite: (process.env['NODE_ENV'] === 'production' ? 'none' : 'lax') as 'none' | 'lax',
+      secure: process.env['NODE_ENV'] === 'production',
     },
   },
   user: {

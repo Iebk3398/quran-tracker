@@ -10,6 +10,7 @@ import { GroupStats } from '@/components/group/group-stats'
 import { Leaderboard } from '@/components/group/leaderboard'
 import { GroupFeed } from '@/components/group/group-feed'
 import { GroupGoal } from '@/components/group/group-goal'
+import { HizbTracker } from '@/components/group/hizb-tracker'
 import { useGroupRealtime } from '@/hooks/use-group-realtime'
 import type { GroupStats as GroupStatsType, LeaderboardEntry, FeedItem } from '@quran-tracker/types'
 
@@ -28,6 +29,7 @@ interface ApiLeaderboardEntry {
   avatar: string | null
   surahsMemorized: number
   xp?: string | number
+  hizbsRead?: number
   currentStreak?: string | number
   badges?: Array<{ name: string; iconUrl: string }>
 }
@@ -52,6 +54,7 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
     surahsMemorized: Number(e.surahsMemorized),
     versesMemorized: 0,
     totalXp: Number(e.xp ?? 0),
+    hizbsRead: e.hizbsRead ?? 0,
     currentStreak: Number(e.currentStreak ?? 0),
     rank: i + 1,
     badges: e.badges ?? [],
@@ -203,7 +206,7 @@ export function DashboardClient() {
               <input
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                placeholder="Code d'invitation (ex: ABC12345)"
+                placeholder="Code d&apos;invitation (ex: ABC12345)"
                 maxLength={12}
                 className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
               />
@@ -255,6 +258,8 @@ export function DashboardClient() {
       <GroupStats stats={groupStats} />
 
       <GroupGoal groupId={group.id} isSheikh={group.sheikhId === session?.user?.id} />
+
+      <HizbTracker groupId={group.id} currentUserId={session?.user?.id ?? ''} />
 
       <Leaderboard entries={leaderboard} isLoading={lbLoading} />
 

@@ -51,6 +51,7 @@ app.use(
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['set-auth-token'],
   })
 )
 
@@ -122,6 +123,34 @@ app.get('/auth/google', async (c) => {
   } catch (err) {
     console.error('[Google OAuth] Error:', err)
     return c.redirect(`${appURL}/login?error=oauth_failed`)
+  }
+})
+
+// ─── OAuth relay — échange le cookie session en bearer token URL ────
+// Après Google OAuth, Better Auth redirige vers /auth/relay (même domaine API).
+// Le cookie de session est disponible en same-origin → on récupère le token
+// de session et on redirige le navigateur vers le frontend avec ?token=xxx.
+// Résout le blocage des cookies tiers (Chrome/Safari) sans dépendre des cookies.
+app.get('/auth/relay', async (c) => {
+  const appURL = (process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://quran-tracker-web.vercel.app').trim()
+  const redirectTo = c.req.query('redirect') ?? `${appURL}/dashboard`
+
+  try {
+    // Récupère la session via le cookie (requête same-origin → pas de blocage tiers)
+    const sessionResult = await auth.api.getSession({ headers: c.req.raw.headers })
+
+    if (!sessionResult?.session?.token) {
+      console.error('[Auth Relay] No session token found')
+      return c.redirect(`${appURL}/login?error=oauth_relay_failed`)
+    }
+
+    // Passe le token dans l'URL de redirect (HTTPS → sécurisé)
+    const url = new URL(redirectTo)
+    url.searchParams.set('token', sessionResult.session.token)
+    return c.redirect(url.toString(), 302)
+  } catch (err) {
+    console.error('[Auth Relay] Error:', err)
+    return c.redirect(`${appURL}/login?error=oauth_relay_failed`)
   }
 })
 

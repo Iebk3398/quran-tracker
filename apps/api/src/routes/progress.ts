@@ -11,6 +11,27 @@ import { requireAuth, requireSheikh } from '../middleware/auth.ts'
 import { calculateSM2 } from '../../../../packages/db/src/lib/spaced-repetition.ts'
 import { createFeedEvent } from './feed.ts'
 
+/** XP accordé selon la transition de statut */
+function computeXpGain(
+  previousStatus: string | undefined,
+  newStatus: string,
+  markForReview: boolean | undefined
+): number {
+  if (newStatus === 'memorized' && previousStatus !== 'memorized') return 100
+  if (newStatus === 'in_progress' && (previousStatus === 'not_started' || !previousStatus)) return 20
+  if (markForReview) return 10
+  return 0
+}
+
+/** Incrémente le XP d'un utilisateur */
+async function awardXp(userId: string, xpGain: number): Promise<void> {
+  if (xpGain <= 0) return
+  await db
+    .update(users)
+    .set({ xp: sql`(${users.xp}::integer + ${xpGain})::text` })
+    .where(eq(users.id, userId))
+}
+
 export const progressRoutes = new Hono()
 
 const updateProgressSchema = z.object({
@@ -41,16 +62,11 @@ progressRoutes.get('/:userId', requireAuth, async (c) => {
   const fullProgress = allSurahIds.map((surahId) => {
     const entry = progressMap.get(surahId)
     if (entry) {
-      // Destructure out surahId to avoid TS2783 (duplicate key in spread)
+      // Spread sans re-déclarer surahId (évite la duplication de clé TS5.9+)
       const { surahId: _sid, ...rest } = entry
       return { surahId, ...rest }
     }
-    return {
-      surahId,
-      status: 'not_started' as const,
-      retentionScore: 2.5,
-      repetitionCount: 0,
-    }
+    return { surahId, status: 'not_started' as const, retentionScore: 2.5, repetitionCount: 0 }
   })
 
   return c.json({ success: true, data: fullProgress })
@@ -67,8 +83,8 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
     .where(and(eq(memorizationProgress.userId, user.id), eq(memorizationProgress.surahId, surahId)))
     .limit(1)
 
-  const wasMemorized = existing[0]?.status === 'memorized'
-  const becomesMemorized = status === 'memorized' && !wasMemorized
+  const xpGain = computeXpGain(existing[0]?.status, status, markForReview)
+  const becomesMemorized = status === 'memorized' && existing[0]?.status !== 'memorized'
 
   if (existing[0]) {
     const updated = await db
@@ -84,12 +100,14 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
       .where(eq(memorizationProgress.id, existing[0].id))
       .returning()
 
+    await awardXp(user.id, xpGain)
+
     // Créer un événement feed si la sourate vient d'être mémorisée
     if (becomesMemorized) {
       await createFeedEventForMemorized(user.id, surahId).catch(() => {})
     }
 
-    return c.json({ success: true, data: updated[0] })
+    return c.json({ success: true, data: updated[0], xpGain })
   }
 
   const created = await db
@@ -106,12 +124,14 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
     })
     .returning()
 
+  await awardXp(user.id, xpGain)
+
   // Créer un événement feed si la sourate est directement marquée comme mémorisée
   if (becomesMemorized) {
     await createFeedEventForMemorized(user.id, surahId).catch(() => {})
   }
 
-  return c.json({ success: true, data: created[0] }, 201)
+  return c.json({ success: true, data: created[0], xpGain }, 201)
 })
 
 /**
@@ -155,9 +175,13 @@ progressRoutes.post('/:id/validate', requireSheikh, zValidator('json', validateS
   const progressId = c.req.param('id')
   const { notes } = c.req.valid('json')
 
-  // Lire la progression avant mise à jour pour connaître userId et surahId
-  const before = await db
-    .select({ userId: memorizationProgress.userId, surahId: memorizationProgress.surahId })
+  // Récupère le propriétaire, le statut et la sourate avant la mise à jour
+  const [existing] = await db
+    .select({
+      userId: memorizationProgress.userId,
+      status: memorizationProgress.status,
+      surahId: memorizationProgress.surahId,
+    })
     .from(memorizationProgress)
     .where(eq(memorizationProgress.id, progressId))
     .limit(1)
@@ -174,9 +198,13 @@ progressRoutes.post('/:id/validate', requireSheikh, zValidator('json', validateS
     .where(eq(memorizationProgress.id, progressId))
     .returning()
 
-  // Créer un événement feed de validation sheikh
-  if (before[0]) {
-    await createFeedEventForValidated(before[0].userId, before[0].surahId, sheikh.id).catch(() => {})
+  // +100 XP si pas déjà mémorisé + 50 XP bonus validation sheikh
+  if (existing) {
+    const xpGain = (existing.status !== 'memorized' ? 100 : 0) + 50
+    await awardXp(existing.userId, xpGain)
+
+    // Créer un événement feed de validation sheikh
+    await createFeedEventForValidated(existing.userId, existing.surahId, sheikh.id).catch(() => {})
   }
 
   return c.json({ success: true, data: updated[0] })

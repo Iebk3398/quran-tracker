@@ -30,7 +30,7 @@ import {
 import { eq, desc, gte } from 'drizzle-orm'
 import { requireAuth } from '../middleware/auth.ts'
 
-// Variables injected via module augmentation in middleware/auth.ts
+// AuthUser est injecté via module augmentation dans middleware/auth.ts
 const ai = new Hono()
 
 // ─── Schémas ──────────────────────────────────────────────────────────────────

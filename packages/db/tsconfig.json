@@ -4,11 +4,8 @@
   "compilerOptions": {
     "outDir": "./dist",
     "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "exactOptionalPropertyTypes": false
+    "noEmit": true
   },
-  "include": ["src", "drizzle.config.ts"],
+  "include": ["src", "schema", "seed", "drizzle.config.ts"],
   "exclude": ["src/lib/spaced-repetition.test.ts", "node_modules", "dist"]
 }

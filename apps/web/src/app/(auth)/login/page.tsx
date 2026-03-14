@@ -136,8 +136,11 @@ export default function LoginPage() {
                 </div>
                 <button
                   onClick={() => {
-                    // Redirection directe vers l'endpoint API server-side
-                    // → l'API initie le flow OAuth côté serveur (same-site) → plus de state_mismatch
+                    // Flow OAuth server-side (évite state_mismatch cross-origin) :
+                    // 1. /auth/google → loopback sign-in/social → Google
+                    // 2. Google → /api/auth/callback/google → session créée
+                    // 3. Redirect vers /dashboard (cookie SameSite=Lax local / SameSite=None;Secure prod)
+                    // 4. AuthGuard appelle getSession() → onResponse capture set-auth-token → localStorage
                     const appURL = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').trim()
                     const apiURL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').trim()
                     const callbackURL = encodeURIComponent(`${appURL}/dashboard`)

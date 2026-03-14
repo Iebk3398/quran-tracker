@@ -153,6 +153,7 @@ export interface LeaderboardEntry {
   versesMemorized: number
   currentStreak: number
   totalXp: number
+  hizbsRead?: number
   rank: number
   /** Badges obtenus par ce membre */
   badges?: BadgeSummary[]
