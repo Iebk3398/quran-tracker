@@ -334,7 +334,7 @@ Total                     ████████████  99% ✅
 - [x] `packages/db/src/schema/progress.ts` — `'consolidated'` ajouté à `memorizationStatusEnum`
 - [x] `packages/types/src/index.ts` — `'consolidated'` ajouté à `MemorizationStatus`
 - [x] `apps/api/src/routes/progress.ts` — `'consolidated'` ajouté au Zod enum `updateProgressSchema`
-- [ ] ⚠️ Migration SQL en attente : `ALTER TYPE memorization_status ADD VALUE 'consolidated';`
+- [x] Migration SQL appliquée : `ALTER TYPE memorization_status ADD VALUE 'consolidated'` — `0004_light_the_phantom.sql` ✅
 
 **Fichiers créés/modifiés :**
 - `apps/api/src/lib/levels.ts` — **nouveau**
