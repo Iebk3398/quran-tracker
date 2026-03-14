@@ -152,7 +152,7 @@ groupRoutes.get('/:id/leaderboard', requireAuth, async (c) => {
     .leftJoin(memorizationProgress, eq(memorizationProgress.userId, users.id))
     .where(eq(groupMembers.groupId, groupId))
     .groupBy(users.id, users.name, users.avatar, users.xp, users.hizbsRead, users.currentStreak)
-    .orderBy(desc(sql`surahs_memorized`))
+    .orderBy(desc(sql`(${users.xp})::integer`))
 
   return c.json({ success: true, data: leaderboard })
 })

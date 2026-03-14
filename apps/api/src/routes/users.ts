@@ -44,16 +44,19 @@ userRoutes.post(
     const user = c.get('user')
     const { count } = c.req.valid('json')
 
+    const XP_PER_HIZB = 5
+
     const updated = await db
       .update(users)
       .set({
         hizbsRead: sql`${users.hizbsRead} + ${count}`,
+        xp: sql`(${users.xp}::integer + ${count * XP_PER_HIZB})::text`,
         updatedAt: new Date(),
       })
       .where(eq(users.id, user.id))
-      .returning({ hizbsRead: users.hizbsRead })
+      .returning({ hizbsRead: users.hizbsRead, xp: users.xp })
 
-    return c.json({ success: true, data: { hizbsRead: updated[0]?.hizbsRead ?? 0 } })
+    return c.json({ success: true, data: { hizbsRead: updated[0]?.hizbsRead ?? 0, xp: updated[0]?.xp ?? '0' } })
   }
 )
 

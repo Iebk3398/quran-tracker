@@ -37,7 +37,7 @@ export function ActiveStreaks({ members = [] }: ActiveStreaksProps) {
             >
               <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-bold text-emerald-600 flex-shrink-0">
                 {member.avatar
-                  ? <img src={member.avatar} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                  ? <img src={member.avatar} alt={member.name} className="w-full h-full rounded-full object-cover" referrerPolicy="no-referrer" />
                   : member.name.charAt(0).toUpperCase()
                 }
               </div>

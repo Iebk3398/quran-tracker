@@ -29,6 +29,7 @@ interface ApiLeaderboardEntry {
   surahsMemorized: number
   xp?: string
   hizbsRead?: number
+  currentStreak?: number
 }
 
 /** Calcule les stats du groupe depuis le leaderboard */
@@ -52,7 +53,7 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
     versesMemorized: 0,
     totalXp: Number(e.xp ?? 0),
     hizbsRead: e.hizbsRead ?? 0,
-    currentStreak: 0,
+    currentStreak: e.currentStreak ?? 0,
     rank: i + 1,
   }))
 }

@@ -80,7 +80,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-lg font-bold text-emerald-600 overflow-hidden flex-shrink-0">
             {avatar
-              ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
+              ? <img src={avatar} alt={name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               : initials
             }
           </div>

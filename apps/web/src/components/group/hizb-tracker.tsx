@@ -110,7 +110,7 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
             </span>
             {/* Avatar */}
             {entry.avatar ? (
-              <img src={entry.avatar} alt={entry.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+              <img src={entry.avatar} alt={entry.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
             ) : (
               <div className="w-7 h-7 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-300 flex-shrink-0">
                 {entry.name.charAt(0).toUpperCase()}
