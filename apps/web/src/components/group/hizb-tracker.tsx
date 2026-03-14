@@ -30,7 +30,7 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
   const [xpToast, setXpToast] = useState<number | null>(null)
 
   const { data: leaderboard = [] } = useQuery<HizbEntry[]>({
-    queryKey: ['leaderboard', groupId],
+    queryKey: ['group', groupId, 'leaderboard'],
     queryFn: () => apiFetch(`/api/groups/${groupId}/leaderboard`),
     enabled: !!groupId,
   })
@@ -45,10 +45,10 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
         body: JSON.stringify({ count: n }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leaderboard', groupId] })
+      queryClient.invalidateQueries({ queryKey: ['group', groupId, 'leaderboard'] })
       setShowAdd(false)
-      // Toast XP (10 XP par hizb)
-      setXpToast(count * 10)
+      // Toast XP (5 XP par hizb)
+      setXpToast(count * 5)
       setTimeout(() => setXpToast(null), 2500)
     },
   })

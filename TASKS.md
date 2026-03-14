@@ -309,6 +309,46 @@ Total                     ████████████  99% ✅
 
 ---
 
+## ✅ FEED EVENTS + FIX AUTH OTP (2026-03-14)
+
+### Feed events complets
+
+- [x] Nouveau module `apps/api/src/lib/levels.ts` — `LEVELS[]` + `getLevelIndex(xp, surahs)` + `getLevel()` partagé
+- [x] `progress.ts` — `awardBadgesAndCheckLevel()` : attribution badges + event `badge_earned` + vérification montée niveau après mémorisation et validation sheikh
+- [x] `progress.ts` — `handlePostMemorizationEvents()` / `handlePostValidationEvents()` : feed `surah_memorized` / `surah_validated` + badges + level_up
+- [x] `users.ts` — `handlePostHizbEvents()` : event `milestone_reached(type=hizb_read)` + level_up si montée de niveau (imports statiques, suppression des dynamic imports)
+- [x] `group-feed.tsx` — affiche **numéro + nom arabe** des sourates · gère `milestone_reached` sub-types (`hizb_read` / `level_up`) · `getFeedIcon()` dynamique · nom arabe badge
+
+### Fix boucle infinie auth OTP
+
+- [x] `auth-guard.tsx` — `clearAllSessionData()` vide AUSSI `localStorage` (`ba-session-token`) en cas d'échec session, + retry unique 350ms avant redirect `/login`
+- [x] `login/page.tsx` — vérifie `getSession()` après `signIn.emailOtp()` avant de rediriger : affiche un message d'erreur si la session n'est pas établie
+
+### Fix query key + XP toast
+
+- [x] `hizb-tracker.tsx` — query key corrigée : `['group', groupId, 'leaderboard']` au lieu de `['leaderboard', groupId]`
+- [x] `hizb-tracker.tsx` — XP toast corrigé : 5 XP/hizb (était affiché à 10 par erreur)
+
+### Fix schéma DB
+
+- [x] `packages/db/src/schema/progress.ts` — `'consolidated'` ajouté à `memorizationStatusEnum`
+- [x] `packages/types/src/index.ts` — `'consolidated'` ajouté à `MemorizationStatus`
+- [x] `apps/api/src/routes/progress.ts` — `'consolidated'` ajouté au Zod enum `updateProgressSchema`
+- [x] Migration SQL appliquée : `ALTER TYPE memorization_status ADD VALUE 'consolidated'` — `0004_light_the_phantom.sql` ✅
+
+**Fichiers créés/modifiés :**
+- `apps/api/src/lib/levels.ts` — **nouveau**
+- `apps/api/src/routes/progress.ts`
+- `apps/api/src/routes/users.ts`
+- `apps/web/src/app/(auth)/login/page.tsx`
+- `apps/web/src/components/group/group-feed.tsx`
+- `apps/web/src/components/group/hizb-tracker.tsx`
+- `apps/web/src/components/shared/auth-guard.tsx`
+- `packages/db/src/schema/progress.ts`
+- `packages/types/src/index.ts`
+
+---
+
 ## 🔮 BACKLOG v2
 
 | Feature | Description | Priorité |
@@ -353,46 +393,4 @@ Total                     ████████████  99% ✅
 
 ---
 
----
-
-## ✅ CORRECTIONS & FEATURES (2026-03-14)
-
-### Fix — Boucle infinie OTP login
-- [x] `login/page.tsx` : après `signIn.emailOtp()`, appel `authClient.getSession()` pour warm-up du bearer token, puis `window.location.href = '/dashboard'` (full reload évite la race condition avec AuthGuard)
-
-### Feature — Badges dans le leaderboard
-- [x] `groups.ts` (API) : endpoint `/api/groups/:id/leaderboard` étendu avec les badges de chaque membre (2ème query `userBadges + badges` + `inArray`)
-- [x] `packages/types/src/index.ts` : ajout `BadgeSummary` interface + champ `badges?` dans `LeaderboardEntry`
-- [x] `leaderboard.tsx` : système de niveaux à double condition (XP ET surahs mémorisées) — Murîd/Taleb/Qari/Hafiz/Sheikh, barre de progression, badges en pills colorées
-
-### Fix — Feed groupe non mis à jour (3 causes)
-- [x] `progress.ts` (API) : ajout `createFeedEventForMemorized()` appelée lors de la transition vers `status=memorized`
-- [x] `progress.ts` (API) : ajout `createFeedEventForValidated()` appelée lors de la validation sheikh (+50 XP bonus inclus)
-- [x] `progress.ts` (API) : XP awarding conservé (`computeXpGain`, `awardXp`) et combiné avec les feed events
-- [x] `dashboard-client.tsx` : clés de query corrigées `['group', groupId, 'feed']` / `['group', groupId, 'leaderboard']` pour correspondre à `useGroupRealtime`
-- [x] `dashboard-client.tsx` : hook `useGroupRealtime` branché (WebSocket Supabase Realtime)
-- [x] `dashboard-client.tsx` : `refetchInterval: 30_000` sur le feed (polling de secours si Supabase non configuré)
-
-### Fix — CI GitHub Actions
-- [x] `ci.yml` : `npm ci` → `npm install` (fix EBADPLATFORM darwin arm64 vs linux x64)
-- [x] `apps/api/tsconfig.json` : suppression `rootDir`, ajout `allowImportingTsExtensions`, `noEmit`
-- [x] `apps/web/.eslintrc.json` : créé (next/core-web-vitals + typescript)
-- [x] `packages/types/tsconfig.json` + `packages/db/tsconfig.json` : créés
-- [x] Fix typage TypeScript : `as any` pour RegExp dans trustedOrigins, `as unknown as` dans middleware, variables inutilisées supprimées
-- [x] Fix ESLint : apostrophes JSX (`&apos;`), imports inutilisés, useMemo deps
-
-**PR mergé :** #33 — fix: OTP login loop + badges in leaderboard + CI fixes
-
-**Fichiers modifiés :**
-- `apps/web/src/app/(auth)/login/page.tsx` — fix OTP race condition
-- `apps/api/src/routes/groups.ts` — badges dans leaderboard
-- `apps/api/src/routes/progress.ts` — feed events + XP combinés
-- `apps/web/src/app/(dashboard)/dashboard/dashboard-client.tsx` — realtime + query keys
-- `apps/web/src/components/group/leaderboard.tsx` — niveaux + badges
-- `packages/types/src/index.ts` — BadgeSummary + badges dans LeaderboardEntry
-- `.github/workflows/ci.yml` — npm install
-- `apps/api/tsconfig.json` + `packages/types/tsconfig.json` + `packages/db/tsconfig.json` — fix configs
-
----
-
-*🤖 Dernière mise à jour : 2026-03-14 — Fix OTP login · badges leaderboard · feed realtime · CI fixes*
+*🤖 Dernière mise à jour : 2026-03-14 — Feed events complets (hizbs/badges/level_up) · Fix boucle auth OTP · levels.ts · 'consolidated' enum · group-feed noms arabes*

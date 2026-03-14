@@ -71,7 +71,7 @@ export function GroupFeed({ items = [], isLoading }: GroupFeedProps) {
               >
                 {/* Icône */}
                 <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-800 border flex items-center justify-center text-xl flex-shrink-0">
-                  {FEED_ICONS[item.type]}
+                  {getFeedIcon(item.type, content)}
                 </div>
 
                 {/* Contenu */}
@@ -108,12 +108,45 @@ export function GroupFeed({ items = [], isLoading }: GroupFeedProps) {
   )
 }
 
+function getFeedIcon(type: FeedEventType, content: Record<string, unknown>): string {
+  if (type === 'milestone_reached') {
+    if (content['type'] === 'hizb_read') return '📖'
+    if (content['type'] === 'level_up') return String(content['levelEmoji'] ?? '🎯')
+  }
+  return FEED_ICONS[type]
+}
+
 function getFeedMessage(type: FeedEventType, content: Record<string, unknown>): string {
   switch (type) {
-    case 'surah_memorized': return `a mémorisé ${String(content['surahName'] ?? '')}`
-    case 'surah_validated': return `a fait valider ${String(content['surahName'] ?? '')} par le Sheikh`
-    case 'badge_earned':    return `a obtenu le badge "${String(content['badgeName'] ?? '')}"`
-    case 'milestone_reached': return `a atteint un milestone : ${String(content['milestone'] ?? '')}`
+    case 'surah_memorized': {
+      const num = content['surahNumber'] ? `#${content['surahNumber']} ` : ''
+      const name = String(content['surahNameAr'] ?? content['surahName'] ?? '')
+      return `a mémorisé la sourate ${num}${name}`
+    }
+    case 'surah_validated': {
+      const num = content['surahNumber'] ? `#${content['surahNumber']} ` : ''
+      const name = String(content['surahNameAr'] ?? content['surahName'] ?? '')
+      const sheikh = content['sheikhName'] ? ` par ${String(content['sheikhName'])}` : ' par le Sheikh'
+      return `a fait valider la sourate ${num}${name}${sheikh}`
+    }
+    case 'badge_earned': {
+      const name = String(content['badgeNameAr'] ?? content['badgeName'] ?? '')
+      return `a obtenu le badge "${name}"`
+    }
+    case 'milestone_reached': {
+      const subType = content['type']
+      if (subType === 'hizb_read') {
+        const count = Number(content['count'] ?? 1)
+        const total = Number(content['totalHizbsRead'] ?? 0)
+        return `a lu ${count} hizb${count > 1 ? 's' : ''} 📖 · Total : ${total}`
+      }
+      if (subType === 'level_up') {
+        const emoji = String(content['levelEmoji'] ?? '')
+        const name = String(content['levelName'] ?? '')
+        return `a atteint le niveau ${emoji} ${name} !`
+      }
+      return `a atteint un milestone`
+    }
     case 'streak_record':   return `a un nouveau record de streak : ${String(content['days'] ?? '')} jours 🔥`
     case 'group_joined':    return `a rejoint le groupe`
     case 'announcement':    return String(content['message'] ?? '')

@@ -27,6 +27,18 @@ function clearSessionCookie() {
   document.cookie = `${SESSION_COOKIE}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
 }
 
+/**
+ * Vide toutes les données de session locales.
+ * Appelé quand le serveur rejette la session → évite la boucle
+ * login ↔ dashboard causée par un token invalide en localStorage.
+ */
+function clearAllSessionData() {
+  clearSessionCookie()
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem(AUTH_TOKEN_KEY)
+  }
+}
+
 interface AuthGuardProps {
   children: React.ReactNode
 }
@@ -55,40 +67,67 @@ export function AuthGuard({ children }: AuthGuardProps) {
       }
     }
 
-    getSession()
+    /**
+     * Vérifie la session avec 1 retry (300ms) pour les cas où le token
+     * bearer vient d'être écrit en localStorage (race condition au montage).
+     */
+    async function checkSession() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then((result: any) => {
-        const user = result?.data?.user
+      let result: any = null
+      try {
+        result = await getSession()
+      } catch {
+        // premier essai échoué → retry
+      }
 
-        if (!user) {
-          clearSessionCookie()
-          setStatus('redirect')
-          router.replace('/login')
-          return
+      // Retry unique après 350ms si aucune session trouvée au premier essai
+      if (!result?.data?.user) {
+        await new Promise((r) => setTimeout(r, 350))
+        try {
+          result = await getSession()
+        } catch {
+          // second essai échoué → on abandonne
         }
+      }
 
-        // Hydrate le store Zustand (topbar, etc.)
-        const email = user.email ?? ''
-        setUser({
-          id: user.id,
-          name: user.name?.trim() || email.split('@')[0] || 'Utilisateur',
-          email,
-          role: (['super_admin', 'sheikh', 'student', 'parent'].includes(user.role ?? '')
-            ? user.role
-            : 'student') as User['role'],
-          avatar: user.image ?? null,
-          createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
-        })
+      const user = result?.data?.user
 
-        // Cookie lisible par le middleware pour les prochaines visites
-        setSessionCookie()
-        setStatus('ok')
-      })
-      .catch(() => {
-        clearSessionCookie()
+      if (!user) {
+        /**
+         * ⚠️ Important : on supprime aussi le token du localStorage.
+         * Sans ça, la page /login détecterait un token "valide" en localStorage,
+         * redirecterait vers /dashboard, qui redirecterait encore vers /login →
+         * boucle infinie.
+         */
+        clearAllSessionData()
         setStatus('redirect')
         router.replace('/login')
+        return
+      }
+
+      // Hydrate le store Zustand (topbar, etc.)
+      const email = user.email ?? ''
+      setUser({
+        id: user.id,
+        name: user.name?.trim() || email.split('@')[0] || 'Utilisateur',
+        email,
+        role: (['super_admin', 'sheikh', 'student', 'parent'].includes(user.role ?? '')
+          ? user.role
+          : 'student') as User['role'],
+        avatar: user.image ?? null,
+        createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
       })
+
+      // Cookie lisible par le middleware pour les prochaines visites
+      setSessionCookie()
+      setStatus('ok')
+    }
+
+    checkSession().catch(() => {
+      clearAllSessionData()
+      setStatus('redirect')
+      router.replace('/login')
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

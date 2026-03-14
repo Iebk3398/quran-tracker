@@ -29,6 +29,13 @@
       "when": 1773513600000,
       "tag": "0003_add_hizbs_read",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773496971120,
+      "tag": "0004_light_the_phantom",
+      "breakpoints": true
     }
   ]
 }
