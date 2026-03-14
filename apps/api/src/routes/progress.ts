@@ -5,10 +5,11 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
-import { db, memorizationProgress, surahs, users } from '../../../../packages/db/src/index.ts'
+import { db, memorizationProgress, surahs, users, groupMembers } from '../../../../packages/db/src/index.ts'
 import { eq, and, sql } from 'drizzle-orm'
 import { requireAuth, requireSheikh } from '../middleware/auth.ts'
 import { calculateSM2 } from '../../../../packages/db/src/lib/spaced-repetition.ts'
+import { createFeedEvent } from './feed.ts'
 
 export const progressRoutes = new Hono()
 
@@ -66,6 +67,9 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
     .where(and(eq(memorizationProgress.userId, user.id), eq(memorizationProgress.surahId, surahId)))
     .limit(1)
 
+  const wasMemorized = existing[0]?.status === 'memorized'
+  const becomesMemorized = status === 'memorized' && !wasMemorized
+
   if (existing[0]) {
     const updated = await db
       .update(memorizationProgress)
@@ -79,6 +83,12 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
       })
       .where(eq(memorizationProgress.id, existing[0].id))
       .returning()
+
+    // Créer un événement feed si la sourate vient d'être mémorisée
+    if (becomesMemorized) {
+      await createFeedEventForMemorized(user.id, surahId).catch(() => {})
+    }
+
     return c.json({ success: true, data: updated[0] })
   }
 
@@ -96,14 +106,61 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
     })
     .returning()
 
+  // Créer un événement feed si la sourate est directement marquée comme mémorisée
+  if (becomesMemorized) {
+    await createFeedEventForMemorized(user.id, surahId).catch(() => {})
+  }
+
   return c.json({ success: true, data: created[0] }, 201)
 })
+
+/**
+ * Crée un événement feed `surah_memorized` dans tous les groupes de l'utilisateur.
+ * Fire-and-forget : les erreurs ne bloquent pas la réponse principale.
+ */
+async function createFeedEventForMemorized(userId: string, surahId: number) {
+  const [surahInfo, userGroups] = await Promise.all([
+    db.select({ nameFr: surahs.nameFr, nameAr: surahs.nameAr, number: surahs.number })
+      .from(surahs)
+      .where(eq(surahs.id, surahId))
+      .limit(1),
+    db.select({ groupId: groupMembers.groupId })
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, userId)),
+  ])
+
+  const surah = surahInfo[0]
+  if (!surah || userGroups.length === 0) return
+
+  await Promise.all(
+    userGroups.map((g) =>
+      createFeedEvent({
+        groupId: g.groupId,
+        userId,
+        type: 'surah_memorized',
+        content: {
+          surahId,
+          surahName: surah.nameFr,
+          surahNameAr: surah.nameAr,
+          surahNumber: surah.number,
+        },
+      })
+    )
+  )
+}
 
 /** POST /api/progress/:id/validate — Validation sheikh */
 progressRoutes.post('/:id/validate', requireSheikh, zValidator('json', validateSchema), async (c) => {
   const sheikh = c.get('user')
   const progressId = c.req.param('id')
   const { notes } = c.req.valid('json')
+
+  // Lire la progression avant mise à jour pour connaître userId et surahId
+  const before = await db
+    .select({ userId: memorizationProgress.userId, surahId: memorizationProgress.surahId })
+    .from(memorizationProgress)
+    .where(eq(memorizationProgress.id, progressId))
+    .limit(1)
 
   const updated = await db
     .update(memorizationProgress)
@@ -117,8 +174,52 @@ progressRoutes.post('/:id/validate', requireSheikh, zValidator('json', validateS
     .where(eq(memorizationProgress.id, progressId))
     .returning()
 
+  // Créer un événement feed de validation sheikh
+  if (before[0]) {
+    await createFeedEventForValidated(before[0].userId, before[0].surahId, sheikh.id).catch(() => {})
+  }
+
   return c.json({ success: true, data: updated[0] })
 })
+
+/**
+ * Crée un événement feed `surah_validated` dans tous les groupes de l'utilisateur.
+ */
+async function createFeedEventForValidated(userId: string, surahId: number, sheikhId: string) {
+  const [surahInfo, userGroups, sheikhInfo] = await Promise.all([
+    db.select({ nameFr: surahs.nameFr, nameAr: surahs.nameAr, number: surahs.number })
+      .from(surahs)
+      .where(eq(surahs.id, surahId))
+      .limit(1),
+    db.select({ groupId: groupMembers.groupId })
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, userId)),
+    db.select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, sheikhId))
+      .limit(1),
+  ])
+
+  const surah = surahInfo[0]
+  if (!surah || userGroups.length === 0) return
+
+  await Promise.all(
+    userGroups.map((g) =>
+      createFeedEvent({
+        groupId: g.groupId,
+        userId,
+        type: 'surah_validated',
+        content: {
+          surahId,
+          surahName: surah.nameFr,
+          surahNameAr: surah.nameAr,
+          surahNumber: surah.number,
+          sheikhName: sheikhInfo[0]?.name ?? 'Sheikh',
+        },
+      })
+    )
+  )
+}
 
 /** GET /api/progress/group/:groupId — Vue agrégée du groupe */
 progressRoutes.get('/group/:groupId', requireAuth, async (c) => {

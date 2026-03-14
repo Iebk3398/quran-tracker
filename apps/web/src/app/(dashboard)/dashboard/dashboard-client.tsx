@@ -10,6 +10,7 @@ import { GroupStats } from '@/components/group/group-stats'
 import { Leaderboard } from '@/components/group/leaderboard'
 import { GroupFeed } from '@/components/group/group-feed'
 import { GroupGoal } from '@/components/group/group-goal'
+import { useGroupRealtime } from '@/hooks/use-group-realtime'
 import type { GroupStats as GroupStatsType, LeaderboardEntry, FeedItem } from '@quran-tracker/types'
 
 interface MyGroup {
@@ -79,16 +80,21 @@ export function DashboardClient() {
   const groupId = group?.id
 
   const { data: rawLeaderboard, isLoading: lbLoading } = useQuery({
-    queryKey: ['leaderboard', groupId],
+    queryKey: ['group', groupId, 'leaderboard'],
     queryFn: () => apiFetch<ApiLeaderboardEntry[]>(`/api/groups/${groupId}/leaderboard`),
     enabled: !!groupId,
   })
 
   const { data: feedItems, isLoading: feedLoading } = useQuery({
-    queryKey: ['feed', groupId],
+    queryKey: ['group', groupId, 'feed'],
     queryFn: () => apiFetch<FeedItem[]>(`/api/feed/group/${groupId}`),
     enabled: !!groupId,
+    // Polling de secours si Supabase Realtime n'est pas configuré
+    refetchInterval: 30_000,
   })
+
+  // Realtime WebSocket — met à jour le feed et le leaderboard automatiquement
+  useGroupRealtime({ groupId: groupId ?? '', enabled: !!groupId })
 
   const createGroup = useMutation({
     mutationFn: ({ name, description }: { name: string; description?: string }) =>
