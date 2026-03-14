@@ -309,6 +309,46 @@ Total                     ████████████  99% ✅
 
 ---
 
+## ✅ FEED EVENTS + FIX AUTH OTP (2026-03-14)
+
+### Feed events complets
+
+- [x] Nouveau module `apps/api/src/lib/levels.ts` — `LEVELS[]` + `getLevelIndex(xp, surahs)` + `getLevel()` partagé
+- [x] `progress.ts` — `awardBadgesAndCheckLevel()` : attribution badges + event `badge_earned` + vérification montée niveau après mémorisation et validation sheikh
+- [x] `progress.ts` — `handlePostMemorizationEvents()` / `handlePostValidationEvents()` : feed `surah_memorized` / `surah_validated` + badges + level_up
+- [x] `users.ts` — `handlePostHizbEvents()` : event `milestone_reached(type=hizb_read)` + level_up si montée de niveau (imports statiques, suppression des dynamic imports)
+- [x] `group-feed.tsx` — affiche **numéro + nom arabe** des sourates · gère `milestone_reached` sub-types (`hizb_read` / `level_up`) · `getFeedIcon()` dynamique · nom arabe badge
+
+### Fix boucle infinie auth OTP
+
+- [x] `auth-guard.tsx` — `clearAllSessionData()` vide AUSSI `localStorage` (`ba-session-token`) en cas d'échec session, + retry unique 350ms avant redirect `/login`
+- [x] `login/page.tsx` — vérifie `getSession()` après `signIn.emailOtp()` avant de rediriger : affiche un message d'erreur si la session n'est pas établie
+
+### Fix query key + XP toast
+
+- [x] `hizb-tracker.tsx` — query key corrigée : `['group', groupId, 'leaderboard']` au lieu de `['leaderboard', groupId]`
+- [x] `hizb-tracker.tsx` — XP toast corrigé : 5 XP/hizb (était affiché à 10 par erreur)
+
+### Fix schéma DB
+
+- [x] `packages/db/src/schema/progress.ts` — `'consolidated'` ajouté à `memorizationStatusEnum`
+- [x] `packages/types/src/index.ts` — `'consolidated'` ajouté à `MemorizationStatus`
+- [x] `apps/api/src/routes/progress.ts` — `'consolidated'` ajouté au Zod enum `updateProgressSchema`
+- [ ] ⚠️ Migration SQL en attente : `ALTER TYPE memorization_status ADD VALUE 'consolidated';`
+
+**Fichiers créés/modifiés :**
+- `apps/api/src/lib/levels.ts` — **nouveau**
+- `apps/api/src/routes/progress.ts`
+- `apps/api/src/routes/users.ts`
+- `apps/web/src/app/(auth)/login/page.tsx`
+- `apps/web/src/components/group/group-feed.tsx`
+- `apps/web/src/components/group/hizb-tracker.tsx`
+- `apps/web/src/components/shared/auth-guard.tsx`
+- `packages/db/src/schema/progress.ts`
+- `packages/types/src/index.ts`
+
+---
+
 ## 🔮 BACKLOG v2
 
 | Feature | Description | Priorité |
@@ -353,4 +393,4 @@ Total                     ████████████  99% ✅
 
 ---
 
-*🤖 Dernière mise à jour : 2026-03-11 — Fix auth bearer token · Google OAuth local · UX surahs/profil/settings · Heatmap 3 vues*
+*🤖 Dernière mise à jour : 2026-03-14 — Feed events complets (hizbs/badges/level_up) · Fix boucle auth OTP · levels.ts · 'consolidated' enum · group-feed noms arabes*

@@ -288,6 +288,11 @@ Les routes IA sont architecturalement prêtes dans `apps/api/src/routes/ai.ts` m
 | 2026-03-11 | `apps/web/.env.local` requis | Next.js ne lit pas le `.env.local` racine — `NEXT_PUBLIC_*` doivent être dans `apps/web/.env.local` |
 | 2026-03-11 | Google OAuth local : URI port 3001 uniquement | Seul `http://localhost:3001/api/auth/callback/google` dans Google Console — pas le port 3000 |
 | 2026-03-14 | Niveaux dual-condition (AND) | `getXpLevel(xp, surahs)` — niveau le plus élevé où XP ≥ seuil ET sourates ≥ seuil. Murîd(0/0), Taleb(500/1), Qari(1500/5), Hafiz(4000/20), Sheikh(10000/57) |
+| 2026-03-14 | `milestone_reached` avec discriminant `type` | Évite d'ajouter un nouveau type dans l'enum DB — `content.type = 'hizb_read' \| 'level_up'` suffit |
+| 2026-03-14 | `clearAllSessionData()` dans AuthGuard | Vide AUSSI `localStorage` (`ba-session-token`) en cas d'échec session → casse la boucle OTP login ↔ dashboard |
+| 2026-03-14 | Vérification session avant redirect OTP | `login/page.tsx` appelle `getSession()` après `signIn.emailOtp()` — redirige seulement si session confirmée |
+| 2026-03-14 | `'consolidated'` ajouté au schéma enum | Valeur prévue dans la spec DB mais manquante — nécessite migration SQL : `ALTER TYPE memorization_status ADD VALUE 'consolidated'` |
+| 2026-03-14 | `apps/api/src/lib/levels.ts` | Module partagé `getLevelIndex(xp, surahs)` + `LEVELS[]` utilisé dans `progress.ts` ET `users.ts` — évite la duplication |
 
 ---
 
@@ -334,4 +339,4 @@ npm run dev
 ---
 
 *🤖 Ce fichier est géré automatiquement par Claude. Ne pas éditer manuellement.*
-*Dernière mise à jour : 2026-03-14 — Niveaux dual-condition XP + sourates · Badges niveau mis à jour · referrerPolicy avatar fix · XP hizbs · Leaderboard XP*
+*Dernière mise à jour : 2026-03-14 — Feed events complets (hizbs, badges, level_up) · Fix boucle auth OTP · levels.ts partagé · 'consolidated' dans enum · group-feed noms arabes + numéros*
