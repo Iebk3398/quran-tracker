@@ -33,7 +33,7 @@ export async function requireAuth(c: Context, next: Next) {
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
-    role: (session.user as AuthUser & { role: string }).role ?? 'student',
+    role: (session.user as unknown as AuthUser & { role: string }).role ?? 'student',
   })
 
   await next()

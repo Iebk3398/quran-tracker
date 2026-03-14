@@ -58,14 +58,15 @@ progressRoutes.get('/:userId', requireAuth, async (c) => {
   const allSurahIds = Array.from({ length: 114 }, (_, i) => i + 1)
   const progressMap = new Map(progress.map((p) => [p.surahId, p]))
 
-  const fullProgress = allSurahIds.map((surahId) => ({
-    surahId,
-    ...(progressMap.get(surahId) ?? {
-      status: 'not_started' as const,
-      retentionScore: 2.5,
-      repetitionCount: 0,
-    }),
-  }))
+  const fullProgress = allSurahIds.map((surahId) => {
+    const entry = progressMap.get(surahId)
+    if (entry) {
+      // Spread sans re-déclarer surahId (évite la duplication de clé TS5.9+)
+      const { surahId: _sid, ...rest } = entry
+      return { surahId, ...rest }
+    }
+    return { surahId, status: 'not_started' as const, retentionScore: 2.5, repetitionCount: 0 }
+  })
 
   return c.json({ success: true, data: fullProgress })
 })

@@ -42,8 +42,10 @@ export const auth = betterAuth({
     (process.env['BETTER_AUTH_URL'] ?? 'https://api-production-e758.up.railway.app').trim(),
     'http://localhost:3000',
     'http://localhost:3001',
-    /^https:\/\/.*\.vercel\.app/,   // permet les chemins (/dashboard, etc.)
-    /^https:\/\/.*\.railway\.app/,  // loopback inter-service Railway
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /^https:\/\/.*\.vercel\.app/ as any,   // Better Auth supporte RegExp en runtime
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /^https:\/\/.*\.railway\.app/ as any,  // loopback inter-service Railway
   ],
   emailAndPassword: { enabled: false },
   advanced: {
