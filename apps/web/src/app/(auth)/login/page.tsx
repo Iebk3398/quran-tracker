@@ -70,10 +70,21 @@ export default function LoginPage() {
       setError(error.message ?? 'Code invalide ou expiré')
       return
     }
+
     // Warm-up : force le plugin bearer à émettre set-auth-token dans onResponse.
-    // Sans cet appel, AuthGuard peut appeler getSession() avant que le token
-    // soit disponible en localStorage → boucle infinie /login ↔ /dashboard.
-    await authClient.getSession().catch(() => {})
+    // Si signIn.emailOtp n'a pas capturé le token (CORS, cookies tiers bloqués…),
+    // getSession() force le serveur à ré-émettre set-auth-token.
+    const sessionResult = await authClient.getSession().catch(() => null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sessionUser = (sessionResult as any)?.data?.user
+
+    if (!sessionUser) {
+      // Aucune session établie → pas de redirect (évite la boucle infinie)
+      setLoading(false)
+      setError('Session introuvable. Vérifiez votre connexion et réessayez.')
+      return
+    }
+
     // Rechargement complet pour éviter les race conditions React avec AuthGuard
     window.location.href = '/dashboard'
   }

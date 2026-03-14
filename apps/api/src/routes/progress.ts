@@ -5,11 +5,18 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
-import { db, memorizationProgress, surahs, users, groupMembers } from '../../../../packages/db/src/index.ts'
-import { eq, and, sql } from 'drizzle-orm'
+import {
+  db, memorizationProgress, surahs, users, groupMembers, badges, userBadges,
+} from '../../../../packages/db/src/index.ts'
+import { eq, and, sql, inArray, or } from 'drizzle-orm'
 import { requireAuth, requireSheikh } from '../middleware/auth.ts'
 import { calculateSM2 } from '../../../../packages/db/src/lib/spaced-repetition.ts'
 import { createFeedEvent } from './feed.ts'
+import { getNewlyEarnedBadges, type UserStats } from '../lib/badges.ts'
+import { getLevelIndex, LEVELS } from '../lib/levels.ts'
+
+/** IDs des sourates du Juz Amma (sourates 78 à 114) */
+const JUZ_30_SURAHS = Array.from({ length: 37 }, (_, i) => i + 78)
 
 /** XP accordé selon la transition de statut */
 function computeXpGain(
@@ -32,11 +39,80 @@ async function awardXp(userId: string, xpGain: number): Promise<void> {
     .where(eq(users.id, userId))
 }
 
+/**
+ * Attribue les nouveaux badges et vérifie la montée de niveau.
+ * Appelé en fire-and-forget après une mémorisation ou une validation sheikh.
+ */
+async function awardBadgesAndCheckLevel(
+  userId: string,
+  userGroups: Array<{ groupId: string }>,
+  memorizedIds: number[],
+  xpBefore: number,
+  xpAfter: number,
+  streak: number,
+): Promise<void> {
+  if (userGroups.length === 0) return
+
+  const existingBadgeRows = await db
+    .select({ badgeId: userBadges.badgeId })
+    .from(userBadges)
+    .where(eq(userBadges.userId, userId))
+
+  const existingBadgeIds = existingBadgeRows.map((b) => b.badgeId)
+
+  const stats: UserStats = {
+    memorizedCount: memorizedIds.length,
+    currentStreak: streak,
+    totalXP: xpAfter,
+    hasCompletedJuzAmma: JUZ_30_SURAHS.every((id) => memorizedIds.includes(id)),
+    hasCompletedHalfQuran: memorizedIds.length >= 57,
+    isFullHafiz: memorizedIds.length >= 114,
+  }
+
+  const newBadgeIds = getNewlyEarnedBadges(stats, existingBadgeIds)
+  let totalBadgeXp = 0
+
+  if (newBadgeIds.length > 0) {
+    const badgeInfoRows = await db
+      .select({ id: badges.id, name: badges.name, nameAr: badges.nameAr, iconUrl: badges.iconUrl, xpReward: badges.xpReward })
+      .from(badges)
+      .where(inArray(badges.id, newBadgeIds))
+
+    for (const badge of badgeInfoRows) {
+      await db.insert(userBadges).values({ id: nanoid(), userId, badgeId: badge.id, earnedAt: new Date() })
+      const badgeXp = badge.xpReward ?? 0
+      if (badgeXp > 0) { await awardXp(userId, badgeXp); totalBadgeXp += badgeXp }
+
+      await Promise.all(userGroups.map((g) =>
+        createFeedEvent({
+          groupId: g.groupId, userId, type: 'badge_earned',
+          content: { badgeId: badge.id, badgeName: badge.name, badgeNameAr: badge.nameAr, badgeIcon: badge.iconUrl },
+        })
+      ))
+    }
+  }
+
+  // Vérification de la montée de niveau
+  const prevSurahCount = Math.max(0, memorizedIds.length - 1)
+  const levelBefore = getLevelIndex(xpBefore, prevSurahCount)
+  const levelAfter  = getLevelIndex(xpAfter + totalBadgeXp, memorizedIds.length)
+
+  if (levelAfter > levelBefore) {
+    const newLevel = LEVELS[levelAfter]!
+    await Promise.all(userGroups.map((g) =>
+      createFeedEvent({
+        groupId: g.groupId, userId, type: 'milestone_reached',
+        content: { type: 'level_up', levelIndex: levelAfter, levelName: newLevel.name, levelEmoji: newLevel.emoji },
+      })
+    ))
+  }
+}
+
 export const progressRoutes = new Hono()
 
 const updateProgressSchema = z.object({
   surahId: z.number().int().min(1).max(114),
-  status: z.enum(['not_started', 'in_progress', 'memorized']),
+  status: z.enum(['not_started', 'in_progress', 'memorized', 'consolidated']),
   verseFrom: z.number().int().min(1).nullish(), // accepte number | null | undefined
   verseTo: z.number().int().min(1).nullish(),
   markForReview: z.boolean().optional(), // "À réviser" — programme une révision immédiate
@@ -77,14 +153,24 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
   const user = c.get('user')
   const { surahId, status, verseFrom, verseTo, markForReview } = c.req.valid('json')
 
-  const existing = await db
-    .select()
-    .from(memorizationProgress)
-    .where(and(eq(memorizationProgress.userId, user.id), eq(memorizationProgress.surahId, surahId)))
-    .limit(1)
+  // Récupère la progression existante ET les stats de l'utilisateur en parallèle
+  const [existing, userRow] = await Promise.all([
+    db
+      .select()
+      .from(memorizationProgress)
+      .where(and(eq(memorizationProgress.userId, user.id), eq(memorizationProgress.surahId, surahId)))
+      .limit(1),
+    db
+      .select({ xp: users.xp, currentStreak: users.currentStreak })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1),
+  ])
 
-  const xpGain = computeXpGain(existing[0]?.status, status, markForReview)
+  const xpGain        = computeXpGain(existing[0]?.status, status, markForReview)
   const becomesMemorized = status === 'memorized' && existing[0]?.status !== 'memorized'
+  const xpBefore      = parseInt(userRow[0]?.xp ?? '0')
+  const streak        = parseInt(userRow[0]?.currentStreak ?? '0')
 
   if (existing[0]) {
     const updated = await db
@@ -102,9 +188,8 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
 
     await awardXp(user.id, xpGain)
 
-    // Créer un événement feed si la sourate vient d'être mémorisée
     if (becomesMemorized) {
-      await createFeedEventForMemorized(user.id, surahId).catch(() => {})
+      await handlePostMemorizationEvents(user.id, surahId, xpBefore, xpGain, streak).catch(() => {})
     }
 
     return c.json({ success: true, data: updated[0], xpGain })
@@ -126,47 +211,54 @@ progressRoutes.post('/', requireAuth, zValidator('json', updateProgressSchema), 
 
   await awardXp(user.id, xpGain)
 
-  // Créer un événement feed si la sourate est directement marquée comme mémorisée
   if (becomesMemorized) {
-    await createFeedEventForMemorized(user.id, surahId).catch(() => {})
+    await handlePostMemorizationEvents(user.id, surahId, xpBefore, xpGain, streak).catch(() => {})
   }
 
   return c.json({ success: true, data: created[0], xpGain }, 201)
 })
 
 /**
- * Crée un événement feed `surah_memorized` dans tous les groupes de l'utilisateur.
- * Fire-and-forget : les erreurs ne bloquent pas la réponse principale.
+ * Gère les événements post-mémorisation :
+ * feed surah_memorized + attribution badges + vérification niveau.
  */
-async function createFeedEventForMemorized(userId: string, surahId: number) {
-  const [surahInfo, userGroups] = await Promise.all([
+async function handlePostMemorizationEvents(
+  userId: string,
+  surahId: number,
+  xpBefore: number,
+  xpGain: number,
+  streak: number,
+): Promise<void> {
+  const xpAfter = xpBefore + xpGain
+
+  const [surahInfo, userGroups, memorizedRows] = await Promise.all([
     db.select({ nameFr: surahs.nameFr, nameAr: surahs.nameAr, number: surahs.number })
-      .from(surahs)
-      .where(eq(surahs.id, surahId))
-      .limit(1),
+      .from(surahs).where(eq(surahs.id, surahId)).limit(1),
     db.select({ groupId: groupMembers.groupId })
-      .from(groupMembers)
-      .where(eq(groupMembers.userId, userId)),
+      .from(groupMembers).where(eq(groupMembers.userId, userId)),
+    db.select({ surahId: memorizationProgress.surahId })
+      .from(memorizationProgress)
+      .where(and(
+        eq(memorizationProgress.userId, userId),
+        or(eq(memorizationProgress.status, 'memorized'), eq(memorizationProgress.status, 'consolidated')),
+      )),
   ])
 
   const surah = surahInfo[0]
   if (!surah || userGroups.length === 0) return
 
-  await Promise.all(
-    userGroups.map((g) =>
-      createFeedEvent({
-        groupId: g.groupId,
-        userId,
-        type: 'surah_memorized',
-        content: {
-          surahId,
-          surahName: surah.nameFr,
-          surahNameAr: surah.nameAr,
-          surahNumber: surah.number,
-        },
-      })
-    )
-  )
+  const memorizedIds = memorizedRows.map((r) => r.surahId)
+
+  // Feed event surah_memorized
+  await Promise.all(userGroups.map((g) =>
+    createFeedEvent({
+      groupId: g.groupId, userId, type: 'surah_memorized',
+      content: { surahId, surahName: surah.nameFr, surahNameAr: surah.nameAr, surahNumber: surah.number },
+    })
+  ))
+
+  // Badges + niveau
+  await awardBadgesAndCheckLevel(userId, userGroups, memorizedIds, xpBefore, xpAfter, streak)
 }
 
 /** POST /api/progress/:id/validate — Validation sheikh */
@@ -186,6 +278,14 @@ progressRoutes.post('/:id/validate', requireSheikh, zValidator('json', validateS
     .where(eq(memorizationProgress.id, progressId))
     .limit(1)
 
+  if (!existing) return c.json({ success: false, message: 'Not found' }, 404)
+
+  const userRow = await db
+    .select({ xp: users.xp, currentStreak: users.currentStreak })
+    .from(users)
+    .where(eq(users.id, existing.userId))
+    .limit(1)
+
   const updated = await db
     .update(memorizationProgress)
     .set({
@@ -199,54 +299,60 @@ progressRoutes.post('/:id/validate', requireSheikh, zValidator('json', validateS
     .returning()
 
   // +100 XP si pas déjà mémorisé + 50 XP bonus validation sheikh
-  if (existing) {
-    const xpGain = (existing.status !== 'memorized' ? 100 : 0) + 50
-    await awardXp(existing.userId, xpGain)
+  const xpGain   = (existing.status !== 'memorized' ? 100 : 0) + 50
+  const xpBefore = parseInt(userRow[0]?.xp ?? '0')
+  const streak   = parseInt(userRow[0]?.currentStreak ?? '0')
+  await awardXp(existing.userId, xpGain)
 
-    // Créer un événement feed de validation sheikh
-    await createFeedEventForValidated(existing.userId, existing.surahId, sheikh.id).catch(() => {})
-  }
+  await handlePostValidationEvents(existing.userId, existing.surahId, xpBefore, xpGain, streak, sheikh.id).catch(() => {})
 
   return c.json({ success: true, data: updated[0] })
 })
 
 /**
- * Crée un événement feed `surah_validated` dans tous les groupes de l'utilisateur.
+ * Gère les événements post-validation sheikh :
+ * feed surah_validated + attribution badges + vérification niveau.
  */
-async function createFeedEventForValidated(userId: string, surahId: number, sheikhId: string) {
-  const [surahInfo, userGroups, sheikhInfo] = await Promise.all([
+async function handlePostValidationEvents(
+  userId: string,
+  surahId: number,
+  xpBefore: number,
+  xpGain: number,
+  streak: number,
+  sheikhId: string,
+): Promise<void> {
+  const xpAfter = xpBefore + xpGain
+
+  const [surahInfo, userGroups, sheikhInfo, memorizedRows] = await Promise.all([
     db.select({ nameFr: surahs.nameFr, nameAr: surahs.nameAr, number: surahs.number })
-      .from(surahs)
-      .where(eq(surahs.id, surahId))
-      .limit(1),
+      .from(surahs).where(eq(surahs.id, surahId)).limit(1),
     db.select({ groupId: groupMembers.groupId })
-      .from(groupMembers)
-      .where(eq(groupMembers.userId, userId)),
+      .from(groupMembers).where(eq(groupMembers.userId, userId)),
     db.select({ name: users.name })
-      .from(users)
-      .where(eq(users.id, sheikhId))
-      .limit(1),
+      .from(users).where(eq(users.id, sheikhId)).limit(1),
+    db.select({ surahId: memorizationProgress.surahId })
+      .from(memorizationProgress)
+      .where(and(
+        eq(memorizationProgress.userId, userId),
+        or(eq(memorizationProgress.status, 'memorized'), eq(memorizationProgress.status, 'consolidated')),
+      )),
   ])
 
   const surah = surahInfo[0]
   if (!surah || userGroups.length === 0) return
 
-  await Promise.all(
-    userGroups.map((g) =>
-      createFeedEvent({
-        groupId: g.groupId,
-        userId,
-        type: 'surah_validated',
-        content: {
-          surahId,
-          surahName: surah.nameFr,
-          surahNameAr: surah.nameAr,
-          surahNumber: surah.number,
-          sheikhName: sheikhInfo[0]?.name ?? 'Sheikh',
-        },
-      })
-    )
-  )
+  const memorizedIds = memorizedRows.map((r) => r.surahId)
+
+  // Feed event surah_validated
+  await Promise.all(userGroups.map((g) =>
+    createFeedEvent({
+      groupId: g.groupId, userId, type: 'surah_validated',
+      content: { surahId, surahName: surah.nameFr, surahNameAr: surah.nameAr, surahNumber: surah.number, sheikhName: sheikhInfo[0]?.name ?? 'Sheikh' },
+    })
+  ))
+
+  // Badges + niveau
+  await awardBadgesAndCheckLevel(userId, userGroups, memorizedIds, xpBefore, xpAfter, streak)
 }
 
 /** GET /api/progress/group/:groupId — Vue agrégée du groupe */
