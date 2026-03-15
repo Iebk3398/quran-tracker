@@ -10,10 +10,15 @@ COPY turbo.json ./
 COPY tsconfig.base.json ./
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
-# Stubs pour les workspaces absents du container (apps/web, packages/ui)
-# npm ci exige que TOUS les workspace packages du lockfile soient présents
-# (même ceux non utilisés par l'API) pour créer les symlinks node_modules.
-COPY apps/web/package.json ./apps/web/package.json
+
+# Stubs minimaux pour les workspaces absents du container.
+# npm ci exige que TOUS les workspaces déclarés dans le lockfile existent
+# en tant que répertoires — sinon il lève ENOENT et avorte.
+# On crée des package.json SANS dépendances pour éviter d'installer
+# tout Next.js (28 deps) dans une image qui n'en a pas besoin.
+RUN mkdir -p apps/web && \
+    echo '{"name":"@quran-tracker/web","version":"0.1.0","private":true}' \
+    > apps/web/package.json
 
 # Install deps (node:22-alpine >= 22.12, satisfait les peerDeps Prisma de better-auth)
 RUN npm ci

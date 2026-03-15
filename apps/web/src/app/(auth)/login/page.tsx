@@ -71,24 +71,36 @@ export default function LoginPage() {
       return
     }
 
-    // Sauvegarde explicite du token depuis la réponse signIn (critique sur mobile où
-    // les cookies tiers sont bloqués et onResponse peut ne pas capturer set-auth-token)
-    const signInToken = (signInResult.data as unknown as { token?: string })?.token
+    // ── Sauvegarde du Bearer token (critique sur mobile, cookies tiers bloqués) ──
+    //
+    // Better Auth place le token dans la session, pas à la racine du data :
+    //   signInResult.data.session.token  ← correct
+    //   signInResult.data.token          ← undefined (bug précédent)
+    //
+    // On essaie aussi data.token en fallback au cas où une future version de
+    // Better Auth changerait la structure.
+    const rawData = signInResult.data as unknown as {
+      session?: { token?: string }
+      token?: string
+    }
+    const signInToken = rawData?.session?.token ?? rawData?.token ?? null
     if (signInToken && typeof localStorage !== 'undefined') {
       localStorage.setItem(AUTH_TOKEN_KEY, signInToken)
     }
 
-    // Warm-up : force le plugin bearer à émettre set-auth-token dans onResponse.
-    // Si signIn.emailOtp n'a pas capturé le token (CORS, cookies tiers bloqués…),
-    // getSession() force le serveur à ré-émettre set-auth-token.
+    // Warm-up : force le plugin bearer à renvoyer set-auth-token dans onResponse.
+    // Si le token n'était pas dans data (ancienne version de Better Auth),
+    // getSession() avec Authorization: Bearer <token> force le serveur à
+    // ré-émettre set-auth-token → l'onResponse hook le capture.
     const sessionResult = await authClient.getSession().catch(() => null)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sessionUser = (sessionResult as any)?.data?.user
 
+    // Si getSession() a renvoyé un token renouvelé, il est déjà dans localStorage
+    // via l'onResponse hook de auth-client. On vérifie juste qu'on a bien une session.
     if (!sessionUser) {
-      // Aucune session établie → pas de redirect (évite la boucle infinie)
       setLoading(false)
-      setError('Session introuvable. Vérifiez votre connexion et réessayez.')
+      setError('Session introuvable. Vérifie ta connexion et réessaie.')
       return
     }
 
