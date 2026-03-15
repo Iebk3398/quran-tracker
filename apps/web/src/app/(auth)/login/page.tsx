@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { authClient } from '@/lib/auth-client'
+import { authClient, AUTH_TOKEN_KEY } from '@/lib/auth-client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 type Step = 'email' | 'otp'
@@ -64,11 +64,18 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const { error } = await authClient.signIn.emailOtp({ email, otp })
-    if (error) {
+    const signInResult = await authClient.signIn.emailOtp({ email, otp })
+    if (signInResult.error) {
       setLoading(false)
-      setError(error.message ?? 'Code invalide ou expiré')
+      setError(signInResult.error.message ?? 'Code invalide ou expiré')
       return
+    }
+
+    // Sauvegarde explicite du token depuis la réponse signIn (critique sur mobile où
+    // les cookies tiers sont bloqués et onResponse peut ne pas capturer set-auth-token)
+    const signInToken = (signInResult.data as unknown as { token?: string })?.token
+    if (signInToken && typeof localStorage !== 'undefined') {
+      localStorage.setItem(AUTH_TOKEN_KEY, signInToken)
     }
 
     // Warm-up : force le plugin bearer à émettre set-auth-token dans onResponse.

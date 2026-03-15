@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store'
+import { signOut, AUTH_TOKEN_KEY } from '@/lib/auth-client'
 
 interface NavItem {
   href: string
@@ -46,6 +47,20 @@ export function DashboardSidebar() {
   const { sidebarOpen, toggleSidebar, user } = useAppStore()
 
   const isSheikh = user?.role === 'sheikh' || user?.role === 'super_admin'
+
+  async function handleLogout() {
+    // Clear local session data immediately (avant la requête réseau)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(AUTH_TOKEN_KEY)
+    }
+    // Supprime le cookie ba-logged-in pour éviter la boucle middleware → dashboard
+    if (typeof document !== 'undefined') {
+      document.cookie = 'ba-logged-in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    }
+    // Déconnexion côté serveur puis redirection
+    await signOut().catch(() => null)
+    window.location.href = '/login'
+  }
 
   return (
     <>
@@ -129,6 +144,7 @@ export function DashboardSidebar() {
         {/* Footer */}
         <div className="border-t border-stone-200 p-2 dark:border-stone-800">
           <button
+            onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-stone-400 dark:hover:bg-red-950 dark:hover:text-red-400"
           >
             <LogOut className="h-5 w-5 flex-shrink-0" />
