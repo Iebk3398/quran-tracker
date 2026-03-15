@@ -44,11 +44,12 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
         method: 'POST',
         body: JSON.stringify({ count: n }),
       }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['group', groupId, 'leaderboard'] })
       setShowAdd(false)
-      // Toast XP (5 XP par hizb)
-      setXpToast(count * 5)
+      setCount(1) // Remet le compteur à 1 pour la prochaine ouverture
+      // Toast XP (5 XP par hizb) — utilise variables (valeur réellement envoyée)
+      setXpToast(variables * 5)
       setTimeout(() => setXpToast(null), 2500)
     },
   })
