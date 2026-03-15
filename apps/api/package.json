@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node --env-file-if-exists=../../.env.local --env-file-if-exists=../../.env dist/index.js",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.4.1",
@@ -26,6 +28,7 @@
   "devDependencies": {
     "@types/node": "^22.10.5",
     "tsx": "^4.19.2",
-    "typescript": "*"
+    "typescript": "*",
+    "vitest": "^2.1.8"
   }
 }

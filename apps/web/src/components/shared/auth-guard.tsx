@@ -68,31 +68,47 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
 
     /**
-     * Vérifie la session avec 1 retry (300ms) pour les cas où le token
-     * bearer vient d'être écrit en localStorage (race condition au montage).
+     * Vérifie la session avec jusqu'à 3 tentatives.
+     * - Si toutes les tentatives échouent avec une EXCEPTION réseau (serveur
+     *   indisponible / cold start Railway), on NE supprime PAS le token local
+     *   pour éviter de déconnecter l'utilisateur à tort.
+     * - Si le serveur répond explicitement "pas de session" (result sans user),
+     *   on vide la session locale pour casser la boucle dashboard ↔ login.
      */
     async function checkSession() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let result: any = null
-      try {
-        result = await getSession()
-      } catch {
-        // premier essai échoué → retry
-      }
+      let receivedServerResponse = false // true si on a une réponse du serveur (même vide)
 
-      // Retry unique après 350ms si aucune session trouvée au premier essai
-      if (!result?.data?.user) {
-        await new Promise((r) => setTimeout(r, 350))
+      const delays = [0, 400, 1500] // délais entre tentatives (ms)
+
+      for (let attempt = 0; attempt < delays.length; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, delays[attempt]))
+        }
         try {
           result = await getSession()
+          receivedServerResponse = true
+          if (result?.data?.user) break // session trouvée → on sort
         } catch {
-          // second essai échoué → on abandonne
+          // Exception réseau / timeout — on réessaie
         }
       }
 
       const user = result?.data?.user
 
       if (!user) {
+        if (!receivedServerResponse) {
+          /**
+           * Toutes les tentatives ont levé une exception réseau (cold start,
+           * panne temporaire). On NE vide PAS le token localStorage pour ne pas
+           * déconnecter l'utilisateur à tort. On redirige quand même vers /login
+           * pour éviter d'afficher le dashboard sans données.
+           */
+          setStatus('redirect')
+          router.replace('/login')
+          return
+        }
         /**
          * ⚠️ Important : on supprime aussi le token du localStorage.
          * Sans ça, la page /login détecterait un token "valide" en localStorage,
@@ -123,8 +139,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
       setStatus('ok')
     }
 
+    // Erreur inattendue dans checkSession elle-même (bug) — on redirige sans vider le token
+    // (même traitement que les erreurs réseau : on n'invalide pas la session à tort)
     checkSession().catch(() => {
-      clearAllSessionData()
       setStatus('redirect')
       router.replace('/login')
     })
