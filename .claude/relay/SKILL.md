@@ -80,67 +80,53 @@ Sans ça, aucun `git push` ne déclenche de build automatique.
 ## Ce qui a été corrigé cette session (2026-03-16)
 
 ### 1. Google OAuth state_mismatch sur mobile — index.ts ✅
-- **Problème :** Safari ITP (Bounce Tracking Prevention) purge les cookies de
-  `api.railway.app` après le redirect vers Google → `state_mismatch`.
-- **Fix 1 :** `/auth/google` sauvegarde le state cookie dans Redis (TTL 10 min).
-- **Fix 2 :** Route `/api/auth/callback/google` ajoutée avant le handler général.
-  Si le state cookie manque, il est restauré depuis Redis avant de passer à Better Auth.
-- **Fix 3 :** Le `callbackURL` passe par `/auth/relay` (same-origin API) qui extrait
-  le bearer token et le passe en `?token=xxx` au frontend. Résout le manque de
-  cookie cross-origin sur Safari après OAuth.
+- **Problème :** Safari ITP purge les cookies de `api.railway.app` → `state_mismatch`.
+- **Fix :** Redis state backup + route callback custom + `/auth/relay` loopback bearer.
 - **Fichier :** `apps/api/src/index.ts`
 
-### 2. OTP "Session introuvable" sur mobile — login/page.tsx ✅
-- **Problème :** `getSession()` après OTP échouait sur mobile (cold start Railway
-  + réseau lent) → message d'erreur → user bloqué sur login.
-- **Fix :** Retries jusqu'à 3 fois (0/800/2000ms). Même si tous les retries
-  échouent, redirect vers /dashboard — AuthGuard valide et gère l'éventuel échec.
+### 2. OTP warm-up retries — login/page.tsx ✅
+- **Fix :** Retries jusqu'à 3 fois (0/800/2000ms). Redirect /dashboard même si warm-up échoue.
 - **Fichier :** `apps/web/src/app/(auth)/login/page.tsx`
 
-### 3. Relay skill renommé et réorganisé ✅
-- `ikraa-relay` → `relay` (nom + triggers)
-- `.claude/skills/ikraa-relay/` → `.claude/relay/`
-- Copié dans `~/.claude/skills/relay/` (global)
-- Procédure fin de session ajoutée (commit + merge + push + sync)
-
-### 4. Cleanup worktrees stale ✅
-- Suppression de `.claude/worktrees/elegant-ride` et `jolly-torvalds`
-  qui bloquaient git (références à des containers Claude disparus).
-
-### 5. Relay loopback bearer token — index.ts ✅
-- **Problème :** `/auth/relay` utilisait `session.token` retourné par `auth.api.getSession()`
-  côté serveur — ce token n'est PAS reconnu par le plugin bearer du côté client.
-- **Fix :** Loopback HTTP `GET /api/auth/get-session` (cookie same-origin) →
-  lit le header `set-auth-token` de la réponse HTTP → c'est le vrai bearer token.
-- **Fichier :** `apps/api/src/index.ts`
-
-### 6. CORS expose set-auth-token — index.ts ✅ (session 2026-03-16 fin)
-- **Problème racine connexion mobile :** Le middleware CORS Hono ne couvre pas les
-  réponses natives `Response` retournées par `auth.handler()`. Sur mobile Safari
-  (CORS strict), `Access-Control-Expose-Headers: set-auth-token` manquait →
-  `onResponse` lisait null → token jamais sauvé en localStorage → boucle login.
-- **Fix :** Le handler `app.on('/api/auth/*')` intercepte la réponse et injecte
-  manuellement `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`,
+### 3. CORS expose set-auth-token — index.ts ✅
+- **Fix :** Handler `app.on('/api/auth/*')` injecte manuellement les headers CORS
   et `Access-Control-Expose-Headers: set-auth-token` pour les origines autorisées.
 - **Fichier :** `apps/api/src/index.ts`
+
+### 4. Google OAuth redirect_uri_mismatch ✅ (fix manuel, sans commit)
+- **Problème :** `BETTER_AUTH_URL=http://localhost:3001` sur Railway → redirect_uri=localhost.
+- **Fix :** `BETTER_AUTH_URL` → `https://api-production-e758.up.railway.app` sur Railway +
+  URI `https://api-production-e758.up.railway.app/api/auth/callback/google` dans Google Console.
+
+### 5. Bug getSession() silencieux — verifySessionDirect() ✅
+- **Problème :** `authClient.getSession()` de Better Auth ne faisait **aucun appel réseau**
+  en production cross-origin (Vercel → Railway). Court-circuit interne faute de cookie
+  de session côté client. Résultat : login page ne détectait pas la session → boucle login.
+- **Diagnostic :** Confirmé via Chrome DevTools — aucune requête vers Railway depuis la page.
+  Test JS direct `fetch('/api/auth/get-session', Authorization: Bearer)` → 200 + user ✅.
+- **Fix :** Nouvelle fonction `verifySessionDirect()` dans `auth-client.ts` — fetch direct
+  vers Railway avec le Bearer token, bypass complet du cache Better Auth.
+  Utilisée dans `AuthGuard` et `login/page.tsx` à la place de `authClient.getSession()`.
+- **Fichiers :**
+  - `apps/web/src/lib/auth-client.ts` ← ajout de `verifySessionDirect()`
+  - `apps/web/src/components/shared/auth-guard.tsx` ← utilise `verifySessionDirect()`
+  - `apps/web/src/app/(auth)/login/page.tsx` ← utilise `verifySessionDirect()`
 
 ---
 
 ## Ce qui reste à faire
 
-### PRIORITÉ 1 — Vérifier la connexion mobile après deploy Railway 🔴
-Railway rebuild en cours (push `1797f2b`). Vérifier sur mobile :
-- OTP → accès dashboard sans boucle (fix CORS set-auth-token)
-- Google OAuth → plus de `state_mismatch` (fix Redis state backup)
-- `POST /api/users/me/hizb` → 200
+### PRIORITÉ 1 — Vérifier le flux Google OAuth complet en prod 🔴
+Après redéploiement Vercel (commit `749a3a2` — verifySessionDirect), tester :
+1. `https://quran-tracker-web.vercel.app/login` → "Continuer avec Google"
+2. Vérifier que le dashboard s'ouvre sans boucle login
 
 ### PRIORITÉ 2 — Connecter Railway à GitHub (si pas encore fait) 🔴
-**Pourquoi :** Sans ça, aucun fix déployé automatiquement.
-**Comment :** Railway dashboard → service `api` → Settings → Source → connecter
+Railway dashboard → service `api` → Settings → Source → connecter
 repo `Iebk3398/quran-tracker` branch `main`.
 
-### PRIORITÉ 3 — Vérifier que UPSTASH_REDIS_REST_URL est configuré sur Railway 🟡
-Le fix Google OAuth mobile utilise Redis. S'assurer que les variables sont dans Railway :
+### PRIORITÉ 3 — Vérifier UPSTASH_REDIS vars sur Railway 🟡
+Le fix Google OAuth mobile utilise Redis. Variables requises :
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 
@@ -159,51 +145,66 @@ Fichier existant mais exclu du tsconfig ET non importé dans index.ts.
 ## Architecture auth (référence rapide)
 
 ```
-Login mobile (OTP) :
+Login OTP :
   signIn.emailOtp() → onResponse capture set-auth-token → localStorage
   data.session.token → localStorage (fallback explicite)
-  getSession() warm-up avec retries (0/800/2000ms)
-  window.location.href = '/dashboard' (même si warm-up échoue)
+  window.location.href = '/dashboard'
 
-Login mobile (Google OAuth) :
+Login Google OAuth :
   /auth/google → loopback sign-in/social → state cookies dans Redis
   → redirect Google → /api/auth/callback/google
   Si state cookie manque : restauration depuis Redis
-  → session créée → /auth/relay → ?token=xxx → dashboard
-  AuthGuard lit ?token → localStorage → getSession() avec Bearer ✓
+  → session créée → /auth/relay → loopback get-session → set-auth-token
+  → redirect /dashboard?token=xxx
+  AuthGuard lit ?token → localStorage → verifySessionDirect() → 200 + user ✅
 
 Auth-guard (dashboard) :
-  getSession() avec Authorization: Bearer <token>
+  verifySessionDirect() — fetch DIRECT Railway avec Bearer token (bypass cache BA)
   3 tentatives (0/400/1500ms)
   Succès → setSessionCookie('ba-logged-in') → status 'ok'
   Échec serveur → clearAllSessionData() + redirect /login
   Échec réseau → redirect /login SANS vider le token
+
+Login page (detect existing session) :
+  verifySessionDirect() → user → router.replace('/dashboard')
 ```
 
 ---
 
-## Fichiers clés modifiés cette session
+## Fichiers clés modifiés (toutes sessions)
 
 ```
-apps/api/src/index.ts                         ← Redis state backup + callback route + relay loopback + CORS expose
-apps/web/src/app/(auth)/login/page.tsx        ← retries getSession() + redirect sans bloquer
-.claude/relay/SKILL.md                        ← relay skill (ex ikraa-relay)
+apps/web/src/lib/auth-client.ts               ← verifySessionDirect() (NOUVEAU)
+apps/web/src/components/shared/auth-guard.tsx  ← verifySessionDirect() + 3 retries
+apps/web/src/app/(auth)/login/page.tsx         ← verifySessionDirect() + token fix
+apps/web/src/components/shared/sidebar.tsx     ← logout handler
+apps/web/src/components/group/hizb-tracker.tsx ← reset count + XP variables
+apps/api/Dockerfile                            ← npm install + web stub
+apps/api/src/index.ts                          ← /auth/google + /auth/relay + CORS
+apps/api/src/lib/auth.ts                       ← Better Auth config + trustedOrigins
+apps/api/src/__tests__/helpers/chain.ts        ← Drizzle mock helper
 ```
 
 ---
 
-## Commits de cette session
+## Commits de cette session (dans l'ordre)
 
 ```
 97e1635  fix(auth): mobile Safari state_mismatch + OTP session warm-up
 267d4da  fix(auth): revert relay callbackURL — regression dashboard inaccessible
 0a4501d  fix(auth): relay loopback get-session pour extraire le vrai bearer token
 1797f2b  fix(auth): expose set-auth-token via CORS pour mobile Safari
+749a3a2  fix(auth): bypass Better Auth cache with verifySessionDirect()
 ```
 
 ---
 
 ## Comment démarrer/terminer une session
 
-**Début :** `/relay` ou **"relay"**
-**Fin :** **"mets à jour le relay"** → commit + merge + push + mise à jour SKILL.md + sync global
+**Début :** **"relay"** ou **"charge le contexte ikraa"**
+**Fin :** **"mets à jour le relay"** → commit + push + mise à jour SKILL.md
+
+Claude proposera de commencer par :
+1. Tester le flux Google OAuth complet en prod
+2. Connecter Railway à GitHub si pas encore fait
+3. Reprendre les tests d'intégration manquants
