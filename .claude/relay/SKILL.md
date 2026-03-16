@@ -33,7 +33,7 @@ par les tâches restantes dans l'ordre indiqué.
 | Monorepo | Turborepo + pnpm workspaces |
 | API | Hono.js + Better Auth + Drizzle ORM + PostgreSQL (Railway) |
 | Frontend | Next.js 15 + React Query v5 + Zustand |
-| Auth | emailOTP + Google OAuth. Bearer token dans `localStorage` (`ba-session-token`) |
+| Auth | Google OAuth uniquement (OTP supprimé). Bearer token dans `localStorage` (`ba-session-token`) |
 | DB | PostgreSQL sur Railway. Drizzle ORM (fluent builder, pas de ORM classique) |
 | Deploy API | Railway — Dockerfile dans `apps/api/Dockerfile` |
 | Deploy Web | Vercel — auto-deploy sur push `main` |
@@ -77,83 +77,90 @@ Sans ça, aucun `git push` ne déclenche de build automatique.
 
 ---
 
-## Ce qui a été corrigé cette session (2026-03-16)
+## Ce qui a été corrigé (session 2026-03-16 — suite)
 
-### 1. Google OAuth state_mismatch sur mobile — index.ts ✅
-- **Problème :** Safari ITP purge les cookies de `api.railway.app` → `state_mismatch`.
-- **Fix :** Redis state backup + route callback custom + `/auth/relay` loopback bearer.
-- **Fichier :** `apps/api/src/index.ts`
+### 1. Build Vercel échoué — `useStore is not exported from '@/store'` ✅
+- **Problème :** `profile-client.tsx` et `dashboard-client.tsx` importaient `useStore`
+  qui n'existe pas — le store exporte `useAppStore`.
+- **Fix :** Remplacement `useStore` → `useAppStore` dans les deux fichiers.
+- **Fichiers :** `apps/web/src/app/(dashboard)/profile/profile-client.tsx`,
+  `apps/web/src/app/(dashboard)/dashboard/dashboard-client.tsx`
 
-### 2. OTP warm-up retries — login/page.tsx ✅
-- **Fix :** Retries jusqu'à 3 fois (0/800/2000ms). Redirect /dashboard même si warm-up échoue.
+### 2. Logout cross-origin hang ✅
+- **Problème :** `await signOut()` peut hanger indéfiniment en cross-origin (Vercel→Railway).
+- **Fix :** `handleLogout()` non-async : vide localStorage + cookie `ba-logged-in` +
+  `reset()` store → `signOut().catch()` fire & forget → `window.location.href = '/login'`.
+- **Fichier :** `apps/web/src/components/shared/sidebar.tsx`
+
+### 3. Bouton déconnexion mobile manquant ✅
+- **Fix :** Bouton "Quitter" ajouté dans la bottom nav mobile (sidebar.tsx).
+
+### 4. UX simplification majeure — login Google only ✅
+- **Supprimé :** Tout le flow OTP (email input, code 6 chiffres, handleSendOtp, step state).
+- **Gardé :** `verifySessionDirect()` redirect check + bouton Google OAuth uniquement.
 - **Fichier :** `apps/web/src/app/(auth)/login/page.tsx`
 
-### 3. CORS expose set-auth-token — index.ts ✅
-- **Fix :** Handler `app.on('/api/auth/*')` injecte manuellement les headers CORS
-  et `Access-Control-Expose-Headers: set-auth-token` pour les origines autorisées.
-- **Fichier :** `apps/api/src/index.ts`
+### 5. Dashboard redesign — 3 onglets + Progress Ring SVG ✅
+- **Supprimé :** `GroupFeed`, `HizbTracker`, `GroupStats` (composants retirés du dashboard).
+- **Ajouté :** 3 tabs animés : Lecture 📖 (ring ambré) | Mémorisation 🌙 | Objectifs 🎯.
+- **Progress Ring :** SVG animé `stroke-dashoffset` + `rotate(-90deg)`, transition 0.9s.
+- **Partage :** `navigator.share()` natif iOS/Android, fallback clipboard desktop.
+- **Fichier :** `apps/web/src/app/(dashboard)/dashboard/dashboard-client.tsx`
 
-### 4. Google OAuth redirect_uri_mismatch ✅ (fix manuel, sans commit)
-- **Problème :** `BETTER_AUTH_URL=http://localhost:3001` sur Railway → redirect_uri=localhost.
-- **Fix :** `BETTER_AUTH_URL` → `https://api-production-e758.up.railway.app` sur Railway +
-  URI `https://api-production-e758.up.railway.app/api/auth/callback/google` dans Google Console.
-
-### 5. Bug getSession() silencieux — verifySessionDirect() ✅
-- **Problème :** `authClient.getSession()` de Better Auth ne faisait **aucun appel réseau**
-  en production cross-origin (Vercel → Railway). Court-circuit interne faute de cookie
-  de session côté client. Résultat : login page ne détectait pas la session → boucle login.
-- **Diagnostic :** Confirmé via Chrome DevTools — aucune requête vers Railway depuis la page.
-  Test JS direct `fetch('/api/auth/get-session', Authorization: Bearer)` → 200 + user ✅.
-- **Fix :** Nouvelle fonction `verifySessionDirect()` dans `auth-client.ts` — fetch direct
-  vers Railway avec le Bearer token, bypass complet du cache Better Auth.
-  Utilisée dans `AuthGuard` et `login/page.tsx` à la place de `authClient.getSession()`.
-- **Fichiers :**
-  - `apps/web/src/lib/auth-client.ts` ← ajout de `verifySessionDirect()`
-  - `apps/web/src/components/shared/auth-guard.tsx` ← utilise `verifySessionDirect()`
-  - `apps/web/src/app/(auth)/login/page.tsx` ← utilise `verifySessionDirect()`
+### 6. Responsive mobile complet ✅
+- **Topbar :** `h-14 sm:h-16`, logo mobile `BookOpen`, `px-3 sm:px-4`.
+- **Sidebar bottom nav :** `mobileLabel` courts ("Accueil", "Profil", "Sourates"…),
+  `text-[10px]`, `py-2.5`, icônes `h-[22px] w-[22px]`.
+- **GroupStats :** `shortLabel` par card, labels adaptatifs `sm:hidden / hidden sm:inline`.
+- **Leaderboard :** avatars `w-8 h-8 sm:w-10 sm:h-10`, level name `hidden sm:inline`.
+- **Layout :** `pb-24` mobile (espace bottom nav), `md:pb-6` desktop.
+- **Profil modal :** bottom sheet sur mobile (`items-end sm:items-center`,
+  `rounded-t-3xl sm:rounded-2xl`, `max-h-[90vh] overflow-y-auto`).
 
 ---
 
 ## Ce qui reste à faire
 
-### PRIORITÉ 1 — Vérifier le flux Google OAuth complet en prod 🔴
-Après redéploiement Vercel (commit `749a3a2` — verifySessionDirect), tester :
+### PRIORITÉ 1 — Vérifier le build Vercel (commit `bca085c`) 🔴
+Vérifier sur https://vercel.com que le déploiement du dernier commit est vert.
+Si échoué, lire les logs build et corriger.
+
+### PRIORITÉ 2 — Tester le flux Google OAuth complet en prod 🔴
 1. `https://quran-tracker-web.vercel.app/login` → "Continuer avec Google"
 2. Vérifier que le dashboard s'ouvre sans boucle login
+3. Tester sur mobile (iOS Safari) — state_mismatch fix toujours actif
 
-### PRIORITÉ 2 — Connecter Railway à GitHub (si pas encore fait) 🔴
+### PRIORITÉ 3 — Connecter Railway à GitHub (si pas encore fait) 🔴
 Railway dashboard → service `api` → Settings → Source → connecter
 repo `Iebk3398/quran-tracker` branch `main`.
 
-### PRIORITÉ 3 — Vérifier UPSTASH_REDIS vars sur Railway 🟡
-Le fix Google OAuth mobile utilise Redis. Variables requises :
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
+### PRIORITÉ 4 — Onglet Objectifs : brancher l'API 🟡
+L'onglet "Objectifs 🎯" du dashboard affiche un stub. Il faut :
+- Créer/vérifier `apps/api/src/routes/objectives.ts`
+- Brancher le composant `GroupGoal` ou similaire dans le tab
+- L'activer dans `apps/api/src/index.ts`
 
-### PRIORITÉ 4 — Compléter les tests d'intégration 🟡
+### PRIORITÉ 5 — Compléter les tests d'intégration 🟡
 Tests restants dans `apps/api/src/__tests__/routes/` :
 - `revisions.test.ts`
 - `feed.test.ts`
 - `notifications.test.ts`
 - `objectives.test.ts`
 
-### PRIORITÉ 5 — Objectifs (objectives.ts) 🟢
-Fichier existant mais exclu du tsconfig ET non importé dans index.ts.
+### PRIORITÉ 6 — Vérifier UPSTASH_REDIS vars sur Railway 🟢
+Le fix Google OAuth mobile utilise Redis. Variables requises :
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
 
 ---
 
 ## Architecture auth (référence rapide)
 
 ```
-Login OTP :
-  signIn.emailOtp() → onResponse capture set-auth-token → localStorage
-  data.session.token → localStorage (fallback explicite)
-  window.location.href = '/dashboard'
-
-Login Google OAuth :
+Login (Google OAuth uniquement — OTP supprimé) :
   /auth/google → loopback sign-in/social → state cookies dans Redis
   → redirect Google → /api/auth/callback/google
-  Si state cookie manque : restauration depuis Redis
+  Si state cookie manque : restauration depuis Redis (fix Safari ITP)
   → session créée → /auth/relay → loopback get-session → set-auth-token
   → redirect /dashboard?token=xxx
   AuthGuard lit ?token → localStorage → verifySessionDirect() → 200 + user ✅
@@ -167,6 +174,13 @@ Auth-guard (dashboard) :
 
 Login page (detect existing session) :
   verifySessionDirect() → user → router.replace('/dashboard')
+
+Logout :
+  localStorage.removeItem('ba-session-token')
+  document.cookie = 'ba-logged-in=; expires=...' (supprime cookie)
+  reset() Zustand store
+  signOut().catch() — fire & forget, jamais await (cross-origin hang)
+  window.location.href = '/login'
 ```
 
 ---
@@ -174,15 +188,21 @@ Login page (detect existing session) :
 ## Fichiers clés modifiés (toutes sessions)
 
 ```
-apps/web/src/lib/auth-client.ts               ← verifySessionDirect() (NOUVEAU)
-apps/web/src/components/shared/auth-guard.tsx  ← verifySessionDirect() + 3 retries
-apps/web/src/app/(auth)/login/page.tsx         ← verifySessionDirect() + token fix
-apps/web/src/components/shared/sidebar.tsx     ← logout handler
-apps/web/src/components/group/hizb-tracker.tsx ← reset count + XP variables
-apps/api/Dockerfile                            ← npm install + web stub
-apps/api/src/index.ts                          ← /auth/google + /auth/relay + CORS
-apps/api/src/lib/auth.ts                       ← Better Auth config + trustedOrigins
-apps/api/src/__tests__/helpers/chain.ts        ← Drizzle mock helper
+apps/web/src/lib/auth-client.ts                          ← verifySessionDirect() (NOUVEAU)
+apps/web/src/components/shared/auth-guard.tsx             ← verifySessionDirect() + 3 retries
+apps/web/src/app/(auth)/login/page.tsx                   ← Google only, verifySessionDirect()
+apps/web/src/components/shared/sidebar.tsx               ← logout + mobile bottom nav
+apps/web/src/components/shared/topbar.tsx                ← responsive mobile (h-14 sm:h-16)
+apps/web/src/app/(dashboard)/dashboard/dashboard-client.tsx ← redesign 3 tabs + ProgressRing SVG
+apps/web/src/app/(dashboard)/profile/profile-client.tsx  ← bottom sheet + useAppStore fix
+apps/web/src/app/(dashboard)/layout.tsx                  ← padding responsive mobile/desktop
+apps/web/src/components/group/group-stats.tsx            ← shortLabel responsive
+apps/web/src/components/group/leaderboard.tsx            ← responsive avatars + labels
+apps/web/src/components/group/hizb-tracker.tsx           ← reset count + XP variables
+apps/api/Dockerfile                                      ← npm install + web stub
+apps/api/src/index.ts                                    ← /auth/google + /auth/relay + CORS
+apps/api/src/lib/auth.ts                                 ← Better Auth config + trustedOrigins
+apps/api/src/__tests__/helpers/chain.ts                  ← Drizzle mock helper
 ```
 
 ---
@@ -195,6 +215,12 @@ apps/api/src/__tests__/helpers/chain.ts        ← Drizzle mock helper
 0a4501d  fix(auth): relay loopback get-session pour extraire le vrai bearer token
 1797f2b  fix(auth): expose set-auth-token via CORS pour mobile Safari
 749a3a2  fix(auth): bypass Better Auth cache with verifySessionDirect()
+87cdc83  fix(profile): useAppStore au lieu de useStore (export correct du store)
+782d08a  fix(ux): logout fonctionnel + mobile logout + responsive + useSession cross-origin
+dcfbcfa  feat(dashboard): bouton Partager le code d'invitation du groupe
+b782137  feat(ux): simplification majeure — login Google only + dashboard 2 modes
+81b8804  feat(dashboard): redesign 3 tabs + progress ring SVG + UX épuré
+bca085c  fix(responsive): optimisation mobile complète — espaces, textes, composants
 ```
 
 ---
@@ -205,6 +231,6 @@ apps/api/src/__tests__/helpers/chain.ts        ← Drizzle mock helper
 **Fin :** **"mets à jour le relay"** → commit + push + mise à jour SKILL.md
 
 Claude proposera de commencer par :
-1. Tester le flux Google OAuth complet en prod
-2. Connecter Railway à GitHub si pas encore fait
-3. Reprendre les tests d'intégration manquants
+1. Vérifier le build Vercel (commit `bca085c`) — logs Vercel
+2. Tester le flux Google OAuth complet en prod sur mobile et desktop
+3. Brancher l'onglet Objectifs avec l'API `objectives.ts`
