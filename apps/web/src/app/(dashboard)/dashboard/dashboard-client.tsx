@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Share2, Check, Copy } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { apiFetch } from '@/lib/api'
 import { GroupStats } from '@/components/group/group-stats'
@@ -74,6 +75,7 @@ export function DashboardClient() {
   const [groupName, setGroupName] = useState('')
   const [createError, setCreateError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [shared, setShared] = useState(false)
 
   const { data: myGroups, isLoading: groupsLoading, refetch: refetchGroups } = useQuery({
     queryKey: ['my-groups'],
@@ -147,6 +149,31 @@ export function DashboardClient() {
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // fallback silent
+    }
+  }
+
+  /**
+   * Partage le code d'invitation du groupe.
+   * Utilise l'API Web Share (mobile natif) si disponible,
+   * sinon copie dans le presse-papier (desktop fallback).
+   */
+  async function handleShare() {
+    if (!group) return
+    const shareText = `Rejoins ma halqa "${group.name}" sur Quran Tracker 📖\n\nCode d'invitation : ${group.inviteCode}\n\nTélécharge l'app : https://quran-tracker-web.vercel.app`
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Rejoins ${group.name} sur Quran Tracker`,
+          text: shareText,
+        })
+      } else {
+        await navigator.clipboard.writeText(shareText)
+        setShared(true)
+        setTimeout(() => setShared(false), 2500)
+      }
+    } catch {
+      // L'utilisateur a annulé ou le share a échoué — pas d'erreur visible
     }
   }
 
@@ -239,21 +266,41 @@ export function DashboardClient() {
             {group.description ?? 'Suivi en temps réel de votre halqa'}
           </p>
         </div>
+
+        {/* Actions : code + partager */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Code d'invitation — clic pour copier (sheikh seulement) */}
           {group.sheikhId === storeUser?.id && (
             <button
               onClick={handleCopyCode}
-              className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-mono font-bold hover:bg-emerald-100 transition-colors dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/40"
-              title="Cliquer pour copier"
+              className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-mono font-bold hover:bg-emerald-100 transition-colors dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/40"
+              title="Cliquer pour copier le code"
             >
-              {copied ? '✓ Copié !' : `📋 ${group.inviteCode}`}
+              {copied
+                ? <><Check className="h-3.5 w-3.5" /> Copié !</>
+                : <><Copy className="h-3.5 w-3.5" /> {group.inviteCode}</>
+              }
             </button>
           )}
+
+          {/* Code visible pour les membres non-sheikh */}
           {group.sheikhId !== storeUser?.id && (
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-              Code : {group.inviteCode}
+            <span className="text-xs text-muted-foreground bg-muted px-2.5 py-1.5 rounded-xl font-mono font-medium">
+              {group.inviteCode}
             </span>
           )}
+
+          {/* Bouton Partager — disponible pour TOUS les membres */}
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 text-xs bg-stone-900 text-white px-3 py-1.5 rounded-xl font-semibold hover:bg-stone-700 active:scale-95 transition-all dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200"
+            title="Partager le code d'invitation"
+          >
+            {shared
+              ? <><Check className="h-3.5 w-3.5" /> Copié !</>
+              : <><Share2 className="h-3.5 w-3.5" /> Partager</>
+            }
+          </button>
         </div>
       </div>
 
