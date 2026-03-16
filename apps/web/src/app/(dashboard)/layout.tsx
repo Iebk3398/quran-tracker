@@ -23,7 +23,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex flex-1 flex-col overflow-hidden">
           <DashboardTopbar />
 
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+          <main className="flex-1 overflow-y-auto p-4 pb-24 md:pb-8 md:p-6 lg:p-8">
             {children}
           </main>
         </div>

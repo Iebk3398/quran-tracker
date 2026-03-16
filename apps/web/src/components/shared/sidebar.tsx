@@ -44,21 +44,29 @@ const navItems: NavItem[] = [
 export function DashboardSidebar() {
   const t = useTranslations()
   const pathname = usePathname()
-  const { sidebarOpen, toggleSidebar, user } = useAppStore()
+  const { sidebarOpen, toggleSidebar, user, reset } = useAppStore()
 
   const isSheikh = user?.role === 'sheikh' || user?.role === 'super_admin'
 
-  async function handleLogout() {
-    // Clear local session data immediately (avant la requête réseau)
+  /**
+   * Déconnexion : vide les données locales, reset le store,
+   * lance signOut en arrière-plan (fire & forget) et redirige immédiatement.
+   * On n'attend PAS signOut() car il peut hanger en cross-origin (Vercel → Railway).
+   */
+  function handleLogout() {
+    // 1. Vider les données locales immédiatement
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(AUTH_TOKEN_KEY)
     }
-    // Supprime le cookie ba-logged-in pour éviter la boucle middleware → dashboard
+    // 2. Supprimer le cookie de session pour éviter la boucle middleware
     if (typeof document !== 'undefined') {
       document.cookie = 'ba-logged-in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     }
-    // Déconnexion côté serveur puis redirection
-    await signOut().catch(() => null)
+    // 3. Reset du store Zustand
+    reset()
+    // 4. Invalider la session côté serveur en arrière-plan (sans bloquer la redirection)
+    signOut().catch(() => null)
+    // 5. Redirection immédiate
     window.location.href = '/login'
   }
 
@@ -141,7 +149,7 @@ export function DashboardSidebar() {
           })}
         </nav>
 
-        {/* Footer */}
+        {/* Footer — Déconnexion desktop */}
         <div className="border-t border-stone-200 p-2 dark:border-stone-800">
           <button
             onClick={handleLogout}
@@ -172,28 +180,38 @@ export function DashboardSidebar() {
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900 md:hidden">
-        {navItems.map((item) => {
-          if (item.adminOnly && !isSheikh) return null
+        {navItems
+          .filter((item) => !(item.adminOnly && !isSheikh))
+          .map((item) => {
+            const isActive = pathname === item.href
+            const Icon = item.icon
 
-          const isActive = pathname === item.href
-          const Icon = item.icon
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors',
+                  isActive
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-stone-500 dark:text-stone-400'
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{t(item.labelKey)}</span>
+              </Link>
+            )
+          })}
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors',
-                isActive
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-stone-500 dark:text-stone-400'
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              <span>{t(item.labelKey)}</span>
-            </Link>
-          )
-        })}
+        {/* Bouton déconnexion mobile */}
+        <button
+          onClick={handleLogout}
+          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-red-500 transition-colors hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+          aria-label="Se déconnecter"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>Quitter</span>
+        </button>
       </nav>
     </>
   )

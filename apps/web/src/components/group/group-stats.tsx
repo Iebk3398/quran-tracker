@@ -36,17 +36,17 @@ export function GroupStats({ stats }: GroupStatsProps) {
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-3 gap-2 md:gap-4">
       {cards.map((card, i) => (
         <motion.div
           key={card.label}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.1 }}
-          className={`rounded-xl p-4 ${card.bg} border`}
+          className={`rounded-xl p-3 md:p-4 ${card.bg} border`}
         >
-          <div className="text-2xl mb-1">{card.icon}</div>
-          <div className={`text-2xl font-bold ${card.color}`}>
+          <div className="text-xl md:text-2xl mb-1">{card.icon}</div>
+          <div className={`text-xl md:text-2xl font-bold ${card.color}`}>
             {card.value}
             {card.total !== undefined && (
               <span className="text-sm text-muted-foreground font-normal ml-1">/{card.total}</span>

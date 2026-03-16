@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSession } from '@/lib/auth-client'
+import { useAppStore } from '@/store'
 import { apiFetch } from '@/lib/api'
 import { GroupStats } from '@/components/group/group-stats'
 import { Leaderboard } from '@/components/group/leaderboard'
@@ -62,7 +62,9 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
 }
 
 export function DashboardClient() {
-  const { data: session, isPending: sessionLoading } = useSession()
+  // useSession() de Better Auth ne fonctionne pas en cross-origin (Vercel → Railway)
+  // On utilise le store Zustand hydraté par AuthGuard via verifySessionDirect()
+  const storeUser = useAppStore((s) => s.user)
   const queryClient = useQueryClient()
 
   const [inviteCode, setInviteCode] = useState('')
@@ -76,7 +78,7 @@ export function DashboardClient() {
   const { data: myGroups, isLoading: groupsLoading, refetch: refetchGroups } = useQuery({
     queryKey: ['my-groups'],
     queryFn: () => apiFetch<MyGroup[]>('/api/groups/me'),
-    enabled: !!session?.user,
+    enabled: !!storeUser?.id,
   })
 
   const group = myGroups?.[0]
@@ -148,7 +150,7 @@ export function DashboardClient() {
     }
   }
 
-  if (sessionLoading || groupsLoading) {
+  if (groupsLoading) {
     return (
       <div className="space-y-4 animate-pulse">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -238,7 +240,7 @@ export function DashboardClient() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {group.sheikhId === session?.user?.id && (
+          {group.sheikhId === storeUser?.id && (
             <button
               onClick={handleCopyCode}
               className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-mono font-bold hover:bg-emerald-100 transition-colors dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/40"
@@ -247,7 +249,7 @@ export function DashboardClient() {
               {copied ? '✓ Copié !' : `📋 ${group.inviteCode}`}
             </button>
           )}
-          {group.sheikhId !== session?.user?.id && (
+          {group.sheikhId !== storeUser?.id && (
             <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
               Code : {group.inviteCode}
             </span>
@@ -257,9 +259,10 @@ export function DashboardClient() {
 
       <GroupStats stats={groupStats} />
 
-      <GroupGoal groupId={group.id} isSheikh={group.sheikhId === session?.user?.id} />
+      <GroupGoal groupId={group.id} isSheikh={group.sheikhId === storeUser?.id} />
 
-      <HizbTracker groupId={group.id} currentUserId={session?.user?.id ?? ''} />
+      <HizbTracker groupId={group.id} currentUserId={storeUser?.id ?? ''} />
+
 
       <Leaderboard entries={leaderboard} isLoading={lbLoading} />
 

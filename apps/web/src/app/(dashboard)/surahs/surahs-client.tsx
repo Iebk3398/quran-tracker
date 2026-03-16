@@ -243,7 +243,7 @@ export function SurahsClient() {
           >
             <div className="flex items-center gap-1.5">
               <span className={`w-2 h-2 rounded-full ${dot}`} />
-              <span className="text-2xl font-bold tabular-nums tracking-tight">{n}</span>
+              <span className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight">{n}</span>
             </div>
             <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
           </button>
