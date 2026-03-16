@@ -91,11 +91,6 @@ app.get('/auth/google', async (c) => {
   try {
     // Vrai fetch loopback — passe par tout le pipeline Hono/Better Auth normalement
     // Origin = appURL (vercel.app) = origine de confiance dans trustedOrigins
-    // callbackURL → relay endpoint (même domaine API, same-origin) pour extraire le
-    // bearer token et le passer en ?token=xxx au frontend. Nécessaire pour mobile
-    // Safari où les cookies cross-origin sont bloqués par ITP.
-    const userRedirectURL = callbackURL
-    const relayCallbackURL = `${apiURL}/auth/relay?redirect=${encodeURIComponent(userRedirectURL)}`
     const port = process.env['PORT'] ?? '3001'
     const res = await fetch(`http://localhost:${port}/api/auth/sign-in/social`, {
       method: 'POST',
@@ -104,7 +99,7 @@ app.get('/auth/google', async (c) => {
         'Origin': appURL,
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ provider: 'google', callbackURL: relayCallbackURL }),
+      body: JSON.stringify({ provider: 'google', callbackURL }),
       signal: AbortSignal.timeout(10000),
     })
 
