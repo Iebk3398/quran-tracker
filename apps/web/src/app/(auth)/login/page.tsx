@@ -89,22 +89,25 @@ export default function LoginPage() {
     }
 
     // Warm-up : force le plugin bearer à renvoyer set-auth-token dans onResponse.
-    // Si le token n'était pas dans data (ancienne version de Better Auth),
-    // getSession() avec Authorization: Bearer <token> force le serveur à
-    // ré-émettre set-auth-token → l'onResponse hook le capture.
-    const sessionResult = await authClient.getSession().catch(() => null)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sessionUser = (sessionResult as any)?.data?.user
-
-    // Si getSession() a renvoyé un token renouvelé, il est déjà dans localStorage
-    // via l'onResponse hook de auth-client. On vérifie juste qu'on a bien une session.
-    if (!sessionUser) {
-      setLoading(false)
-      setError('Session introuvable. Vérifie ta connexion et réessaie.')
-      return
+    // Retries car sur mobile (Safari ITP + cold start Railway) la première requête
+    // peut échouer ou être lente. On tente jusqu'à 3 fois avant de laisser passer.
+    let sessionUser = null
+    const retryDelays = [0, 800, 2000]
+    for (let attempt = 0; attempt < retryDelays.length; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, retryDelays[attempt]))
+      try {
+        const result = await authClient.getSession()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        sessionUser = (result as any)?.data?.user
+        if (sessionUser) break
+      } catch {
+        // Erreur réseau — on réessaie
+      }
     }
 
-    // Rechargement complet pour éviter les race conditions React avec AuthGuard
+    // Même si getSession() échoue (cold start / réseau mobile lent), on redirige.
+    // Le token est déjà dans localStorage via l'onResponse hook (set-auth-token).
+    // AuthGuard validera la session côté dashboard et gérera l'éventuel échec.
     window.location.href = '/dashboard'
   }
 

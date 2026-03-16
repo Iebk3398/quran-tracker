@@ -1,10 +1,10 @@
 ---
-name: ikraa-relay
+name: relay
 description: >
   Document de relais pour le projet Ikraa (Quran Tracker). À utiliser en début
   de session pour charger le contexte complet : stack technique, bugs corrigés,
-  état du déploiement, et tâches restantes. Trigger : "charge le contexte ikraa",
-  "reprends le projet ikraa", "ikraa relay", "où on en est sur ikraa".
+  état du déploiement, et tâches restantes. Trigger : "relay", "charge le contexte",
+  "reprends le projet", "où on en est", "mets à jour le relay".
 ---
 
 # Relais de session — Projet Ikraa (Quran Tracker)
@@ -12,6 +12,17 @@ description: >
 Quand ce skill est invoqué, lis ce document en entier et dis à l'utilisateur
 exactement où en est le projet, ce qui a été fait, et propose de commencer
 par les tâches restantes dans l'ordre indiqué.
+
+---
+
+## 🔄 Procédure de fin de session (à suivre à chaque "mets à jour le relay")
+
+1. **Commit** tous les fichiers modifiés avec un message Conventional Commits
+2. **Merge** la branche courante dans `main` si applicable
+3. **Résoudre les conflits** éventuels (toujours préférer les changements actuels sauf indication contraire)
+4. **Push** vers GitHub (`git push origin main`)
+5. **Mettre à jour ce fichier SKILL.md** : section "Ce qui a été fait", "Ce qui reste", "Fichiers modifiés", "Commits"
+6. **Sync** le fichier vers `~/.claude/skills/relay/SKILL.md`
 
 ---
 
@@ -199,11 +210,12 @@ dfc388b  fix(auth+docker): token mobile path + Dockerfile stub minimal
 
 ---
 
-## Comment démarrer la prochaine session
+## Comment démarrer/terminer une session
 
-Dis exactement : **"charge le contexte ikraa"** ou **"ikraa relay"**
+**Début :** `/relay` ou **"relay"**
+**Fin :** **"mets à jour le relay"** → commit + merge + push + mise à jour SKILL.md + sync global
 
-Claude lira ce document et te proposera de commencer par :
+Claude proposera de commencer par :
 1. Connecter Railway à GitHub (5 min)
 2. Vérifier que la route hizb fonctionne en prod
 3. Reprendre les tests d'intégration manquants

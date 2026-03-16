@@ -82,6 +82,7 @@ app.get('/health', (c) =>
 // Le frontend fait window.location.href vers cet endpoint (GET, même domaine que l'API).
 // L'API génère l'URL Google via Better Auth, pose le cookie d'état en contexte same-site,
 // puis redirige le navigateur vers Google. Évite le state_mismatch cross-origin.
+// Le state OAuth est aussi sauvegardé dans Redis (backup pour Safari ITP mobile).
 app.get('/auth/google', async (c) => {
   const apiURL = (process.env['BETTER_AUTH_URL'] ?? 'https://api-production-e758.up.railway.app').trim()
   const appURL = (process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://quran-tracker-web.vercel.app').trim()
@@ -90,6 +91,11 @@ app.get('/auth/google', async (c) => {
   try {
     // Vrai fetch loopback — passe par tout le pipeline Hono/Better Auth normalement
     // Origin = appURL (vercel.app) = origine de confiance dans trustedOrigins
+    // callbackURL → relay endpoint (même domaine API, same-origin) pour extraire le
+    // bearer token et le passer en ?token=xxx au frontend. Nécessaire pour mobile
+    // Safari où les cookies cross-origin sont bloqués par ITP.
+    const userRedirectURL = callbackURL
+    const relayCallbackURL = `${apiURL}/auth/relay?redirect=${encodeURIComponent(userRedirectURL)}`
     const port = process.env['PORT'] ?? '3001'
     const res = await fetch(`http://localhost:${port}/api/auth/sign-in/social`, {
       method: 'POST',
@@ -98,7 +104,7 @@ app.get('/auth/google', async (c) => {
         'Origin': appURL,
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ provider: 'google', callbackURL }),
+      body: JSON.stringify({ provider: 'google', callbackURL: relayCallbackURL }),
       signal: AbortSignal.timeout(10000),
     })
 
@@ -116,6 +122,31 @@ app.get('/auth/google', async (c) => {
 
     for (const cookie of setCookies) {
       c.header('Set-Cookie', cookie, { append: true })
+    }
+
+    // Sauvegarder les cookies de state dans Redis (backup pour Safari ITP / bounce tracking)
+    // Safari peut purger les cookies de api.railway.app après le redirect vers Google
+    if (process.env['UPSTASH_REDIS_REST_URL'] && setCookies.length > 0) {
+      try {
+        const oauthState = new URL(data.url).searchParams.get('state')
+        if (oauthState) {
+          const { Redis } = await import('@upstash/redis')
+          const redis = new Redis({
+            url: process.env['UPSTASH_REDIS_REST_URL'],
+            token: process.env['UPSTASH_REDIS_REST_TOKEN'] ?? '',
+          })
+          // Sauvegarder uniquement la partie name=value des cookies (sans les attributs)
+          const cookiePairs = setCookies
+            .map(cs => cs.split(';')[0]?.trim())
+            .filter(Boolean)
+            .join('; ')
+          await redis.set(`oauth-state-cookies:${oauthState}`, cookiePairs, { ex: 600 })
+          console.log('[Google OAuth] State cookies backed up to Redis for:', oauthState.slice(0, 8) + '...')
+        }
+      } catch (redisErr) {
+        // Non-bloquant : le cookie normal fonctionne sur les browsers sans ITP
+        console.warn('[Google OAuth] Redis backup failed (non-blocking):', redisErr)
+      }
     }
 
     // Rediriger le navigateur vers Google OAuth
@@ -152,6 +183,42 @@ app.get('/auth/relay', async (c) => {
     console.error('[Auth Relay] Error:', err)
     return c.redirect(`${appURL}/login?error=oauth_relay_failed`)
   }
+})
+
+// ─── OAuth callback Google — restaure le state cookie depuis Redis (Safari ITP) ──
+// Safari ITP (Bounce Tracking Prevention) peut purger les cookies de api.railway.app
+// après que l'utilisateur a été redirigé vers Google. On restaure le cookie manquant
+// depuis Redis pour que Better Auth puisse valider le state sans state_mismatch.
+app.get('/api/auth/callback/google', async (c) => {
+  const stateFromQuery = c.req.query('state')
+  const existingCookies = c.req.raw.headers.get('cookie') ?? ''
+
+  if (stateFromQuery && process.env['UPSTASH_REDIS_REST_URL']) {
+    try {
+      const { Redis } = await import('@upstash/redis')
+      const redis = new Redis({
+        url: process.env['UPSTASH_REDIS_REST_URL'],
+        token: process.env['UPSTASH_REDIS_REST_TOKEN'] ?? '',
+      })
+      const savedCookies = await redis.get<string>(`oauth-state-cookies:${stateFromQuery}`)
+      if (savedCookies) {
+        // Vérifier si le premier cookie de la sauvegarde est déjà présent
+        const firstCookieName = savedCookies.split('=')[0]?.trim()
+        if (firstCookieName && !existingCookies.includes(`${firstCookieName}=`)) {
+          console.log('[OAuth Callback] Restoring state cookies from Redis for mobile Safari ITP')
+          const combined = existingCookies ? `${existingCookies}; ${savedCookies}` : savedCookies
+          const newHeaders = new Headers(c.req.raw.headers)
+          newHeaders.set('cookie', combined)
+          const newRequest = new Request(c.req.raw.url, { method: c.req.method, headers: newHeaders })
+          return auth.handler(newRequest)
+        }
+      }
+    } catch (redisErr) {
+      console.warn('[OAuth Callback] Redis restore failed:', redisErr)
+    }
+  }
+
+  return auth.handler(c.req.raw)
 })
 
 // ─── Auth (Better Auth — doit recevoir l'URL complète) ─────

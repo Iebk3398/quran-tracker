@@ -23,7 +23,12 @@
       "Bash(git:*)",
       "Bash(do:*)",
       "Bash(cat:*)",
-      "Bash(/Users/ilyas/Desktop/claude/Ikraa/apps/web/src/components/quran/surah-update-modal.tsx:*)"
+      "Bash(/Users/ilyas/Desktop/claude/Ikraa/apps/web/src/components/quran/surah-update-modal.tsx:*)",
+      "Bash(claude plugin:*)",
+      "Bash(mkdir -p ~/.claude/skills/ikraa-relay && cp ~/Desktop/claude/Ikraa/.claude/skills/ikraa-relay/SKILL.md ~/.claude/skills/ikraa-relay/)",
+      "Bash(GIT_DIR=/Users/ilyas/Desktop/claude/Ikraa/.git GIT_WORK_TREE=/Users/ilyas/Desktop/claude/Ikraa git status 2>&1; ls /Users/ilyas/Desktop/claude/Ikraa/.git 2>&1 | head -5)",
+      "Bash(cat /Users/ilyas/Desktop/claude/Ikraa/.git/t0omfZo 2>&1; env | grep -i git 2>&1)",
+      "Bash(GIT_DIR=/Users/ilyas/Desktop/claude/Ikraa/.git git status 2>&1)"
     ]
   }
 }
