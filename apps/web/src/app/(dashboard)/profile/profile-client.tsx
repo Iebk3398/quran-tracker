@@ -4,7 +4,7 @@
  */
 import { Suspense, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useStore } from '@/store'
+import { useAppStore } from '@/store'
 import { apiFetch } from '@/lib/api'
 import { HeatmapCalendar } from '@/components/quran/heatmap-calendar'
 import Link from 'next/link'
@@ -117,7 +117,7 @@ const PROFILE_BADGES: ProfileBadge[] = [
 export function ProfileClient() {
   // Le store Zustand est hydraté par AuthGuard via verifySessionDirect()
   // useSession() de Better Auth ne fonctionne pas en cross-origin (Vercel → Railway)
-  const storeUser = useStore((s) => s.user)
+  const storeUser = useAppStore((s) => s.user)
   const queryClient = useQueryClient()
 
   // ── Full profile from API (includes role, xp, streaks) ──
