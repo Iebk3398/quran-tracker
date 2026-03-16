@@ -11,17 +11,18 @@ COPY tsconfig.base.json ./
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
-# Stubs minimaux pour les workspaces absents du container.
-# npm ci exige que TOUS les workspaces déclarés dans le lockfile existent
-# en tant que répertoires — sinon il lève ENOENT et avorte.
-# On crée des package.json SANS dépendances pour éviter d'installer
-# tout Next.js (28 deps) dans une image qui n'en a pas besoin.
+# Stub minimal pour apps/web (workspace absent du container).
+# npm a besoin que le répertoire existe pour créer le symlink node_modules.
+# On n'utilise PAS npm ci (trop strict : échoue si package.json ≠ lockfile).
+# npm install lit chaque package.json de workspace → stub sans deps
+# → Next.js n'est PAS installé → image légère et build rapide.
 RUN mkdir -p apps/web && \
     echo '{"name":"@quran-tracker/web","version":"0.1.0","private":true}' \
     > apps/web/package.json
 
-# Install deps (node:22-alpine >= 22.12, satisfait les peerDeps Prisma de better-auth)
-RUN npm ci
+# --ignore-scripts : évite les postinstall qui peuvent échouer sur Alpine
+# (binaires natifs, scripts bash, etc.)
+RUN npm install --ignore-scripts
 
 EXPOSE 3001
 
