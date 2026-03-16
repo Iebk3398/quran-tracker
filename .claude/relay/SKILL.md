@@ -55,49 +55,57 @@ Sans ça, aucun `git push` ne déclenche de build automatique.
 
 ---
 
-## Ce qui a été corrigé cette session
+## Ce qui a été corrigé (sessions précédentes)
 
-### 1. Bug déconnexion — sidebar.tsx ✅
-- **Problème :** Le bouton logout n'avait aucun `onClick` → cliquer dessus ne faisait rien.
-- **Fix :** Ajout de `handleLogout()` qui vide `ba-session-token` en localStorage,
-  expire le cookie `ba-logged-in`, appelle `signOut()`, puis redirige vers `/login`.
-- **Fichier :** `apps/web/src/components/shared/sidebar.tsx`
+### Bug déconnexion — sidebar.tsx ✅
+- Ajout de `handleLogout()` qui vide localStorage + cookie + signOut() + redirect /login.
 
-### 2. Bug auth mobile — login/page.tsx ✅
-- **Problème :** `signIn.emailOtp` réponse → on lisait `data.token` (undefined).
-  Le vrai chemin Better Auth est `data.session.token`. Token jamais sauvegardé
-  en localStorage → `getSession()` sans Bearer header → redirect /login en boucle.
-- **Fix :** `rawData?.session?.token ?? rawData?.token` avec fallback.
+### Bug auth mobile OTP — login/page.tsx ✅ (v1)
+- `signIn.emailOtp` → lecture `data.session.token` au lieu de `data.token` (undefined).
+
+### Bug hizb tracker — hizb-tracker.tsx ✅
+- `setCount(1)` après save + `variables * 5` pour le toast XP (closure stale).
+
+### Bug session expiry — auth-guard.tsx ✅
+- 3 tentatives (0/400/1500ms). Pas de clearAllSessionData() sur erreur réseau.
+
+### Bug Docker build — Dockerfile ✅
+- `npm install --ignore-scripts` + stub minimal `apps/web/package.json`.
+
+### Tests d'intégration — setup partiel ✅
+- Vitest + helper chain() + users/groups/progress/surahs tests.
+
+---
+
+## Ce qui a été corrigé cette session (2026-03-16)
+
+### 1. Google OAuth state_mismatch sur mobile — index.ts ✅
+- **Problème :** Safari ITP (Bounce Tracking Prevention) purge les cookies de
+  `api.railway.app` après le redirect vers Google → `state_mismatch`.
+- **Fix 1 :** `/auth/google` sauvegarde le state cookie dans Redis (TTL 10 min).
+- **Fix 2 :** Route `/api/auth/callback/google` ajoutée avant le handler général.
+  Si le state cookie manque, il est restauré depuis Redis avant de passer à Better Auth.
+- **Fix 3 :** Le `callbackURL` passe par `/auth/relay` (same-origin API) qui extrait
+  le bearer token et le passe en `?token=xxx` au frontend. Résout le manque de
+  cookie cross-origin sur Safari après OAuth.
+- **Fichier :** `apps/api/src/index.ts`
+
+### 2. OTP "Session introuvable" sur mobile — login/page.tsx ✅
+- **Problème :** `getSession()` après OTP échouait sur mobile (cold start Railway
+  + réseau lent) → message d'erreur → user bloqué sur login.
+- **Fix :** Retries jusqu'à 3 fois (0/800/2000ms). Même si tous les retries
+  échouent, redirect vers /dashboard — AuthGuard valide et gère l'éventuel échec.
 - **Fichier :** `apps/web/src/app/(auth)/login/page.tsx`
 
-### 3. Bug hizb tracker — hizb-tracker.tsx ✅
-- **Problème 1 :** `count` non remis à 1 après save → modal s'ouvre avec valeur précédente.
-- **Problème 2 :** Toast XP utilisait `count` (closure stale) au lieu de `variables`
-  (valeur réellement envoyée à l'API).
-- **Fix :** `setCount(1)` + `variables * 5` dans `onSuccess`.
-- **Fichier :** `apps/web/src/components/group/hizb-tracker.tsx`
+### 3. Relay skill renommé et réorganisé ✅
+- `ikraa-relay` → `relay` (nom + triggers)
+- `.claude/skills/ikraa-relay/` → `.claude/relay/`
+- Copié dans `~/.claude/skills/relay/` (global)
+- Procédure fin de session ajoutée (commit + merge + push + sync)
 
-### 4. Bug session expiry — auth-guard.tsx ✅
-- **Problème :** Sur cold start Railway (~15s), `getSession()` levait une exception
-  réseau → `clearAllSessionData()` → utilisateur déconnecté à tort.
-- **Fix :** 3 tentatives (0ms / 400ms / 1500ms). Si toutes les tentatives échouent
-  avec une EXCEPTION (pas de réponse serveur), on ne vide PAS le localStorage.
-  On efface seulement si le serveur répond explicitement "pas de session".
-- **Fichier :** `apps/web/src/components/shared/auth-guard.tsx`
-
-### 5. Bug Docker build — Dockerfile ✅
-- **Problème :** `npm ci` dans le container Docker échouait car `apps/web/` absent
-  du container mais déclaré dans le `package-lock.json` → Railway gardait une
-  vieille image sans la route `/api/users/me/hizb` → 404 en prod.
-- **Fix :** Remplacement de `npm ci` par `npm install --ignore-scripts` + stub
-  minimal `apps/web/package.json` créé avec `RUN echo` (0 deps → Next.js pas
-  installé dans l'image API).
-- **Fichier :** `apps/api/Dockerfile`
-
-### 6. Tests d'intégration — setup partiel ✅
-- Vitest ajouté en devDependency dans `apps/api/package.json` + scripts `test` / `test:watch`.
-- Helper Drizzle mock : `apps/api/src/__tests__/helpers/chain.ts`
-- Tests créés : `users.test.ts`, `groups.test.ts`, `progress.test.ts`, `surahs.test.ts`
+### 4. Cleanup worktrees stale ✅
+- Suppression de `.claude/worktrees/elegant-ride` et `jolly-torvalds`
+  qui bloquaient git (références à des containers Claude disparus).
 
 ---
 
@@ -110,50 +118,24 @@ repo `Iebk3398/quran-tracker` branch `main`.
 
 ### PRIORITÉ 2 — Vérifier le déploiement après connexion GitHub 🔴
 Une fois GitHub connecté, Railway va rebuilder. Vérifier :
+- Google OAuth mobile → plus de `state_mismatch`
+- OTP mobile → accès dashboard sans boucle
 - `POST https://api-production-e758.up.railway.app/api/users/me/hizb` → 200
-- Connexion sur mobile → accès dashboard sans boucle
 
-### PRIORITÉ 3 — Compléter les tests d'intégration 🟡
-Tests restants à créer dans `apps/api/src/__tests__/routes/` :
-- `revisions.test.ts` — POST /api/revisions, GET /api/revisions/history/:userId
-- `feed.test.ts` — GET /api/feed/group/:groupId, POST /api/feed/:id/react
-- `notifications.test.ts` — GET, PATCH /read, PATCH /read-all, unread-count
-- `objectives.test.ts` — CRUD objectifs (fichier `objectives.ts` exclu du tsconfig ⚠️)
+### PRIORITÉ 3 — Vérifier que UPSTASH_REDIS_REST_URL est configuré sur Railway 🟡
+Le fix Google OAuth mobile utilise Redis. S'assurer que les variables sont dans Railway :
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
 
-**Pour lancer les tests localement :**
-```bash
-cd apps/api
-pnpm test
-# ou
-pnpm test:watch
-```
-
-**Note importante sur les mocks :** Utiliser le helper `chain()` de
-`src/__tests__/helpers/chain.ts` pour mocker l'API fluente de Drizzle.
-`vi.mock('../../../../packages/db/src/index.ts', ...)` pour mocker le DB.
-`vi.mock('../../middleware/auth.ts', ...)` pour injecter l'utilisateur de test.
-
-### PRIORITÉ 4 — CI/CD : lancer les tests avant chaque merge 🟡
-Ajouter un GitHub Action dans `.github/workflows/test.yml` :
-```yaml
-name: Tests
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install
-      - run: pnpm --filter @quran-tracker/api test
-```
+### PRIORITÉ 4 — Compléter les tests d'intégration 🟡
+Tests restants dans `apps/api/src/__tests__/routes/` :
+- `revisions.test.ts`
+- `feed.test.ts`
+- `notifications.test.ts`
+- `objectives.test.ts`
 
 ### PRIORITÉ 5 — Objectifs (objectives.ts) 🟢
-Le fichier `apps/api/src/routes/objectives.ts` existe mais est exclu du
-`tsconfig.json` ET non importé dans `index.ts`. Il faut :
-1. L'ajouter dans `apps/api/src/index.ts` : `import { objectivesRoutes } from './routes/objectives.ts'`
-2. Le retirer de l'`exclude` dans `apps/api/tsconfig.json`
-3. Vérifier que les routes fonctionnent
+Fichier existant mais exclu du tsconfig ET non importé dans index.ts.
 
 ---
 
@@ -161,9 +143,17 @@ Le fichier `apps/api/src/routes/objectives.ts` existe mais est exclu du
 
 ```
 Login mobile (OTP) :
-  signIn.emailOtp() → data.session.token → localStorage['ba-session-token']
-  getSession() warm-up → onResponse capture set-auth-token header
-  window.location.href = '/dashboard'
+  signIn.emailOtp() → onResponse capture set-auth-token → localStorage
+  data.session.token → localStorage (fallback explicite)
+  getSession() warm-up avec retries (0/800/2000ms)
+  window.location.href = '/dashboard' (même si warm-up échoue)
+
+Login mobile (Google OAuth) :
+  /auth/google → loopback sign-in/social → state cookies dans Redis
+  → redirect Google → /api/auth/callback/google
+  Si state cookie manque : restauration depuis Redis
+  → session créée → /auth/relay → ?token=xxx → dashboard
+  AuthGuard lit ?token → localStorage → getSession() avec Bearer ✓
 
 Auth-guard (dashboard) :
   getSession() avec Authorization: Bearer <token>
@@ -171,11 +161,6 @@ Auth-guard (dashboard) :
   Succès → setSessionCookie('ba-logged-in') → status 'ok'
   Échec serveur → clearAllSessionData() + redirect /login
   Échec réseau → redirect /login SANS vider le token
-
-apiFetch (requêtes API) :
-  Lit localStorage['ba-session-token']
-  Ajoute Authorization: Bearer <token> sur toutes les requêtes
-  Throws si res.ok === false
 ```
 
 ---
@@ -183,29 +168,17 @@ apiFetch (requêtes API) :
 ## Fichiers clés modifiés cette session
 
 ```
-apps/web/src/components/shared/sidebar.tsx       ← logout handler
-apps/web/src/app/(auth)/login/page.tsx            ← token path fix (session.token)
-apps/web/src/components/group/hizb-tracker.tsx   ← reset count + XP variables
-apps/web/src/components/shared/auth-guard.tsx    ← 3 retries + no clear on network error
-apps/api/Dockerfile                              ← npm install + web stub
-apps/api/package.json                            ← vitest added
-apps/api/src/__tests__/helpers/chain.ts          ← Drizzle mock helper
-apps/api/src/__tests__/routes/users.test.ts      ← tests intégration users
-apps/api/src/__tests__/routes/groups.test.ts     ← tests intégration groups
-apps/api/src/__tests__/routes/progress.test.ts   ← tests intégration progress
-apps/api/src/__tests__/routes/surahs.test.ts     ← tests intégration surahs
+apps/api/src/index.ts                         ← Redis state backup + callback route + relay callbackURL
+apps/web/src/app/(auth)/login/page.tsx        ← retries getSession() + redirect sans bloquer
+.claude/relay/SKILL.md                        ← relay skill (ex ikraa-relay)
 ```
 
 ---
 
-## Commits de cette session (dans l'ordre)
+## Commits de cette session
 
 ```
-ae52a10  fix: logout button et session persistence mobile
-0e1c7a5  fix: hizb-tracker — reset count + correct XP toast
-fafc006  fix(deploy): Dockerfile + session expiry + tests d'intégration (setup)
-dfc388b  fix(auth+docker): token mobile path + Dockerfile stub minimal
-14ab7c6  fix(docker): npm install au lieu de npm ci pour le build Railway
+97e1635  fix(auth): mobile Safari state_mismatch + OTP session warm-up
 ```
 
 ---
@@ -214,8 +187,3 @@ dfc388b  fix(auth+docker): token mobile path + Dockerfile stub minimal
 
 **Début :** `/relay` ou **"relay"**
 **Fin :** **"mets à jour le relay"** → commit + merge + push + mise à jour SKILL.md + sync global
-
-Claude proposera de commencer par :
-1. Connecter Railway à GitHub (5 min)
-2. Vérifier que la route hizb fonctionne en prod
-3. Reprendre les tests d'intégration manquants
