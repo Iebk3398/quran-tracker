@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getSession, AUTH_TOKEN_KEY } from '@/lib/auth-client'
+import { verifySessionDirect, AUTH_TOKEN_KEY } from '@/lib/auth-client'
 import { useAppStore } from '@/store'
 import type { User } from '@quran-tracker/types'
 
@@ -76,8 +76,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
      *   on vide la session locale pour casser la boucle dashboard ↔ login.
      */
     async function checkSession() {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let result: any = null
+      let user: Awaited<ReturnType<typeof verifySessionDirect>> = null
       let receivedServerResponse = false // true si on a une réponse du serveur (même vide)
 
       const delays = [0, 400, 1500] // délais entre tentatives (ms)
@@ -87,15 +86,16 @@ export function AuthGuard({ children }: AuthGuardProps) {
           await new Promise((r) => setTimeout(r, delays[attempt]))
         }
         try {
-          result = await getSession()
+          const result = await verifySessionDirect()
           receivedServerResponse = true
-          if (result?.data?.user) break // session trouvée → on sort
+          if (result) {
+            user = result
+            break // session trouvée → on sort
+          }
         } catch {
           // Exception réseau / timeout — on réessaie
         }
       }
-
-      const user = result?.data?.user
 
       if (!user) {
         if (!receivedServerResponse) {
@@ -130,7 +130,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
         role: (['super_admin', 'sheikh', 'student', 'parent'].includes(user.role ?? '')
           ? user.role
           : 'student') as User['role'],
-        avatar: user.image ?? null,
+        avatar: (user as { image?: string | null }).image ?? null,
         createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
       })
 

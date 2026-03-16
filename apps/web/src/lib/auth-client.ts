@@ -46,3 +46,47 @@ export const {
   useSession,
   getSession,
 } = authClient
+
+/**
+ * Vérifie la session en faisant un fetch direct vers l'API Railway.
+ * Bypass le cache interne de Better Auth qui peut court-circuiter getSession()
+ * et ne pas faire d'appel réseau (problème constaté en prod cross-origin).
+ *
+ * Retourne l'objet user si la session est valide, null sinon.
+ */
+export async function verifySessionDirect(): Promise<{
+  id: string
+  name: string
+  email: string
+  role: string
+  image?: string | null
+  createdAt: string
+} | null> {
+  const apiURL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    const res = await fetch(`${apiURL}/api/auth/get-session`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { user?: { id: string; name: string; email: string; role: string; image?: string | null; createdAt: string } }
+    // Capture le nouveau bearer token si présent
+    const newToken = res.headers.get('set-auth-token')
+    if (newToken && typeof localStorage !== 'undefined') {
+      localStorage.setItem(AUTH_TOKEN_KEY, newToken)
+    }
+    return data?.user ?? null
+  } catch {
+    return null
+  }
+}

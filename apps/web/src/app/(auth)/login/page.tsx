@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { authClient, AUTH_TOKEN_KEY } from '@/lib/auth-client'
+import { authClient, AUTH_TOKEN_KEY, verifySessionDirect } from '@/lib/auth-client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 type Step = 'email' | 'otp'
@@ -26,10 +26,10 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Si déjà connecté → redirige vers le dashboard
+  // Utilise verifySessionDirect (fetch raw) pour bypasser le cache interne
+  // de Better Auth qui ne fait parfois aucun appel réseau en cross-origin.
   useEffect(() => {
-    authClient.getSession().then((result) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const user = (result as any)?.data?.user
+    verifySessionDirect().then((user) => {
       if (user) router.replace('/dashboard')
     }).catch(() => { /* pas de session */ })
   // eslint-disable-next-line react-hooks/exhaustive-deps
