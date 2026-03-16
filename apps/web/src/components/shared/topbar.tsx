@@ -32,7 +32,7 @@ export function DashboardTopbar() {
   ]
 
   return (
-    <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-stone-200 bg-white px-4 dark:border-stone-800 dark:bg-stone-900">
+    <header className="flex h-14 sm:h-16 flex-shrink-0 items-center justify-between border-b border-stone-200 bg-white px-3 sm:px-4 dark:border-stone-800 dark:bg-stone-900">
       {/* Left — Logo mobile (masqué sur md car la sidebar prend le relais) */}
       <div className="flex items-center gap-2 md:hidden">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500">

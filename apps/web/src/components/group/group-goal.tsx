@@ -126,7 +126,7 @@ export function GroupGoal({ groupId, isSheikh }: GroupGoalProps) {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border bg-gradient-to-br from-emerald-50 to-amber-50 dark:from-emerald-900/20 dark:to-amber-900/10 p-5 space-y-4"
+          className="rounded-2xl border bg-gradient-to-br from-emerald-50 to-amber-50 dark:from-emerald-900/20 dark:to-amber-900/10 p-3.5 sm:p-5 space-y-3 sm:space-y-4"
         >
           {/* Header */}
           <div className="flex items-start justify-between gap-3">

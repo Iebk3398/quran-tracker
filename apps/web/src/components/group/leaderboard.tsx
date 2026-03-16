@@ -54,10 +54,10 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold">🏆 Classement du groupe</h3>
-        <span className="text-xs text-muted-foreground">Classé par XP</span>
+    <div className="rounded-xl border bg-card p-3 sm:p-4">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h3 className="font-semibold text-sm sm:text-base">🏆 Classement</h3>
+        <span className="text-xs text-muted-foreground">Par XP</span>
       </div>
 
       {entries.length === 0 ? (
@@ -78,21 +78,21 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className={`
-                  flex items-center gap-3 p-3 rounded-lg
+                  flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg
                   ${isFirst ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800' : 'bg-muted/50'}
                 `}
               >
                 {/* Rang */}
-                <span className="w-8 text-center font-bold flex-shrink-0">
-                  {index < 3 ? RANK_MEDALS[index] : `#${index + 1}`}
+                <span className="w-6 sm:w-8 text-center font-bold flex-shrink-0 text-sm">
+                  {index < 3 ? RANK_MEDALS[index] : `${index + 1}`}
                 </span>
 
                 {/* Avatar */}
-                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center overflow-hidden flex-shrink-0">
                   {entry.avatar ? (
                     <img src={entry.avatar} alt={entry.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
-                    <span className="text-lg font-bold text-emerald-600">
+                    <span className="text-sm sm:text-lg font-bold text-emerald-600">
                       {entry.name.charAt(0).toUpperCase()}
                     </span>
                   )}
@@ -100,12 +100,12 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
 
                 {/* Infos + barre de niveau */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <p className="font-medium truncate text-sm">{entry.name}</p>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <p className="font-medium truncate text-xs sm:text-sm">{entry.name}</p>
                     <span className="flex-shrink-0 text-xs">{level.emoji}</span>
-                    <span className="flex-shrink-0 text-[10px] font-semibold text-muted-foreground">{level.name}</span>
+                    <span className="flex-shrink-0 text-[10px] font-semibold text-muted-foreground hidden sm:inline">{level.name}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${isFirst ? 'bg-amber-500' : 'bg-emerald-500'}`}
@@ -113,19 +113,20 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
                       />
                     </div>
                     <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                      {entry.surahsMemorized} s.
+                      {entry.surahsMemorized}s
                     </span>
                   </div>
                 </div>
 
                 {/* XP + streak */}
                 <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                  <span className={`text-sm font-bold tabular-nums ${isFirst ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {entry.totalXp.toLocaleString()} XP
+                  <span className={`text-xs sm:text-sm font-bold tabular-nums ${isFirst ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {entry.totalXp.toLocaleString()}
+                    <span className="font-normal text-muted-foreground text-[10px] ml-0.5">xp</span>
                   </span>
                   {entry.currentStreak > 0 && (
                     <span className="text-[10px] text-orange-500 font-semibold">
-                      🔥 {entry.currentStreak}j
+                      🔥{entry.currentStreak}j
                     </span>
                   )}
                 </div>

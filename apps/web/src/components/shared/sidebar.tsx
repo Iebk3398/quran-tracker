@@ -26,15 +26,17 @@ interface NavItem {
   href: string
   icon: React.ElementType
   labelKey: string
+  /** Label court pour la bottom nav mobile (max ~6 caractères) */
+  mobileLabel: string
   adminOnly?: boolean
 }
 
 const navItems: NavItem[] = [
-  { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
-  { href: '/profile', icon: User, labelKey: 'nav.profile' },
-  { href: '/surahs', icon: BookMarked, labelKey: 'nav.surahs' },
-  { href: '/validate', icon: CheckCircle, labelKey: 'nav.validate', adminOnly: true },
-  { href: '/settings', icon: Settings, labelKey: 'nav.settings' },
+  { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard', mobileLabel: 'Accueil' },
+  { href: '/profile',   icon: User,            labelKey: 'nav.profile',   mobileLabel: 'Profil'  },
+  { href: '/surahs',    icon: BookMarked,       labelKey: 'nav.surahs',    mobileLabel: 'Sourates' },
+  { href: '/validate',  icon: CheckCircle,      labelKey: 'nav.validate',  mobileLabel: 'Valider', adminOnly: true },
+  { href: '/settings',  icon: Settings,         labelKey: 'nav.settings',  mobileLabel: 'Réglages' },
 ]
 
 /**
@@ -178,8 +180,8 @@ export function DashboardSidebar() {
         </button>
       </motion.aside>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900 md:hidden">
+      {/* Mobile Bottom Navigation — labels courts pour tenir sur petits écrans */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900 md:hidden safe-bottom">
         {navItems
           .filter((item) => !(item.adminOnly && !isSheikh))
           .map((item) => {
@@ -191,14 +193,16 @@ export function DashboardSidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors',
+                  'flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors min-w-0',
                   isActive
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-stone-500 dark:text-stone-400'
                 )}
               >
-                <Icon className="h-5 w-5" />
-                <span>{t(item.labelKey)}</span>
+                <Icon className="h-[22px] w-[22px] flex-shrink-0" />
+                <span className="truncate w-full text-center leading-tight px-0.5">
+                  {item.mobileLabel}
+                </span>
               </Link>
             )
           })}
@@ -206,11 +210,11 @@ export function DashboardSidebar() {
         {/* Bouton déconnexion mobile */}
         <button
           onClick={handleLogout}
-          className="flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium text-red-500 transition-colors hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+          className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium text-red-500 transition-colors hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 min-w-0"
           aria-label="Se déconnecter"
         >
-          <LogOut className="h-5 w-5" />
-          <span>Quitter</span>
+          <LogOut className="h-[22px] w-[22px] flex-shrink-0" />
+          <span className="leading-tight">Quitter</span>
         </button>
       </nav>
     </>
