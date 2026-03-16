@@ -4,7 +4,7 @@
  */
 import { Suspense, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSession } from '@/lib/auth-client'
+import { useStore } from '@/store'
 import { apiFetch } from '@/lib/api'
 import { HeatmapCalendar } from '@/components/quran/heatmap-calendar'
 import Link from 'next/link'
@@ -14,13 +14,6 @@ interface ProgressEntry {
   surahId: number
   status: MemorizationStatus
   lastRevisedAt?: string | null
-}
-
-interface SessionUser {
-  id: string
-  name: string
-  email: string
-  image?: string | null
 }
 
 interface UserProfile {
@@ -122,24 +115,26 @@ const PROFILE_BADGES: ProfileBadge[] = [
 ]
 
 export function ProfileClient() {
-  const { data: session, isPending: sessionLoading } = useSession()
-  const sessionUser = session?.user as SessionUser | undefined
+  // Le store Zustand est hydraté par AuthGuard via verifySessionDirect()
+  // useSession() de Better Auth ne fonctionne pas en cross-origin (Vercel → Railway)
+  const storeUser = useStore((s) => s.user)
   const queryClient = useQueryClient()
 
   // ── Full profile from API (includes role, xp, streaks) ──
+  // enabled dès que le store a un user (garanti par AuthGuard)
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['user-profile'],
     queryFn: () => apiFetch<UserProfile>('/api/users/me'),
-    enabled: !!sessionUser?.id,
+    enabled: !!storeUser?.id,
     retry: 2,
   })
 
-  // Merge: profile API en priorité, session comme fallback garanti
-  const email = profile?.email ?? sessionUser?.email ?? ''
+  // Merge: profile API en priorité, store comme fallback garanti
+  const email = profile?.email ?? storeUser?.email ?? ''
   const user = profile
     ? { ...profile, email }
-    : sessionUser
-      ? { id: sessionUser.id, name: sessionUser.name, email, role: 'student' as const, avatar: sessionUser.image ?? null }
+    : storeUser
+      ? { id: storeUser.id, name: storeUser.name, email, role: storeUser.role ?? 'student' as const, avatar: storeUser.avatar ?? null }
       : undefined
 
   // ── Edit profile state ──
@@ -275,7 +270,7 @@ export function ProfileClient() {
     return Array.from(map.entries()).map(([date, count]) => ({ date, count, duration: 0 }))
   })()
 
-  if (sessionLoading || profileLoading || progressLoading) {
+  if (profileLoading || progressLoading) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-36 bg-muted rounded-xl" />
