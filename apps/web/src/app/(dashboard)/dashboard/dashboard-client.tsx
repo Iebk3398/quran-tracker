@@ -1,19 +1,22 @@
 'use client'
 /**
- * @file DashboardClient — Récupère et affiche les données réelles du groupe
+ * @file DashboardClient — Dashboard principal avec mode Lecture / Mémorisation
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Share2, Check, Copy } from 'lucide-react'
+import { Share2, Check, Copy, BookOpen, Star } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store'
 import { apiFetch } from '@/lib/api'
 import { GroupStats } from '@/components/group/group-stats'
 import { Leaderboard } from '@/components/group/leaderboard'
-import { GroupFeed } from '@/components/group/group-feed'
 import { GroupGoal } from '@/components/group/group-goal'
 import { HizbTracker } from '@/components/group/hizb-tracker'
 import { useGroupRealtime } from '@/hooks/use-group-realtime'
-import type { GroupStats as GroupStatsType, LeaderboardEntry, FeedItem } from '@quran-tracker/types'
+import { cn } from '@/lib/utils'
+import type { GroupStats as GroupStatsType, LeaderboardEntry } from '@quran-tracker/types'
+
+type DashboardMode = 'lecture' | 'memorisation'
 
 interface MyGroup {
   id: string
@@ -42,7 +45,6 @@ function computeGroupStats(entries: ApiLeaderboardEntry[]): GroupStatsType {
   const totalSurahsMemorized = entries.reduce((sum, e) => sum + Number(e.surahsMemorized), 0)
   const groupProgressPercent =
     totalMembers > 0 ? Math.round((totalSurahsMemorized / (totalMembers * 114)) * 100) : 0
-
   return { totalMembers, activeMembers, totalSurahsMemorized, groupProgressPercent, averageStreak: 0 }
 }
 
@@ -63,15 +65,13 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
 }
 
 export function DashboardClient() {
-  // useSession() de Better Auth ne fonctionne pas en cross-origin (Vercel → Railway)
-  // On utilise le store Zustand hydraté par AuthGuard via verifySessionDirect()
   const storeUser = useAppStore((s) => s.user)
   const queryClient = useQueryClient()
 
+  const [mode, setMode] = useState<DashboardMode>('lecture')
   const [inviteCode, setInviteCode] = useState('')
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
-
   const [groupName, setGroupName] = useState('')
   const [createError, setCreateError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -92,15 +92,6 @@ export function DashboardClient() {
     enabled: !!groupId,
   })
 
-  const { data: feedItems, isLoading: feedLoading } = useQuery({
-    queryKey: ['group', groupId, 'feed'],
-    queryFn: () => apiFetch<FeedItem[]>(`/api/feed/group/${groupId}`),
-    enabled: !!groupId,
-    // Polling de secours si Supabase Realtime n'est pas configuré
-    refetchInterval: 30_000,
-  })
-
-  // Realtime WebSocket — met à jour le feed et le leaderboard automatiquement
   useGroupRealtime({ groupId: groupId ?? '', enabled: !!groupId })
 
   const createGroup = useMutation({
@@ -147,62 +138,51 @@ export function DashboardClient() {
       await navigator.clipboard.writeText(group.inviteCode)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // fallback silent
-    }
+    } catch { /* silent */ }
   }
 
-  /**
-   * Partage le code d'invitation du groupe.
-   * Utilise l'API Web Share (mobile natif) si disponible,
-   * sinon copie dans le presse-papier (desktop fallback).
-   */
   async function handleShare() {
     if (!group) return
-    const shareText = `Rejoins ma halqa "${group.name}" sur Quran Tracker 📖\n\nCode d'invitation : ${group.inviteCode}\n\nTélécharge l'app : https://quran-tracker-web.vercel.app`
-
+    const shareText = `Rejoins ma halqa "${group.name}" sur Quran Tracker 📖\n\nCode d'invitation : ${group.inviteCode}\n\nhttps://quran-tracker-web.vercel.app`
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: `Rejoins ${group.name} sur Quran Tracker`,
-          text: shareText,
-        })
+        await navigator.share({ title: `Rejoins ${group.name}`, text: shareText })
       } else {
         await navigator.clipboard.writeText(shareText)
         setShared(true)
         setTimeout(() => setShared(false), 2500)
       }
-    } catch {
-      // L'utilisateur a annulé ou le share a échoué — pas d'erreur visible
-    }
+    } catch { /* annulé */ }
   }
+
+  // ── Chargement ───────────────────────────────────────────────────────────────
 
   if (groupsLoading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 bg-muted rounded-xl" />
-          ))}
+        <div className="h-8 w-40 bg-muted rounded-xl" />
+        <div className="grid grid-cols-3 gap-3">
+          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-20 bg-muted rounded-xl" />)}
         </div>
+        <div className="h-12 bg-muted rounded-2xl" />
         <div className="h-64 bg-muted rounded-xl" />
       </div>
     )
   }
 
+  // ── Pas encore dans un groupe ────────────────────────────────────────────────
+
   if (!group) {
     return (
-      <div className="py-12 space-y-6 max-w-2xl mx-auto">
+      <div className="py-12 space-y-6 max-w-lg mx-auto">
         <div className="text-center space-y-2">
           <div className="text-5xl">🕌</div>
           <h2 className="text-xl font-semibold">Rejoignez ou créez une halqa</h2>
-          <p className="text-muted-foreground text-sm">
-            Une halqa est un groupe de mémorisation du Coran.
-          </p>
+          <p className="text-muted-foreground text-sm">Une halqa est un groupe de mémorisation du Coran.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Create card */}
+          {/* Créer */}
           <div className="rounded-2xl border-2 border-dashed p-6 space-y-3">
             <div className="text-3xl">✨</div>
             <h3 className="font-semibold">Créer une halqa</h3>
@@ -226,7 +206,7 @@ export function DashboardClient() {
             {createError && <p className="text-xs text-red-500">{createError}</p>}
           </div>
 
-          {/* Join card */}
+          {/* Rejoindre */}
           <div className="rounded-2xl border-2 border-dashed p-6 space-y-3">
             <div className="text-3xl">🤝</div>
             <h3 className="font-semibold">Rejoindre une halqa</h3>
@@ -235,7 +215,7 @@ export function DashboardClient() {
               <input
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                placeholder="Code d&apos;invitation (ex: ABC12345)"
+                placeholder="Code d'invitation"
                 maxLength={12}
                 className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
               />
@@ -257,63 +237,102 @@ export function DashboardClient() {
   const leaderboard = rawLeaderboard ? mapLeaderboard(rawLeaderboard) : []
   const groupStats = rawLeaderboard ? computeGroupStats(rawLeaderboard) : undefined
 
+  // ── Dashboard principal ──────────────────────────────────────────────────────
+
   return (
-    <>
-      <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+    <div className="space-y-4 pb-20 md:pb-0">
+
+      {/* En-tête groupe */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">{group.name}</h1>
-          <p className="text-muted-foreground text-sm">
-            {group.description ?? 'Suivi en temps réel de votre halqa'}
+          <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">{group.name}</h1>
+          <p className="text-muted-foreground text-xs mt-0.5">
+            {group.description ?? 'Halqa de mémorisation'}
           </p>
         </div>
-
-        {/* Actions : code + partager */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Code d'invitation — clic pour copier (sheikh seulement) */}
           {group.sheikhId === storeUser?.id && (
             <button
               onClick={handleCopyCode}
-              className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-mono font-bold hover:bg-emerald-100 transition-colors dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/40"
-              title="Cliquer pour copier le code"
+              className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-mono font-bold hover:bg-emerald-100 transition-colors dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
             >
-              {copied
-                ? <><Check className="h-3.5 w-3.5" /> Copié !</>
-                : <><Copy className="h-3.5 w-3.5" /> {group.inviteCode}</>
-              }
+              {copied ? <><Check className="h-3.5 w-3.5" /> Copié !</> : <><Copy className="h-3.5 w-3.5" /> {group.inviteCode}</>}
             </button>
           )}
-
-          {/* Code visible pour les membres non-sheikh */}
           {group.sheikhId !== storeUser?.id && (
             <span className="text-xs text-muted-foreground bg-muted px-2.5 py-1.5 rounded-xl font-mono font-medium">
               {group.inviteCode}
             </span>
           )}
-
-          {/* Bouton Partager — disponible pour TOUS les membres */}
           <button
             onClick={handleShare}
             className="flex items-center gap-1.5 text-xs bg-stone-900 text-white px-3 py-1.5 rounded-xl font-semibold hover:bg-stone-700 active:scale-95 transition-all dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200"
-            title="Partager le code d'invitation"
           >
-            {shared
-              ? <><Check className="h-3.5 w-3.5" /> Copié !</>
-              : <><Share2 className="h-3.5 w-3.5" /> Partager</>
-            }
+            {shared ? <><Check className="h-3.5 w-3.5" /> Copié !</> : <><Share2 className="h-3.5 w-3.5" /> Partager</>}
           </button>
         </div>
       </div>
 
+      {/* Stats globales — toujours visibles */}
       <GroupStats stats={groupStats} />
 
-      <GroupGoal groupId={group.id} isSheikh={group.sheikhId === storeUser?.id} />
+      {/* ── Sélecteur de mode ─────────────────────────────────────────────── */}
+      <div className="flex gap-1.5 p-1 bg-stone-100 dark:bg-stone-800 rounded-2xl">
+        <button
+          onClick={() => setMode('lecture')}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all',
+            mode === 'lecture'
+              ? 'bg-white dark:bg-stone-900 text-amber-600 dark:text-amber-400 shadow-sm'
+              : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
+          )}
+        >
+          <BookOpen className="h-4 w-4" />
+          <span>Lecture quotidienne</span>
+        </button>
+        <button
+          onClick={() => setMode('memorisation')}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all',
+            mode === 'memorisation'
+              ? 'bg-white dark:bg-stone-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+              : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
+          )}
+        >
+          <Star className="h-4 w-4" />
+          <span>Mémorisation</span>
+        </button>
+      </div>
 
-      <HizbTracker groupId={group.id} currentUserId={storeUser?.id ?? ''} />
+      {/* ── Contenu selon le mode ─────────────────────────────────────────── */}
+      <AnimatePresence mode="wait">
+        {mode === 'lecture' && (
+          <motion.div
+            key="lecture"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-4"
+          >
+            <GroupGoal groupId={group.id} isSheikh={group.sheikhId === storeUser?.id} />
+            <HizbTracker groupId={group.id} currentUserId={storeUser?.id ?? ''} />
+          </motion.div>
+        )}
 
-
-      <Leaderboard entries={leaderboard} isLoading={lbLoading} />
-
-      <GroupFeed items={feedItems ?? []} isLoading={feedLoading} />
-    </>
+        {mode === 'memorisation' && (
+          <motion.div
+            key="memorisation"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-4"
+          >
+            <Leaderboard entries={leaderboard} isLoading={lbLoading} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
