@@ -1,22 +1,21 @@
 'use client'
 /**
- * @file DashboardClient — Dashboard principal avec mode Lecture / Mémorisation
+ * @file DashboardClient — Lecture | Mémorisation | Objectifs
+ * Architecture 3 tabs avec progress ring animé pour la lecture quotidienne.
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Share2, Check, Copy, BookOpen, Star } from 'lucide-react'
+import { Share2, Check, Copy, BookOpen, Star, Target, Plus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store'
 import { apiFetch } from '@/lib/api'
-import { GroupStats } from '@/components/group/group-stats'
 import { Leaderboard } from '@/components/group/leaderboard'
 import { GroupGoal } from '@/components/group/group-goal'
-import { HizbTracker } from '@/components/group/hizb-tracker'
 import { useGroupRealtime } from '@/hooks/use-group-realtime'
 import { cn } from '@/lib/utils'
-import type { GroupStats as GroupStatsType, LeaderboardEntry } from '@quran-tracker/types'
+import type { LeaderboardEntry } from '@quran-tracker/types'
 
-type DashboardMode = 'lecture' | 'memorisation'
+type DashboardMode = 'lecture' | 'memorisation' | 'objectifs'
 
 interface MyGroup {
   id: string
@@ -38,17 +37,6 @@ interface ApiLeaderboardEntry {
   badges?: Array<{ name: string; iconUrl: string }>
 }
 
-/** Calcule les stats du groupe depuis le leaderboard */
-function computeGroupStats(entries: ApiLeaderboardEntry[]): GroupStatsType {
-  const totalMembers = entries.length
-  const activeMembers = entries.filter((e) => e.surahsMemorized > 0).length
-  const totalSurahsMemorized = entries.reduce((sum, e) => sum + Number(e.surahsMemorized), 0)
-  const groupProgressPercent =
-    totalMembers > 0 ? Math.round((totalSurahsMemorized / (totalMembers * 114)) * 100) : 0
-  return { totalMembers, activeMembers, totalSurahsMemorized, groupProgressPercent, averageStreak: 0 }
-}
-
-/** Mappe la réponse API vers le type LeaderboardEntry */
 function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
   return entries.map((e, i) => ({
     userId: e.userId,
@@ -63,6 +51,287 @@ function mapLeaderboard(entries: ApiLeaderboardEntry[]): LeaderboardEntry[] {
     badges: e.badges ?? [],
   }))
 }
+
+// ── Progress Ring ──────────────────────────────────────────────────────────────
+
+/**
+ * Anneau de progression SVG animé.
+ * Le cercle tourne dans le sens horaire depuis le haut (rotate -90°).
+ */
+function ProgressRing({
+  value,
+  max,
+  size = 200,
+  thickness = 14,
+  color = '#f59e0b',
+  trackColor,
+}: {
+  value: number
+  max: number
+  size?: number
+  thickness?: number
+  color?: string
+  trackColor?: string
+}) {
+  const r = (size - thickness) / 2
+  const circ = 2 * Math.PI * r
+  const pct = Math.min(value / Math.max(max, 1), 1)
+  const offset = circ * (1 - pct)
+
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }} aria-hidden>
+      {/* Track */}
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none"
+        stroke={trackColor ?? 'var(--ring-track, #e7e5e4)'}
+        strokeWidth={thickness}
+      />
+      {/* Progress arc */}
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={thickness}
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.4,0,0.2,1)' }}
+      />
+    </svg>
+  )
+}
+
+/**
+ * Retourne une étiquette de milestone selon le nombre de hizbs lus.
+ * 60 hizbs = Coran complet (Khatam).
+ */
+function hizbMilestone(n: number): { label: string; emoji: string } | null {
+  if (n >= 60) return { label: 'Khatam 🎉', emoji: '✨' }
+  if (n >= 30) return { label: 'Mi-Coran', emoji: '⭐' }
+  if (n >= 20) return { label: '1/3 du Coran', emoji: '📘' }
+  if (n >= 10) return { label: '1/6 du Coran', emoji: '📗' }
+  if (n >= 2)  return { label: 'Juz Amma+', emoji: '📖' }
+  if (n >= 1)  return { label: 'Juz Amma', emoji: '🌙' }
+  return null
+}
+
+// ── Hizb tracker inline (épuré, sans le ranking intégré) ──────────────────────
+
+interface HizbEntry {
+  userId: string
+  name: string
+  avatar: string | null
+  hizbsRead: number
+  xp: string
+}
+
+function HizbLectureTab({
+  groupId,
+  currentUserId,
+}: {
+  groupId: string
+  currentUserId: string
+}) {
+  const queryClient = useQueryClient()
+  const [showAdd, setShowAdd] = useState(false)
+  const [count, setCount] = useState(1)
+  const [xpToast, setXpToast] = useState<number | null>(null)
+
+  const { data: leaderboard = [] } = useQuery<HizbEntry[]>({
+    queryKey: ['group', groupId, 'leaderboard'],
+    queryFn: () => apiFetch(`/api/groups/${groupId}/leaderboard`),
+    enabled: !!groupId,
+  })
+
+  const myEntry = leaderboard.find((e) => e.userId === currentUserId)
+  const myHizbs = myEntry?.hizbsRead ?? 0
+  const milestone = hizbMilestone(myHizbs)
+
+  const sorted = [...leaderboard].sort((a, b) => (b.hizbsRead ?? 0) - (a.hizbsRead ?? 0))
+
+  const addHizb = useMutation({
+    mutationFn: (n: number) =>
+      apiFetch<{ hizbsRead: number }>('/api/users/me/hizb', {
+        method: 'POST',
+        body: JSON.stringify({ count: n }),
+      }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['group', groupId, 'leaderboard'] })
+      setShowAdd(false)
+      setCount(1)
+      setXpToast(variables * 5)
+      setTimeout(() => setXpToast(null), 2500)
+    },
+  })
+
+  return (
+    <div className="space-y-6">
+      {/* ── Hero : progress ring personnel ── */}
+      <div className="flex flex-col items-center pt-2 pb-4 relative">
+        {/* Toast XP */}
+        <AnimatePresence>
+          {xpToast !== null && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.9 }}
+              animate={{ opacity: 1, y: -8, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="absolute top-0 z-10 bg-amber-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg"
+            >
+              +{xpToast} XP ✨
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Ring + texte centré */}
+        <div className="relative">
+          <ProgressRing value={myHizbs} max={60} size={200} thickness={14} color="#f59e0b" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <span className="text-4xl font-extrabold text-stone-900 dark:text-stone-100 tabular-nums leading-none">
+              {myHizbs}
+            </span>
+            <span className="text-sm text-stone-500 dark:text-stone-400 mt-1">
+              / 60 hizbs
+            </span>
+            {milestone && (
+              <span className="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                {milestone.emoji} {milestone.label}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Sous-titre */}
+        <p className="text-xs text-stone-400 dark:text-stone-500 mt-3">
+          {myHizbs === 0
+            ? 'Commencez votre lecture dès aujourd\'hui'
+            : `${Math.round((myHizbs / 60) * 100)}% du Coran lu`}
+        </p>
+
+        {/* CTA Ajouter */}
+        <button
+          onClick={() => setShowAdd(true)}
+          className="mt-4 flex items-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold px-6 py-3 rounded-2xl text-sm shadow-md shadow-amber-200 dark:shadow-amber-900/30 transition-all"
+        >
+          <Plus className="h-4 w-4" />
+          Enregistrer mes hizbs
+        </button>
+      </div>
+
+      {/* ── Classement hizbs du groupe ── */}
+      {sorted.length > 0 && (
+        <div className="rounded-2xl border bg-card p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+            Classement lecture
+          </h3>
+          <div className="space-y-2">
+            {sorted.map((entry, idx) => {
+              const isMe = entry.userId === currentUserId
+              const MEDALS = ['🥇', '🥈', '🥉']
+              return (
+                <div
+                  key={entry.userId}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors',
+                    isMe
+                      ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-200 dark:ring-amber-800'
+                      : 'hover:bg-muted/40'
+                  )}
+                >
+                  <span className="w-5 text-center text-sm flex-shrink-0 font-bold">
+                    {idx < 3 ? MEDALS[idx] : `${idx + 1}`}
+                  </span>
+                  {entry.avatar ? (
+                    <img src={entry.avatar} alt={entry.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-xs font-bold text-amber-600 flex-shrink-0">
+                      {entry.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="flex-1 text-sm font-medium truncate">
+                    {entry.name}{isMe && <span className="ml-1 text-xs text-amber-500">(moi)</span>}
+                  </span>
+                  <span className="text-sm font-bold text-amber-600 dark:text-amber-400 flex-shrink-0 tabular-nums">
+                    {entry.hizbsRead ?? 0}
+                    <span className="text-xs font-normal text-muted-foreground ml-1">hizb</span>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal ajout hizbs ── */}
+      <AnimatePresence>
+        {showAdd && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowAdd(false) }}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-background rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold">📖 Hizbs lus aujourd&apos;hui</h2>
+                <button onClick={() => setShowAdd(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80 transition-colors text-sm">✕</button>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground text-center">Combien de hizbs avez-vous lu ?</p>
+                <div className="flex items-center gap-4 justify-center">
+                  <button
+                    onClick={() => setCount(Math.max(1, count - 1))}
+                    className="w-12 h-12 rounded-2xl border-2 text-xl font-bold hover:bg-muted transition-colors active:scale-95"
+                  >−</button>
+                  <span className="text-4xl font-extrabold w-16 text-center tabular-nums">{count}</span>
+                  <button
+                    onClick={() => setCount(Math.min(60, count + 1))}
+                    className="w-12 h-12 rounded-2xl border-2 text-xl font-bold hover:bg-muted transition-colors active:scale-95"
+                  >+</button>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">1 hizb = ½ juz = 1/60 du Coran</p>
+              </div>
+
+              {addHizb.isError && (
+                <p className="text-xs text-red-500 text-center">Erreur lors de l&apos;enregistrement</p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowAdd(false)}
+                  className="flex-1 py-3 rounded-2xl border text-sm font-semibold hover:bg-muted transition-colors"
+                >Annuler</button>
+                <button
+                  onClick={() => addHizb.mutate(count)}
+                  disabled={addHizb.isPending}
+                  className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-sm font-semibold transition-colors disabled:opacity-50 shadow-md shadow-amber-200 dark:shadow-none"
+                >
+                  {addHizb.isPending ? 'Enregistrement…' : `Valider (${count} hizb${count > 1 ? 's' : ''})`}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ── Composant principal ────────────────────────────────────────────────────────
+
+const TABS: { id: DashboardMode; label: string; icon: React.ElementType; activeColor: string }[] = [
+  { id: 'lecture',      label: 'Lecture',      icon: BookOpen, activeColor: 'text-amber-600 dark:text-amber-400' },
+  { id: 'memorisation', label: 'Mémorisation', icon: Star,     activeColor: 'text-emerald-600 dark:text-emerald-400' },
+  { id: 'objectifs',    label: 'Objectifs',    icon: Target,   activeColor: 'text-violet-600 dark:text-violet-400' },
+]
 
 export function DashboardClient() {
   const storeUser = useAppStore((s) => s.user)
@@ -104,9 +373,7 @@ export function DashboardClient() {
       queryClient.invalidateQueries({ queryKey: ['my-groups'] })
       refetchGroups()
     },
-    onError: (err) => {
-      setCreateError(err instanceof Error ? err.message : 'Erreur lors de la création')
-    },
+    onError: (err) => setCreateError(err instanceof Error ? err.message : 'Erreur'),
   })
 
   async function handleCreate(e: React.FormEvent) {
@@ -143,12 +410,12 @@ export function DashboardClient() {
 
   async function handleShare() {
     if (!group) return
-    const shareText = `Rejoins ma halqa "${group.name}" sur Quran Tracker 📖\n\nCode d'invitation : ${group.inviteCode}\n\nhttps://quran-tracker-web.vercel.app`
+    const text = `Rejoins ma halqa "${group.name}" sur Quran Tracker 📖\n\nCode : ${group.inviteCode}\n\nhttps://quran-tracker-web.vercel.app`
     try {
       if (navigator.share) {
-        await navigator.share({ title: `Rejoins ${group.name}`, text: shareText })
+        await navigator.share({ title: `Rejoins ${group.name}`, text })
       } else {
-        await navigator.clipboard.writeText(shareText)
+        await navigator.clipboard.writeText(text)
         setShared(true)
         setTimeout(() => setShared(false), 2500)
       }
@@ -160,12 +427,12 @@ export function DashboardClient() {
   if (groupsLoading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-8 w-40 bg-muted rounded-xl" />
-        <div className="grid grid-cols-3 gap-3">
-          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-20 bg-muted rounded-xl" />)}
-        </div>
+        <div className="h-8 w-36 bg-muted rounded-xl" />
         <div className="h-12 bg-muted rounded-2xl" />
-        <div className="h-64 bg-muted rounded-xl" />
+        <div className="flex flex-col items-center gap-4 pt-6">
+          <div className="w-48 h-48 bg-muted rounded-full" />
+          <div className="h-12 w-40 bg-muted rounded-2xl" />
+        </div>
       </div>
     )
   }
@@ -180,9 +447,7 @@ export function DashboardClient() {
           <h2 className="text-xl font-semibold">Rejoignez ou créez une halqa</h2>
           <p className="text-muted-foreground text-sm">Une halqa est un groupe de mémorisation du Coran.</p>
         </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Créer */}
           <div className="rounded-2xl border-2 border-dashed p-6 space-y-3">
             <div className="text-3xl">✨</div>
             <h3 className="font-semibold">Créer une halqa</h3>
@@ -195,18 +460,13 @@ export function DashboardClient() {
                 maxLength={60}
                 className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
               />
-              <button
-                type="submit"
-                disabled={createGroup.isPending || groupName.length < 2}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
-              >
+              <button type="submit" disabled={createGroup.isPending || groupName.length < 2}
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
                 {createGroup.isPending ? 'Création…' : 'Créer'}
               </button>
             </form>
             {createError && <p className="text-xs text-red-500">{createError}</p>}
           </div>
-
-          {/* Rejoindre */}
           <div className="rounded-2xl border-2 border-dashed p-6 space-y-3">
             <div className="text-3xl">🤝</div>
             <h3 className="font-semibold">Rejoindre une halqa</h3>
@@ -219,11 +479,8 @@ export function DashboardClient() {
                 maxLength={12}
                 className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
               />
-              <button
-                type="submit"
-                disabled={joining || inviteCode.length < 6}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
-              >
+              <button type="submit" disabled={joining || inviteCode.length < 6}
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
                 {joining ? 'Connexion…' : 'Rejoindre'}
               </button>
             </form>
@@ -235,103 +492,80 @@ export function DashboardClient() {
   }
 
   const leaderboard = rawLeaderboard ? mapLeaderboard(rawLeaderboard) : []
-  const groupStats = rawLeaderboard ? computeGroupStats(rawLeaderboard) : undefined
 
   // ── Dashboard principal ──────────────────────────────────────────────────────
 
   return (
     <div className="space-y-4 pb-20 md:pb-0">
 
-      {/* En-tête groupe */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      {/* En-tête groupe — minimaliste */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">{group.name}</h1>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            {group.description ?? 'Halqa de mémorisation'}
-          </p>
+          <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100 leading-tight">{group.name}</h1>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            {rawLeaderboard && (
+              <span className="text-xs text-stone-400 dark:text-stone-500">
+                👥 {rawLeaderboard.length} membre{rawLeaderboard.length > 1 ? 's' : ''}
+                {' · '}
+                📖 {rawLeaderboard.reduce((s, e) => s + Number(e.surahsMemorized), 0)} sourates
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           {group.sheikhId === storeUser?.id && (
-            <button
-              onClick={handleCopyCode}
-              className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-mono font-bold hover:bg-emerald-100 transition-colors dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
-            >
-              {copied ? <><Check className="h-3.5 w-3.5" /> Copié !</> : <><Copy className="h-3.5 w-3.5" /> {group.inviteCode}</>}
+            <button onClick={handleCopyCode}
+              className="flex items-center gap-1.5 text-xs bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 px-3 py-1.5 rounded-xl font-mono font-medium hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors">
+              {copied ? <><Check className="h-3.5 w-3.5 text-emerald-500" /> Copié</> : <><Copy className="h-3.5 w-3.5" /> {group.inviteCode}</>}
             </button>
           )}
-          {group.sheikhId !== storeUser?.id && (
-            <span className="text-xs text-muted-foreground bg-muted px-2.5 py-1.5 rounded-xl font-mono font-medium">
-              {group.inviteCode}
-            </span>
-          )}
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-1.5 text-xs bg-stone-900 text-white px-3 py-1.5 rounded-xl font-semibold hover:bg-stone-700 active:scale-95 transition-all dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200"
-          >
-            {shared ? <><Check className="h-3.5 w-3.5" /> Copié !</> : <><Share2 className="h-3.5 w-3.5" /> Partager</>}
+          <button onClick={handleShare}
+            className="flex items-center gap-1.5 text-xs bg-stone-900 dark:bg-white text-white dark:text-stone-900 px-3 py-1.5 rounded-xl font-semibold hover:opacity-80 active:scale-95 transition-all">
+            {shared ? <><Check className="h-3.5 w-3.5" /> Copié</> : <><Share2 className="h-3.5 w-3.5" /> Partager</>}
           </button>
         </div>
       </div>
 
-      {/* Stats globales — toujours visibles */}
-      <GroupStats stats={groupStats} />
-
-      {/* ── Sélecteur de mode ─────────────────────────────────────────────── */}
-      <div className="flex gap-1.5 p-1 bg-stone-100 dark:bg-stone-800 rounded-2xl">
-        <button
-          onClick={() => setMode('lecture')}
-          className={cn(
-            'flex flex-1 items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all',
-            mode === 'lecture'
-              ? 'bg-white dark:bg-stone-900 text-amber-600 dark:text-amber-400 shadow-sm'
-              : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
-          )}
-        >
-          <BookOpen className="h-4 w-4" />
-          <span>Lecture quotidienne</span>
-        </button>
-        <button
-          onClick={() => setMode('memorisation')}
-          className={cn(
-            'flex flex-1 items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all',
-            mode === 'memorisation'
-              ? 'bg-white dark:bg-stone-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
-              : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
-          )}
-        >
-          <Star className="h-4 w-4" />
-          <span>Mémorisation</span>
-        </button>
+      {/* ── Tabs 3 modes ───────────────────────────────────────────────────── */}
+      <div className="flex gap-1 p-1 bg-stone-100 dark:bg-stone-800/60 rounded-2xl">
+        {TABS.map(({ id, label, icon: Icon, activeColor }) => (
+          <button
+            key={id}
+            onClick={() => setMode(id)}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all',
+              mode === id
+                ? `bg-white dark:bg-stone-900 shadow-sm ${activeColor}`
+                : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300'
+            )}
+          >
+            <Icon className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden xs:inline sm:inline">{label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* ── Contenu selon le mode ─────────────────────────────────────────── */}
+      {/* ── Contenu du tab actif ────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
-        {mode === 'lecture' && (
-          <motion.div
-            key="lecture"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18 }}
-            className="space-y-4"
-          >
-            <GroupGoal groupId={group.id} isSheikh={group.sheikhId === storeUser?.id} />
-            <HizbTracker groupId={group.id} currentUserId={storeUser?.id ?? ''} />
-          </motion.div>
-        )}
+        <motion.div
+          key={mode}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+        >
+          {mode === 'lecture' && (
+            <HizbLectureTab groupId={group.id} currentUserId={storeUser?.id ?? ''} />
+          )}
 
-        {mode === 'memorisation' && (
-          <motion.div
-            key="memorisation"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18 }}
-            className="space-y-4"
-          >
+          {mode === 'memorisation' && (
             <Leaderboard entries={leaderboard} isLoading={lbLoading} />
-          </motion.div>
-        )}
+          )}
+
+          {mode === 'objectifs' && (
+            <GroupGoal groupId={group.id} isSheikh={group.sheikhId === storeUser?.id} />
+          )}
+        </motion.div>
       </AnimatePresence>
     </div>
   )
