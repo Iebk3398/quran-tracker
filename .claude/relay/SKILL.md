@@ -107,20 +107,37 @@ Sans ça, aucun `git push` ne déclenche de build automatique.
 - Suppression de `.claude/worktrees/elegant-ride` et `jolly-torvalds`
   qui bloquaient git (références à des containers Claude disparus).
 
+### 5. Relay loopback bearer token — index.ts ✅
+- **Problème :** `/auth/relay` utilisait `session.token` retourné par `auth.api.getSession()`
+  côté serveur — ce token n'est PAS reconnu par le plugin bearer du côté client.
+- **Fix :** Loopback HTTP `GET /api/auth/get-session` (cookie same-origin) →
+  lit le header `set-auth-token` de la réponse HTTP → c'est le vrai bearer token.
+- **Fichier :** `apps/api/src/index.ts`
+
+### 6. CORS expose set-auth-token — index.ts ✅ (session 2026-03-16 fin)
+- **Problème racine connexion mobile :** Le middleware CORS Hono ne couvre pas les
+  réponses natives `Response` retournées par `auth.handler()`. Sur mobile Safari
+  (CORS strict), `Access-Control-Expose-Headers: set-auth-token` manquait →
+  `onResponse` lisait null → token jamais sauvé en localStorage → boucle login.
+- **Fix :** Le handler `app.on('/api/auth/*')` intercepte la réponse et injecte
+  manuellement `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`,
+  et `Access-Control-Expose-Headers: set-auth-token` pour les origines autorisées.
+- **Fichier :** `apps/api/src/index.ts`
+
 ---
 
 ## Ce qui reste à faire
 
-### PRIORITÉ 1 — Connecter Railway à GitHub 🔴
+### PRIORITÉ 1 — Vérifier la connexion mobile après deploy Railway 🔴
+Railway rebuild en cours (push `1797f2b`). Vérifier sur mobile :
+- OTP → accès dashboard sans boucle (fix CORS set-auth-token)
+- Google OAuth → plus de `state_mismatch` (fix Redis state backup)
+- `POST /api/users/me/hizb` → 200
+
+### PRIORITÉ 2 — Connecter Railway à GitHub (si pas encore fait) 🔴
 **Pourquoi :** Sans ça, aucun fix déployé automatiquement.
 **Comment :** Railway dashboard → service `api` → Settings → Source → connecter
 repo `Iebk3398/quran-tracker` branch `main`.
-
-### PRIORITÉ 2 — Vérifier le déploiement après connexion GitHub 🔴
-Une fois GitHub connecté, Railway va rebuilder. Vérifier :
-- Google OAuth mobile → plus de `state_mismatch`
-- OTP mobile → accès dashboard sans boucle
-- `POST https://api-production-e758.up.railway.app/api/users/me/hizb` → 200
 
 ### PRIORITÉ 3 — Vérifier que UPSTASH_REDIS_REST_URL est configuré sur Railway 🟡
 Le fix Google OAuth mobile utilise Redis. S'assurer que les variables sont dans Railway :
@@ -168,7 +185,7 @@ Auth-guard (dashboard) :
 ## Fichiers clés modifiés cette session
 
 ```
-apps/api/src/index.ts                         ← Redis state backup + callback route + relay callbackURL
+apps/api/src/index.ts                         ← Redis state backup + callback route + relay loopback + CORS expose
 apps/web/src/app/(auth)/login/page.tsx        ← retries getSession() + redirect sans bloquer
 .claude/relay/SKILL.md                        ← relay skill (ex ikraa-relay)
 ```
@@ -179,6 +196,9 @@ apps/web/src/app/(auth)/login/page.tsx        ← retries getSession() + redirec
 
 ```
 97e1635  fix(auth): mobile Safari state_mismatch + OTP session warm-up
+267d4da  fix(auth): revert relay callbackURL — regression dashboard inaccessible
+0a4501d  fix(auth): relay loopback get-session pour extraire le vrai bearer token
+1797f2b  fix(auth): expose set-auth-token via CORS pour mobile Safari
 ```
 
 ---
