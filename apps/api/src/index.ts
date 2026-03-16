@@ -244,9 +244,23 @@ app.get('/api/auth/callback/google', async (c) => {
 })
 
 // ─── Auth (Better Auth — doit recevoir l'URL complète) ─────
-app.on(['GET', 'POST'], ['/api/auth', '/api/auth/*'], (c) =>
-  auth.handler(c.req.raw)
-)
+// On injecte manuellement Access-Control-Expose-Headers: set-auth-token
+// car le middleware CORS Hono ne s'applique pas aux réponses natives
+// retournées par auth.handler(). Sans ça, le hook onResponse du client
+// ne peut pas lire l'en-tête set-auth-token (OTP mobile, CORS bloqué).
+app.on(['GET', 'POST'], ['/api/auth', '/api/auth/*'], async (c) => {
+  const response = await auth.handler(c.req.raw)
+  const origin = c.req.header('Origin') ?? ''
+  const allowed = allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')
+  if (allowed) {
+    const headers = new Headers(response.headers)
+    headers.set('Access-Control-Allow-Origin', origin)
+    headers.set('Access-Control-Allow-Credentials', 'true')
+    headers.set('Access-Control-Expose-Headers', 'set-auth-token')
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
+  }
+  return response
+})
 app.route('/api/groups', groupRoutes)
 app.route('/api/progress', progressRoutes)
 app.route('/api/revisions', revisionRoutes)
