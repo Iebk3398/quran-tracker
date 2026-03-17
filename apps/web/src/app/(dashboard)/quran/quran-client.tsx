@@ -112,27 +112,28 @@ async function fetchPage(page: number): Promise<QuranVerse[]> {
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ'
 
 // ─── Tajweed — injection inline style ────────────────────────────────────────
-// Le CSS attribut-selector peut être écrasé par Tailwind/specificity.
-// On injecte la couleur directement dans le HTML pour garantir le rendu.
+// L'API quran.com retourne : <tajweed class=ham_wasl>ٱ</tajweed>
+// Tag custom <tajweed> avec attribut class SANS guillemets.
+// Noms réels vérifiés sur l'API : ikhafa, qalaqah, laam_shamsiyah...
 
 const TAJWEED_COLORS: Record<string, string> = {
   ham_wasl:               '#9ba3ae',
   slnt:                   '#c9d0d7',
-  laam_shamsiyya:         '#9ba3ae',
+  laam_shamsiyah:         '#9ba3ae',   // API: laam_shamsiyah (pas laam_shamsiyya)
   madda_obligatory:       '#0d47a1',
   madda_necessary:        '#1565c0',
   madda_permissible:      '#1976d2',
   madda_normal:           '#64b5f6',
   ghunnah:                '#2e7d32',
-  ikhfa:                  '#e65100',
-  ikhfa_shafawi:          '#bf360c',
+  ikhafa:                 '#e65100',   // API: ikhafa (pas ikhfa)
+  ikhafa_shafawi:         '#bf360c',
   idgham_ghunnah:         '#388e3c',
   idgham_wo_ghunnah:      '#1b5e20',
   idgham_shafawi:         '#33691e',
   idgham_mutajanisayn:    '#2e7d32',
   idgham_mutaqaribbayn:   '#1b5e20',
   iqlab:                  '#7b1fa2',
-  qalqalah:               '#c62828',
+  qalaqah:                '#c62828',   // API: qalaqah (pas qalqalah)
 }
 
 /**
@@ -143,35 +144,28 @@ function toAr(n: number): string {
 }
 
 /**
- * Supprime le marqueur de fin de verset (chiffres arabes finaux) du HTML de l'API.
- * L'API quran.com inclut le numéro de verset dans text_uthmani_tajweed.
- * On le supprime pour le remplacer par notre propre badge stylisé.
+ * Supprime le marqueur de fin de verset de l'API quran.com.
+ * Format réel : <span class=end>١</span>
  */
 function stripVerseEndMarker(html: string): string {
-  // Supprime le dernier span contenant uniquement des chiffres arabes (fin de verset)
   return html
+    .replace(/<span class=end>[^<]*<\/span>\s*$/, '')
     .replace(/<span[^>]*>[\u0660-\u0669\u06F0-\u06F9]+<\/span>\s*$/, '')
-    .replace(/[\u0660-\u0669\u06F0-\u06F9]+\s*$/, '')
     .trim()
 }
 
 /**
  * Injecte les couleurs tajweed en style inline dans le HTML brut de l'API.
- * L'API quran.com utilise des guillemets SIMPLES → rule='qalqalah'
- * On gère les deux (simple ET double) pour robustesse.
+ * Format réel API : <tajweed class=ham_wasl>ٱ</tajweed>
+ * Tag custom <tajweed> avec class sans guillemets.
  */
 function applyTajweedColors(html: string): string {
-  // Guillemets simples : rule='xxx'
-  let result = html.replace(/rule='([^']+)'/g, (match, rule: string) => {
-    const color = TAJWEED_COLORS[rule]
-    return color ? `${match} style="color:${color}"` : match
+  return html.replace(/<tajweed class=([a-z_]+)>/g, (_match, cls: string) => {
+    const color = TAJWEED_COLORS[cls]
+    return color
+      ? `<tajweed class=${cls} style="color:${color};font-style:normal">`
+      : `<tajweed class=${cls}>`
   })
-  // Guillemets doubles : rule="xxx" (fallback)
-  result = result.replace(/rule="([^"]+)"/g, (match, rule: string) => {
-    const color = TAJWEED_COLORS[rule]
-    return color ? `${match} style="color:${color}"` : match
-  })
-  return result
 }
 
 // ─── SurahRow ─────────────────────────────────────────────────────────────────
