@@ -44,7 +44,6 @@ const STATUS: Record<MemorizationStatus, { label: string; dot: string; pill: str
   },
 }
 
-const ALL_STATUSES = ['not_started', 'in_progress', 'memorized'] as MemorizationStatus[]
 
 const JUZ_NAMES_AR: Record<number, string> = {
   1: 'الأوَّل', 2: 'الثَّاني', 3: 'الثَّالث', 4: 'الرَّابع', 5: 'الخَامس',

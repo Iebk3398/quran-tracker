@@ -309,7 +309,7 @@ function ReadingView({
   function onTouchEnd(e: React.TouchEvent) {
     if (touchStartX.current === null) return
     const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current
-    if (Math.abs(dx) > 55) dx > 0 ? goTo(page - 1) : goTo(page + 1)
+    if (Math.abs(dx) > 55) { if (dx > 0) goTo(page - 1); else goTo(page + 1) }
     touchStartX.current = null
   }
 

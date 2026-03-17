@@ -214,7 +214,7 @@ function HizbLectureTab({
         {/* Sous-titre */}
         <p className="text-xs text-stone-400 dark:text-stone-500 mt-3">
           {myHizbs === 0
-            ? 'Commencez votre lecture dès aujourd\'hui'
+            ? "Commencez votre lecture dès aujourd'hui"
             : `${Math.round((myHizbs / 60) * 100)}% du Coran lu`}
         </p>
 
