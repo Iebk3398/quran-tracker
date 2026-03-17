@@ -66,14 +66,14 @@ const QURAN_API            = 'https://api.quran.com/api/v4'
 const STORAGE_KEY_READ     = 'ikraa_pages_read'
 const STORAGE_KEY_VERSE_BK = 'ikraa_verse_bookmark'
 const FONT_SIZES           = [20, 24, 28, 32, 36, 40] as const
-const DEFAULT_FONT_IDX     = 2   // 28px
+const DEFAULT_FONT_IDX     = 3   // 32px
 
 const QURAN_FONT = "'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Scheherazade New', 'Noto Naskh Arabic', serif"
 
 /** Variants de transition de page — custom = 'forward' | 'back' */
 const PAGE_VARIANTS: Variants = {
   enter: (dir: string) => ({
-    x: dir === 'forward' ? '100%' : '-100%',
+    x: dir === 'forward' ? '-100%' : '100%',
     opacity: 0.7,
   }),
   visible: {
@@ -81,7 +81,7 @@ const PAGE_VARIANTS: Variants = {
     opacity: 1,
   },
   exit: (dir: string) => ({
-    x: dir === 'forward' ? '-100%' : '100%',
+    x: dir === 'forward' ? '100%' : '-100%',
     opacity: 0.7,
   }),
 }
@@ -309,7 +309,7 @@ function ReadingView({
   function onTouchEnd(e: React.TouchEvent) {
     if (touchStartX.current === null) return
     const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current
-    if (Math.abs(dx) > 55) dx > 0 ? goTo(page + 1) : goTo(page - 1)
+    if (Math.abs(dx) > 55) dx > 0 ? goTo(page - 1) : goTo(page + 1)
     touchStartX.current = null
   }
 
@@ -363,53 +363,28 @@ function ReadingView({
     >
       {/* ══ HEADER ══════════════════════════════════════════════════════════════ */}
       <div
-        className="shrink-0 flex items-center justify-between px-3 py-2.5"
-        style={{ background: '#f8f5ee', borderBottom: '1px solid #e8e1d5' }}
+        className="shrink-0 flex items-center justify-between px-3 py-2"
+        style={{ background: '#f8f5ee', borderBottom: '1px solid #ede8df' }}
       >
         <button
           onClick={onClose}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-stone-600 hover:bg-stone-200/60 transition-colors"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-stone-500 hover:bg-stone-200/60 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        <div className="flex-1 text-center px-2">
-          <p
-            className="font-semibold text-stone-800 text-base leading-none"
-            style={{ fontFamily: QURAN_FONT }}
-          >
+        <div className="text-center">
+          <p className="text-[15px] font-bold text-stone-800" style={{ fontFamily: QURAN_FONT }}>
             {currentSurah?.nameAr ?? ''}
           </p>
-          <p className="text-[10px] text-stone-400 mt-0.5 font-medium tracking-wide">
-            {currentSurah?.nameTranslit ?? ''}
-          </p>
+          <p className="text-[10px] text-stone-400 font-medium tracking-wide">{currentSurah?.nameTranslit ?? ''}</p>
         </div>
 
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setFontIdx((i) => Math.max(0, i - 1))}
-            disabled={fontIdx === 0}
-            className="flex items-center justify-center text-stone-500 hover:text-stone-800 disabled:opacity-30 transition-colors px-1"
-            style={{ fontSize: 13, fontWeight: 600 }}
-          >A</button>
-          <button
-            onClick={() => setFontIdx((i) => Math.min(FONT_SIZES.length - 1, i + 1))}
-            disabled={fontIdx === FONT_SIZES.length - 1}
-            className="flex items-center justify-center text-stone-700 hover:text-stone-900 disabled:opacity-30 transition-colors px-1"
-            style={{ fontSize: 18, fontWeight: 700 }}
-          >A</button>
-          {/* Marque-page PAGE (compteur hizb) */}
-          <button
-            onClick={handlePageBookmark}
-            className={cn(
-              'w-9 h-9 rounded-full flex items-center justify-center transition-colors ml-0.5',
-              pageBookmarked ? 'text-emerald-600' : 'text-stone-500 hover:text-stone-800',
-            )}
-          >
-            {pageBookmarked
-              ? <BookmarkCheck className="w-[18px] h-[18px]" />
-              : <Bookmark className="w-[18px] h-[18px]" />}
-          </button>
+        <div className="flex items-center gap-0.5">
+          <button onClick={() => setFontIdx((i) => Math.max(0, i - 1))} disabled={fontIdx === 0}
+            className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-stone-700 disabled:opacity-25 transition-colors text-[13px] font-semibold">A</button>
+          <button onClick={() => setFontIdx((i) => Math.min(FONT_SIZES.length - 1, i + 1))} disabled={fontIdx === FONT_SIZES.length - 1}
+            className="w-8 h-8 flex items-center justify-center text-stone-600 hover:text-stone-900 disabled:opacity-25 transition-colors text-[18px] font-bold">A</button>
         </div>
       </div>
 
@@ -478,13 +453,14 @@ function ReadingView({
 
             {/* ── Versets — texte continu avec numéros en cercles dorés ── */}
             <div
-              className="tajweed-text text-right mb-6"
+              className="tajweed-text text-center mb-6"
               dir="rtl"
               style={{
                 fontFamily: QURAN_FONT,
                 fontSize,
-                lineHeight: 3.8,        // espace suffisant pour tous les diacritiques
+                lineHeight: 4.2,        // espace suffisant pour tous les diacritiques
                 color: '#1c1610',
+                textAlign: 'center',
               }}
             >
               {group.verses.map((v) => {
@@ -548,49 +524,61 @@ function ReadingView({
         </AnimatePresence>
       </div>
 
-      {/* ══ FOOTER ═══════════════════════════════════════════════════════════════ */}
+      {/* ══ FOOTER compact ══════════════════════════════════════════════════════ */}
       <div
-        className="shrink-0 flex items-center justify-between px-4 py-2.5"
-        style={{ background: '#f8f5ee', borderTop: '1px solid #e8e1d5' }}
+        className="shrink-0 flex items-center justify-between px-4 py-2"
+        style={{ background: '#f8f5ee', borderTop: '1px solid #ede8df' }}
       >
-        {/* Prev — desktop only */}
-        <button
-          onClick={() => goTo(page - 1)}
-          disabled={page === 1}
-          className="invisible md:visible w-9 h-9 rounded-full flex items-center justify-center text-stone-500 hover:bg-stone-200/70 disabled:opacity-25 transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-
-        {/* Centre : J · H · P + marque-page verset si actif */}
-        <div className="flex flex-col items-center gap-0.5">
-          <div className="flex items-center gap-1.5 text-[13px] font-semibold">
-            <span className="text-emerald-600">J</span>
-            <span className="text-stone-800 tabular-nums">{juz}</span>
-            <span className="text-stone-300 mx-1">·</span>
-            <span className="text-amber-600">H</span>
-            <span className="text-stone-800 tabular-nums">{hizb}</span>
-            <span className="text-stone-300 mx-1">·</span>
-            <span className="text-stone-500">P</span>
-            <span className="text-stone-800 tabular-nums">{page}</span>
-          </div>
-          {/* Indicateur du marque-page verset actif sur cette page */}
-          {verseBookmark && verseBookmark.page === page && (
-            <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
-              <BookmarkCheck className="w-3 h-3" />
-              {verseBookmark.surahNameTranslit} · V.{verseBookmark.verseNumber}
-            </div>
-          )}
+        {/* Gauche : font size */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => goTo(page - 1)}
+            disabled={page === 1}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:bg-stone-200/70 disabled:opacity-20 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => goTo(page + 1)}
+            disabled={page === QURAN_TOTAL_PAGES}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:bg-stone-200/70 disabled:opacity-20 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Next — desktop only */}
-        <button
-          onClick={() => goTo(page + 1)}
-          disabled={page === QURAN_TOTAL_PAGES}
-          className="invisible md:visible w-9 h-9 rounded-full flex items-center justify-center text-stone-500 hover:bg-stone-200/70 disabled:opacity-25 transition-colors"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+        {/* Centre : marque-page verset (pill) ou position */}
+        {verseBookmark && verseBookmark.page === page ? (
+          <button
+            onClick={() => onSetVerseBookmark(null)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[12px] font-semibold transition-colors"
+          >
+            <BookmarkCheck className="w-3.5 h-3.5" />
+            {verseBookmark.verseKey}
+          </button>
+        ) : (
+          <button
+            onClick={handlePageBookmark}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[12px] font-semibold transition-colors',
+              pageBookmarked
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-stone-100 border-stone-200 text-stone-500 hover:bg-stone-200'
+            )}
+          >
+            <Bookmark className="w-3.5 h-3.5" />
+            P.{page}
+          </button>
+        )}
+
+        {/* Droite : J · H · P */}
+        <div className="text-[11px] font-semibold text-stone-400 tabular-nums text-right">
+          <span className="text-emerald-600">J{juz}</span>
+          <span className="text-stone-300 mx-1">·</span>
+          <span className="text-amber-500">H{hizb}</span>
+          <span className="text-stone-300 mx-1">·</span>
+          <span>P{page}</span>
+        </div>
       </div>
 
       {/* ══ TOAST ════════════════════════════════════════════════════════════════ */}
