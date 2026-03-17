@@ -1,9 +1,11 @@
 @import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&display=swap');
 
 @theme {
   --color-emerald-brand: #059669;
   --color-gold-brand: #d97706;
   --font-arabic: 'Noto Naskh Arabic', serif;
+  --font-quran: 'Amiri Quran', 'Noto Naskh Arabic', serif;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
@@ -102,6 +104,57 @@
     font-family: var(--font-arabic);
     direction: rtl;
     line-height: 2;
+  }
+
+  /* ── Police Coran ── */
+  .quran-font {
+    font-family: var(--font-quran);
+    direction: rtl;
+    unicode-bidi: bidi-override;
+  }
+
+  /* ── Couleurs Tajweed (API quran.com — attribut rule="...") ── */
+  /* Hamza Wasl / lettres silencieuses */
+  .tajweed-text span[rule="ham_wasl"]         { color: #9ca3af; }
+  .tajweed-text span[rule="slnt"]             { color: #9ca3af; opacity: 0.5; }
+  .tajweed-text span[rule="laam_shamsiyya"]   { color: #9ca3af; }
+  /* Madd — bleu */
+  .tajweed-text span[rule="madda_necessary"]  { color: #1d4ed8; }
+  .tajweed-text span[rule="madda_permissible"]{ color: #3b82f6; }
+  .tajweed-text span[rule="madda_normal"]     { color: #93c5fd; }
+  .tajweed-text span[rule="madda_obligatory"] { color: #1e40af; }
+  /* Ghunnah — vert */
+  .tajweed-text span[rule="ghunnah"]          { color: #16a34a; }
+  /* Ikhfa — orange */
+  .tajweed-text span[rule="ikhfa"]            { color: #ea580c; }
+  .tajweed-text span[rule="ikhfa_shafawi"]    { color: #c2410c; }
+  /* Idgham — vert foncé */
+  .tajweed-text span[rule="idgham_ghunnah"]         { color: #15803d; }
+  .tajweed-text span[rule="idgham_wo_ghunnah"]      { color: #166534; }
+  .tajweed-text span[rule="idgham_shafawi"]         { color: #14532d; }
+  .tajweed-text span[rule="idgham_mutajanisayn"]    { color: #065f46; }
+  .tajweed-text span[rule="idgham_mutaqaribbayn"]   { color: #064e3b; }
+  /* Iqlab — violet */
+  .tajweed-text span[rule="iqlab"]            { color: #7c3aed; }
+  /* Qalqala — rouge */
+  .tajweed-text span[rule="qalqalah"]         { color: #dc2626; }
+
+  /* Numéro de verset inline */
+  .verse-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6em;
+    height: 1.6em;
+    border-radius: 50%;
+    border: 1px solid #16a34a;
+    color: #16a34a;
+    font-size: 0.62em;
+    font-family: var(--font-quran);
+    margin: 0 3px;
+    vertical-align: middle;
+    flex-shrink: 0;
+    line-height: 1;
   }
 
   /* Hide scrollbar but keep scrollable */
