@@ -207,6 +207,7 @@ function ReadingView({
   surahs,
   onClose,
   onMarkRead,
+  onSyncHizbPosition,
   readPages,
   verseBookmark,
   onSetVerseBookmark,
@@ -216,6 +217,8 @@ function ReadingView({
   surahs: Surah[]
   onClose: () => void
   onMarkRead: (page: number, hizb: number) => void
+  /** Synchronise la position hizb dans le dashboard (valeur absolue, jamais en arrière) */
+  onSyncHizbPosition: (page: number, hizbNumber: number) => void
   readPages: Set<number>
   verseBookmark: VerseBookmark | null
   onSetVerseBookmark: (b: VerseBookmark | null) => void
@@ -329,8 +332,8 @@ function ReadingView({
         verseNumber: v.verse_number,
       }
       onSetVerseBookmark(bk)
-      // Sync avancement dashboard : marque la page comme lue
-      onMarkRead(v.page_number ?? page, v.hizb_number)
+      // Sync dashboard : position absolue (hizb 44 → dashboard affiche 44, jamais en arrière)
+      onSyncHizbPosition(v.page_number ?? page, v.hizb_number)
       showToast(`Marque-page · H${v.hizb_number} · ${surah?.nameTranslit ?? ''} ${v.verse_key}`)
     }
   }
@@ -584,6 +587,8 @@ function ReadingView({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
+const STORAGE_KEY_ONBOARDED = 'ikraa_quran_onboarded'
+
 export function QuranClient() {
   const queryClient = useQueryClient()
   const [search, setSearch]               = useState('')
@@ -591,11 +596,21 @@ export function QuranClient() {
   const [initialVerseKey, setInitialVerseKey] = useState<string | undefined>(undefined)
   const [readPages, setReadPages]         = useState<Set<number>>(new Set())
   const [verseBookmark, setVerseBookmarkState] = useState<VerseBookmark | null>(null)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     setReadPages(loadReadPages())
     setVerseBookmarkState(loadVerseBookmark())
+    // Message d'accueil — affiché une seule fois
+    if (!localStorage.getItem(STORAGE_KEY_ONBOARDED)) {
+      setShowOnboarding(true)
+    }
   }, [])
+
+  function dismissOnboarding() {
+    localStorage.setItem(STORAGE_KEY_ONBOARDED, '1')
+    setShowOnboarding(false)
+  }
 
   const { data: surahs = [], isLoading } = useQuery<Surah[]>({
     queryKey: ['surahs'],
@@ -620,6 +635,17 @@ export function QuranClient() {
       apiFetch('/api/users/me/hizb', { method: 'POST', body: JSON.stringify({ count: 1 }) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group-activity'] })
+      queryClient.invalidateQueries({ queryKey: ['leaderboard'] })
+    },
+  })
+
+  /** Synchronise la position de lecture absolue dans le dashboard (PUT — jamais en arrière) */
+  const syncHizbPosition = useMutation({
+    mutationFn: (position: number) =>
+      apiFetch('/api/users/me/hizb', { method: 'PUT', body: JSON.stringify({ position }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group-activity'] })
+      queryClient.invalidateQueries({ queryKey: ['leaderboard'] })
     },
   })
 
@@ -629,6 +655,15 @@ export function QuranClient() {
     setReadPages(updated)
     saveReadPages(updated)
     markHizb.mutate()
+  }
+
+  /** Marque la page comme lue localement + synchronise la position hizb dans le dashboard */
+  function handleSyncHizbPosition(page: number, hizbNumber: number) {
+    const updated = new Set(readPages)
+    updated.add(page)
+    setReadPages(updated)
+    saveReadPages(updated)
+    syncHizbPosition.mutate(hizbNumber)
   }
 
   function handleSetVerseBookmark(b: VerseBookmark | null) {
@@ -653,10 +688,50 @@ export function QuranClient() {
             surahs={surahs}
             onClose={() => { setReadingPage(null); setInitialVerseKey(undefined) }}
             onMarkRead={handleMarkRead}
+            onSyncHizbPosition={handleSyncHizbPosition}
             readPages={readPages}
             verseBookmark={verseBookmark}
             onSetVerseBookmark={handleSetVerseBookmark}
           />
+        </div>
+      )}
+
+      {/* ── Message d'accueil (first-time) ───────────────────────────────────── */}
+      {showOnboarding && (
+        <div
+          className="mx-4 mb-4 rounded-2xl overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #fdf6e3 0%, #fef9ec 100%)', border: '1px solid #e8d9a0' }}
+        >
+          <div className="px-4 pt-4 pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[15px] font-semibold text-stone-800 mb-2">
+                  Bienvenue dans la lecture du Coran 📖
+                </p>
+                <ul className="space-y-1.5 text-[12.5px] text-stone-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-600 mt-px">📌</span>
+                    <span><strong>Marque-page :</strong> appuie sur un verset pour le marquer — ta progression se synchronise dans le dashboard.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-stone-400 mt-px">👆</span>
+                    <span><strong>Navigation :</strong> glisse horizontalement pour changer de page, ou utilise les flèches (tablette/bureau).</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-600 mt-px">🎨</span>
+                    <span><strong>Couleurs tajweed :</strong> rouge = qalaqah · bleu = madd · vert = ghunnah/idgham · orange = ikhafa · violet = iqlab.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <button
+              onClick={dismissOnboarding}
+              className="mt-3 w-full py-2 rounded-xl text-[13px] font-semibold text-amber-800 transition-colors hover:bg-amber-100/60"
+              style={{ background: 'rgba(200,168,75,0.13)', border: '1px solid rgba(200,168,75,0.35)' }}
+            >
+              Compris, commencer la lecture
+            </button>
+          </div>
         </div>
       )}
 
