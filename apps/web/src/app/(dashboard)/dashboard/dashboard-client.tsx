@@ -142,8 +142,6 @@ function HizbLectureTab({
   currentUserId: string
 }) {
   const queryClient = useQueryClient()
-  const [showAdd, setShowAdd] = useState(false)
-  const [count, setCount] = useState(1)
 
   // Mois affiché pour l'activité du groupe (YYYY-MM)
   const [activityMonth, setActivityMonth] = useState(() => {
@@ -181,15 +179,13 @@ function HizbLectureTab({
   const sorted = [...leaderboard].sort((a, b) => (b.hizbsRead ?? 0) - (a.hizbsRead ?? 0))
 
   const addHizb = useMutation({
-    mutationFn: (n: number) =>
+    mutationFn: (delta: number) =>
       apiFetch<{ hizbsRead: number }>('/api/users/me/hizb', {
         method: 'POST',
-        body: JSON.stringify({ count: n }),
+        body: JSON.stringify({ count: delta }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', groupId, 'leaderboard'] })
-      setShowAdd(false)
-      setCount(1)
     },
   })
 

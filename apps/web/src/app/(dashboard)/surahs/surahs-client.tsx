@@ -2,8 +2,7 @@
 /**
  * @file SurahsClient — Mes 114 sourates avec CRUD inline
  */
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from '@/lib/auth-client'
 import { apiFetch } from '@/lib/api'
@@ -57,16 +56,6 @@ const JUZ_NAMES_AR: Record<number, string> = {
   27: 'السَّابع والعِشْرُون', 28: 'الثَّامن والعِشْرُون', 29: 'التَّاسع والعِشْرُون', 30: 'الثَّلَاثُون',
 }
 
-interface MenuState {
-  surahId: number
-  versesCount: number
-  currentStatus: MemorizationStatus
-  verseFrom: number | null
-  verseTo: number | null
-  pendingStatus: MemorizationStatus | null
-  /** Position fixe du dropdown pour échapper au overflow-hidden */
-  rect?: { top: number; right: number }
-}
 
 export function SurahsClient() {
   const { data: session } = useSession()
@@ -74,38 +63,16 @@ export function SurahsClient() {
   const queryClient = useQueryClient()
 
   const [search, setSearch] = useState('')
-  const [menu, setMenu] = useState<MenuState | null>(null)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [closedJuz, setClosedJuz] = useState<Set<number>>(new Set())
-  const menuRef = useRef<HTMLDivElement>(null)
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const [openJuz, setOpenJuz] = useState<Set<number>>(new Set())
 
   function toggleJuz(juz: number) {
-    setClosedJuz(prev => {
+    setOpenJuz(prev => {
       const next = new Set(prev)
       if (next.has(juz)) next.delete(juz)
       else next.add(juz)
       return next
     })
   }
-
-  // Close menu on outside click or Escape
-  useEffect(() => {
-    if (!menu) return
-    function handle(e: MouseEvent | KeyboardEvent) {
-      if (e instanceof KeyboardEvent && e.key === 'Escape') { setMenu(null); return }
-      if (e instanceof MouseEvent && menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenu(null)
-      }
-    }
-    document.addEventListener('mousedown', handle)
-    document.addEventListener('keydown', handle)
-    return () => {
-      document.removeEventListener('mousedown', handle)
-      document.removeEventListener('keydown', handle)
-    }
-  }, [menu])
 
   const { data: allSurahs = [], isLoading: l1 } = useQuery({
     queryKey: ['surahs'],
@@ -119,23 +86,18 @@ export function SurahsClient() {
   })
 
   const updateStatus = useMutation({
-    mutationFn: ({ surahId, status, verseFrom, verseTo }: {
+    mutationFn: ({ surahId, status }: {
       surahId: number; status: MemorizationStatus
-      verseFrom?: number | null; verseTo?: number | null
     }) =>
       apiFetch('/api/progress', {
         method: 'POST',
-        body: JSON.stringify({ surahId, status, verseFrom: verseFrom ?? null, verseTo: verseTo ?? null }),
+        body: JSON.stringify({ surahId, status, verseFrom: null, verseTo: null }),
       }),
-    onMutate: async ({ surahId, status, verseFrom, verseTo }) => {
+    onMutate: async ({ surahId, status }) => {
       await queryClient.cancelQueries({ queryKey: ['progress', user?.id] })
       const prev = queryClient.getQueryData<ProgressEntry[]>(['progress', user?.id])
       queryClient.setQueryData<ProgressEntry[]>(['progress', user?.id], (old = []) => {
-        const patch = {
-          status,
-          verseFrom: verseFrom ?? null,
-          verseTo: verseTo ?? null,
-        }
+        const patch = { status, verseFrom: null, verseTo: null }
         const idx = old.findIndex(p => p.surahId === surahId)
         if (idx >= 0) return old.map(p => p.surahId === surahId ? { ...p, ...patch } : p)
         return [...old, { surahId, ...patch }]
@@ -143,15 +105,10 @@ export function SurahsClient() {
       return { prev }
     },
     onSuccess: () => {
-      setSaveError(null)
-      setMenu(null)
+      queryClient.invalidateQueries({ queryKey: ['progress'] })
     },
     onError: (e: Error, _v, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(['progress', user?.id], ctx.prev)
-      setSaveError(e.message || 'Erreur lors de la sauvegarde')
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['progress'] })
     },
   })
 
@@ -184,7 +141,7 @@ export function SurahsClient() {
   const juzGroups = useMemo(() => {
     const map = new Map<number, typeof filtered>()
     filtered.forEach(s => { map.set(s.juzNumber, [...(map.get(s.juzNumber) ?? []), s]) })
-    return [...map.entries()].sort(([a], [b]) => b - a).map(([juz, list]) => {
+    return [...map.entries()].sort(([a], [b]) => a - b).map(([juz, list]) => {
       const totalVerses = list.reduce((sum, s) => sum + s.versesCount, 0)
       const doneVerses = list
         .filter(s => s.status === 'memorized' || s.status === 'consolidated')
@@ -193,29 +150,11 @@ export function SurahsClient() {
     })
   }, [filtered])
 
-  function openMenu(s: typeof enriched[0], btnEl: HTMLButtonElement) {
-    const r = btnEl.getBoundingClientRect()
-    setMenu({
-      surahId: s.id,
-      versesCount: s.versesCount,
-      currentStatus: s.status,
-      verseFrom: s.verseFrom,
-      verseTo: s.verseTo,
-      pendingStatus: null,
-      rect: { top: r.bottom + 6, right: window.innerWidth - r.right },
-    })
-  }
-
-  function confirmSave() {
-    if (!menu) return
-    setSaveError(null)
-    const status = menu.pendingStatus ?? menu.currentStatus
-    updateStatus.mutate({
-      surahId: menu.surahId,
-      status,
-      verseFrom: menu.verseFrom,
-      verseTo: menu.verseTo,
-    })
+  function cycleStatus(surah: typeof enriched[0]) {
+    const CYCLE: MemorizationStatus[] = ['not_started', 'in_progress', 'memorized']
+    const idx = CYCLE.indexOf(surah.status)
+    const next = CYCLE[(idx + 1) % CYCLE.length]!
+    updateStatus.mutate({ surahId: surah.id, status: next })
   }
 
   if (l1 || l2) return <Skeleton />
@@ -270,7 +209,7 @@ export function SurahsClient() {
                 className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <svg className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${closedJuz.has(juz) ? '-rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${!openJuz.has(juz) ? '-rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                   </svg>
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Juz {juz}</span>
@@ -288,7 +227,7 @@ export function SurahsClient() {
               </button>
 
               {/* Rows — masqués si Juz replié */}
-              {!closedJuz.has(juz) && <div className="divide-y divide-border/40">
+              {openJuz.has(juz) && <div className="divide-y divide-border/40">
                 {list.map(surah => (
                   <div key={surah.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-muted/20 transition-colors">
                     <span className="w-6 sm:w-7 text-center text-xs font-bold text-muted-foreground flex-shrink-0 tabular-nums">{surah.number}</span>
@@ -308,24 +247,23 @@ export function SurahsClient() {
 
                     <span className="arabic-text text-sm font-bold flex-shrink-0 text-right opacity-80">{surah.nameAr}</span>
 
-                    {/* Status button */}
+                    {/* Status button — Cycle au tap */}
                     <div className="flex-shrink-0">
                       <button
-                        onClick={(e) => menu?.surahId === surah.id
-                          ? setMenu(null)
-                          : openMenu(surah, e.currentTarget as HTMLButtonElement)
-                        }
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+                        onClick={() => cycleStatus(surah)}
+                        disabled={updateStatus.isPending && updateStatus.variables?.surahId === surah.id}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-60 ${
                           surah.dueReview
                             ? 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800'
                             : STATUS[surah.status].pill
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${surah.dueReview ? 'bg-orange-400' : STATUS[surah.status].dot}`} />
+                        {updateStatus.isPending && updateStatus.variables?.surahId === surah.id ? (
+                          <span className="w-3 h-3 border-2 border-current/20 border-t-current rounded-full animate-spin" />
+                        ) : (
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${surah.dueReview ? 'bg-orange-400' : STATUS[surah.status].dot}`} />
+                        )}
                         <span className="hidden sm:inline">{surah.dueReview ? 'À réviser' : STATUS[surah.status].label}</span>
-                        <svg className={`w-3 h-3 opacity-40 transition-transform ${menu?.surahId === surah.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                        </svg>
                       </button>
                     </div>
                   </div>
@@ -334,101 +272,6 @@ export function SurahsClient() {
             </div>
           ))}
         </div>
-      )}
-
-      {/* ── Dropdown portal — échappe au overflow-hidden des cartes ── */}
-      {mounted && menu && menu.rect && createPortal(
-        <>
-          {/* Backdrop transparent pour fermer au clic extérieur */}
-          <div className="fixed inset-0 z-[199]" onClick={() => { setMenu(null); setSaveError(null) }} />
-
-          <div
-            ref={menuRef}
-            className="fixed z-[200] bg-card border shadow-2xl rounded-2xl w-56 p-1.5 overflow-y-auto overscroll-contain"
-            style={{ top: menu.rect.top, right: menu.rect.right, maxHeight: `calc(100dvh - ${menu.rect.top + 8}px)` }}
-          >
-            {/* Nom de la sourate */}
-            {(() => {
-              const s = enriched.find(e => e.id === menu.surahId)
-              return s ? (
-                <div className="px-3 py-2 mb-1 border-b">
-                  <p className="text-xs font-bold truncate">{s.nameFr}</p>
-                  <p className="text-[10px] text-muted-foreground">{s.versesCount} versets</p>
-                </div>
-              ) : null
-            })()}
-
-            {/* Options de statut — Non commencé / En cours / Mémorisé */}
-            {(['not_started', 'in_progress', 'memorized'] as MemorizationStatus[]).map(s => (
-              <button key={s}
-                onClick={() => setMenu(m => m ? { ...m, pendingStatus: s, markForReview: false } : null)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                  (menu.pendingStatus ?? menu.currentStatus) === s
-                    ? `${STATUS[s].pill} font-semibold`
-                    : `text-foreground ${STATUS[s].bg}`
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS[s].dot}`} />
-                {STATUS[s].label}
-                {(menu.pendingStatus ?? menu.currentStatus) === s && (
-                  <svg className="w-3.5 h-3.5 ml-auto text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </button>
-            ))}
-
-            {/* Plage de versets si "En cours" */}
-            {(menu.pendingStatus ?? menu.currentStatus) === 'in_progress' && (
-              <div className="px-2 pb-1 mt-1 pt-2 border-t">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Où en es-tu ?</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <label className="text-[10px] text-muted-foreground">De</label>
-                    <input type="number" min={1} max={menu.versesCount}
-                      value={menu.verseFrom ?? ''}
-                      onChange={e => setMenu(m => m ? { ...m, verseFrom: e.target.value ? Number(e.target.value) : null } : null)}
-                      placeholder="1"
-                      className="w-full mt-0.5 px-2 py-1.5 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <span className="text-muted-foreground text-xs mt-4">→</span>
-                  <div className="flex-1">
-                    <label className="text-[10px] text-muted-foreground">À</label>
-                    <input type="number" min={1} max={menu.versesCount}
-                      value={menu.verseTo ?? ''}
-                      onChange={e => setMenu(m => m ? { ...m, verseTo: e.target.value ? Number(e.target.value) : null } : null)}
-                      placeholder={String(menu.versesCount)}
-                      className="w-full mt-0.5 px-2 py-1.5 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Erreur */}
-            {saveError && (
-              <div className="px-2 pb-1 mt-1">
-                <p className="text-[10px] text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 px-2 py-1.5 rounded-lg">{saveError}</p>
-              </div>
-            )}
-
-            {/* Bouton Enregistrer */}
-            <div className="px-1 pb-1 mt-2 pt-2 border-t">
-              <button
-                onClick={confirmSave}
-                disabled={updateStatus.isPending}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {updateStatus.isPending
-                  ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enregistrement…</>
-                  : '✓ Enregistrer'
-                }
-              </button>
-            </div>
-          </div>
-        </>,
-        document.body
       )}
     </div>
   )
