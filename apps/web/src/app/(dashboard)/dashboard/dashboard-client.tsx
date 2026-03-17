@@ -5,7 +5,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Share2, Check, Copy, BookOpen, Star, Target, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Share2, Check, Copy, BookOpen, Star, Target, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store'
 import { apiFetch } from '@/lib/api'
@@ -218,14 +218,26 @@ function HizbLectureTab({
             : `${Math.round((myHizbs / 60) * 100)}% du Coran lu`}
         </p>
 
-        {/* CTA Ajouter */}
-        <button
-          onClick={() => setShowAdd(true)}
-          className="mt-4 flex items-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold px-6 py-3 rounded-2xl text-sm shadow-md shadow-amber-200 dark:shadow-amber-900/30 transition-all"
-        >
-          <Plus className="h-4 w-4" />
-          Enregistrer mes hizbs
-        </button>
+        {/* ── Compteur inline +/- ── */}
+        <div className="mt-4 flex items-center gap-4 justify-center">
+          <button
+            onClick={() => addHizb.mutate(-1)}
+            disabled={addHizb.isPending || myHizbs <= 0}
+            className="w-12 h-12 rounded-2xl border-2 border-stone-200 dark:border-stone-700 text-2xl font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 active:scale-95 transition-all disabled:opacity-30"
+          >−</button>
+          <div className="text-center min-w-[80px]">
+            <span className="text-2xl font-extrabold text-stone-800 dark:text-stone-100 tabular-nums">{myHizbs}</span>
+            <p className="text-xs text-stone-400 mt-0.5">hizbs lus</p>
+          </div>
+          <button
+            onClick={() => addHizb.mutate(1)}
+            disabled={addHizb.isPending || myHizbs >= 60}
+            className="w-12 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-2xl font-bold shadow-md shadow-amber-200 dark:shadow-amber-900/30 transition-all disabled:opacity-30"
+          >+</button>
+        </div>
+        {addHizb.isError && (
+          <p className="text-xs text-red-500 text-center mt-2">Erreur lors de l'enregistrement</p>
+        )}
       </div>
 
       {/* ── Classement hizbs du groupe ── */}
@@ -302,66 +314,6 @@ function HizbLectureTab({
         </div>
         <MemberActivityCards groupId={groupId} month={activityMonth} />
       </div>
-
-      {/* ── Modal ajout hizbs ── */}
-      <AnimatePresence>
-        {showAdd && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) setShowAdd(false) }}
-          >
-            <motion.div
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 40, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-background rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-6"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold">📖 Hizbs lus aujourd&apos;hui</h2>
-                <button onClick={() => setShowAdd(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80 transition-colors text-sm">✕</button>
-              </div>
-
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground text-center">Combien de hizbs avez-vous lu ?</p>
-                <div className="flex items-center gap-4 justify-center">
-                  <button
-                    onClick={() => setCount(Math.max(1, count - 1))}
-                    className="w-12 h-12 rounded-2xl border-2 text-xl font-bold hover:bg-muted transition-colors active:scale-95"
-                  >−</button>
-                  <span className="text-4xl font-extrabold w-16 text-center tabular-nums">{count}</span>
-                  <button
-                    onClick={() => setCount(Math.min(60, count + 1))}
-                    className="w-12 h-12 rounded-2xl border-2 text-xl font-bold hover:bg-muted transition-colors active:scale-95"
-                  >+</button>
-                </div>
-                <p className="text-xs text-muted-foreground text-center">1 hizb = ½ juz = 1/60 du Coran</p>
-              </div>
-
-              {addHizb.isError && (
-                <p className="text-xs text-red-500 text-center">Erreur lors de l&apos;enregistrement</p>
-              )}
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowAdd(false)}
-                  className="flex-1 py-3 rounded-2xl border text-sm font-semibold hover:bg-muted transition-colors"
-                >Annuler</button>
-                <button
-                  onClick={() => addHizb.mutate(count)}
-                  disabled={addHizb.isPending}
-                  className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-sm font-semibold transition-colors disabled:opacity-50 shadow-md shadow-amber-200 dark:shadow-none"
-                >
-                  {addHizb.isPending ? 'Enregistrement…' : `Valider (${count} hizb${count > 1 ? 's' : ''})`}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
