@@ -75,3 +75,27 @@ export type MemorizationProgress = typeof memorizationProgress.$inferSelect
 export type NewMemorizationProgress = typeof memorizationProgress.$inferInsert
 export type RevisionSession = typeof revisionSessions.$inferSelect
 export type NewRevisionSession = typeof revisionSessions.$inferInsert
+
+/** Table de log journalier des hizbs lus — un enregistrement par utilisateur par jour */
+export const hizbDailyLog = pgTable(
+  'hizb_daily_log',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Date au format YYYY-MM-DD */
+    date: text('date').notNull(),
+    count: integer('count').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userDateUnique: unique().on(table.userId, table.date),
+    userIdx: index('hizb_daily_user_idx').on(table.userId),
+    dateIdx: index('hizb_daily_date_idx').on(table.date),
+  })
+)
+
+export type HizbDailyLog = typeof hizbDailyLog.$inferSelect
+export type NewHizbDailyLog = typeof hizbDailyLog.$inferInsert

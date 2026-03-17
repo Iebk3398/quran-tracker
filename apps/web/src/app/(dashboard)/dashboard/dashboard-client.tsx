@@ -11,6 +11,7 @@ import { useAppStore } from '@/store'
 import { apiFetch } from '@/lib/api'
 import { Leaderboard } from '@/components/group/leaderboard'
 import { GroupGoal } from '@/components/group/group-goal'
+import { MemberActivityCards } from '@/components/group/member-activity-cards'
 import { useGroupRealtime } from '@/hooks/use-group-realtime'
 import { cn } from '@/lib/utils'
 import type { LeaderboardEntry } from '@quran-tracker/types'
@@ -158,6 +159,7 @@ function HizbLectureTab({
       }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['group', groupId, 'leaderboard'] })
+      queryClient.invalidateQueries({ queryKey: ['group-activity', groupId] })
       setShowAdd(false)
       setCount(1)
       setXpToast(variables * 5)
@@ -261,6 +263,14 @@ function HizbLectureTab({
           </div>
         </div>
       )}
+
+      {/* ── Activité journalière du groupe ── */}
+      <div className="rounded-2xl border bg-card p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+          Activité — 7 derniers jours
+        </h3>
+        <MemberActivityCards groupId={groupId} days={7} />
+      </div>
 
       {/* ── Modal ajout hizbs ── */}
       <AnimatePresence>

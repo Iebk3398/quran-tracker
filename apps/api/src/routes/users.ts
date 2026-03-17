@@ -4,8 +4,9 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { db, users, groupMembers, memorizationProgress } from '../../../../packages/db/src/index.ts'
+import { db, users, groupMembers, memorizationProgress, hizbDailyLog } from '../../../../packages/db/src/index.ts'
 import { eq, sql, and, or } from 'drizzle-orm'
+import { nanoid } from 'nanoid'
 import { requireAuth } from '../middleware/auth.ts'
 import { createFeedEvent } from './feed.ts'
 import { getLevelIndex, LEVELS } from '../lib/levels.ts'
@@ -70,6 +71,15 @@ userRoutes.post(
 
     const newHizbsRead = updated[0]?.hizbsRead ?? 0
     const xpAfter      = xpBefore + xpGain
+
+    // Log journalier — upsert (userId, date) avec addition du count
+    const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+    await db.execute(sql`
+      INSERT INTO hizb_daily_log (id, user_id, date, count, created_at, updated_at)
+      VALUES (${nanoid()}, ${user.id}, ${today}, ${count}, NOW(), NOW())
+      ON CONFLICT (user_id, date)
+      DO UPDATE SET count = hizb_daily_log.count + ${count}, updated_at = NOW()
+    `)
 
     // Fire-and-forget : feed event hizb_read + level_up éventuel
     handlePostHizbEvents(user.id, count, newHizbsRead, xpBefore, xpAfter).catch(() => {})

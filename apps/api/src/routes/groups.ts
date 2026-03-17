@@ -5,8 +5,8 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
-import { db, groups, groupMembers, users, memorizationProgress, groupGoals, userBadges, badges } from '../../../../packages/db/src/index.ts'
-import { eq, and, desc, sql, isNull, inArray } from 'drizzle-orm'
+import { db, groups, groupMembers, users, memorizationProgress, groupGoals, userBadges, badges, hizbDailyLog } from '../../../../packages/db/src/index.ts'
+import { eq, and, desc, sql, isNull, inArray, gte } from 'drizzle-orm'
 import { requireAuth, requireSheikh } from '../middleware/auth.ts'
 
 export const groupRoutes = new Hono()
@@ -316,4 +316,89 @@ groupRoutes.delete('/:id/goals/:goalId', requireSheikh, async (c) => {
     .where(and(eq(groupGoals.id, goalId), eq(groupGoals.groupId, groupId)))
 
   return c.json({ success: true, data: { deleted: true } })
+})
+
+
+/**
+ * GET /api/groups/:id/activity?days=7
+ * Retourne l'activité journalière en hizbs lus pour chaque membre du groupe,
+ * sur les N derniers jours (défaut : 7).
+ */
+groupRoutes.get('/:id/activity', requireAuth, async (c) => {
+  const groupId = c.req.param('id')
+  const days = Math.min(parseInt(c.req.query('days') ?? '7'), 30)
+
+  // Date de début (il y a N jours, format YYYY-MM-DD)
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - (days - 1))
+  const startDateStr = startDate.toISOString().slice(0, 10)
+
+  // Membres du groupe avec infos de base
+  const members = await db
+    .select({
+      userId: users.id,
+      name: users.name,
+      avatar: users.avatar,
+      hizbsRead: users.hizbsRead,
+      currentStreak: users.currentStreak,
+    })
+    .from(groupMembers)
+    .innerJoin(users, eq(groupMembers.userId, users.id))
+    .where(eq(groupMembers.groupId, groupId))
+
+  if (members.length === 0) return c.json({ success: true, data: [] })
+
+  const memberIds = members.map((m) => m.userId)
+
+  // Logs journaliers sur la période demandée
+  const logs = await db
+    .select({
+      userId: hizbDailyLog.userId,
+      date: hizbDailyLog.date,
+      count: hizbDailyLog.count,
+    })
+    .from(hizbDailyLog)
+    .where(and(
+      inArray(hizbDailyLog.userId, memberIds),
+      gte(hizbDailyLog.date, startDateStr),
+    ))
+
+  // Générer la liste des N jours (YYYY-MM-DD)
+  const dateRange: string[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    dateRange.push(d.toISOString().slice(0, 10))
+  }
+
+  // Mapper logs par userId → date → count
+  const logMap = new Map<string, Map<string, number>>()
+  for (const log of logs) {
+    if (!logMap.has(log.userId)) logMap.set(log.userId, new Map())
+    logMap.get(log.userId)!.set(log.date, log.count)
+  }
+
+  // Construire la réponse
+  const data = members.map((m) => {
+    const userLogs = logMap.get(m.userId) ?? new Map()
+    const activity = dateRange.map((date) => ({
+      date,
+      count: userLogs.get(date) ?? 0,
+    }))
+    const totalThisPeriod = activity.reduce((sum, a) => sum + a.count, 0)
+    return {
+      userId: m.userId,
+      name: m.name,
+      avatar: m.avatar,
+      hizbsRead: m.hizbsRead,
+      currentStreak: Number(m.currentStreak),
+      activity,
+      totalThisPeriod,
+    }
+  })
+
+  // Trier par total de la période (les plus actifs en premier)
+  data.sort((a, b) => b.totalThisPeriod - a.totalThisPeriod)
+
+  return c.json({ success: true, data })
 })
