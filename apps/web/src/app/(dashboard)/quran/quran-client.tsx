@@ -114,7 +114,7 @@ function SurahRow({ surah, onClick }: { surah: Surah; onClick: () => void }) {
       {/* Nom arabe */}
       <span
         className="shrink-0 text-xl text-stone-800 dark:text-stone-200"
-        style={{ fontFamily: "'Amiri Quran', 'Noto Naskh Arabic', serif", lineHeight: 1.8 }}
+        style={{ fontFamily: "'Scheherazade New', 'Noto Naskh Arabic', serif", lineHeight: 1.8 }}
       >
         {surah.nameAr}
       </span>
@@ -228,7 +228,7 @@ function ReadingView({
         <div className="flex-1 text-center px-2">
           <p
             className="font-semibold text-stone-800 text-base leading-none"
-            style={{ fontFamily: "'Amiri Quran', 'Noto Naskh Arabic', serif" }}
+            style={{ fontFamily: "'Scheherazade New', 'Noto Naskh Arabic', serif" }}
           >
             {currentSurah?.nameAr ?? ''}
           </p>
@@ -305,7 +305,7 @@ function ReadingView({
                 >
                   <span
                     className="text-white text-xl font-bold"
-                    style={{ fontFamily: "'Amiri Quran', serif", letterSpacing: '0.02em' }}
+                    style={{ fontFamily: "'Scheherazade New', serif", letterSpacing: '0.02em' }}
                   >
                     سُورَةُ {group.surah?.nameAr ?? ''}
                   </span>
@@ -322,7 +322,7 @@ function ReadingView({
                     <p
                       className="text-center text-stone-700"
                       style={{
-                        fontFamily: "'Amiri Quran', serif",
+                        fontFamily: "'Scheherazade New', serif",
                         fontSize: fontSize + 2,
                         lineHeight: 2.2,
                         direction: 'rtl',
@@ -336,32 +336,30 @@ function ReadingView({
               </div>
             )}
 
-            {/* Versets */}
-            {group.verses.map((v) => (
-              <div
-                key={v.verse_key}
-                className="mb-1 pb-3"
-                style={{ borderBottom: '1px solid rgba(200,168,75,0.12)' }}
-              >
-                <div
-                  className="tajweed-text text-right quran-reading-text"
-                  dir="rtl"
-                  style={{
-                    fontFamily: "'Amiri Quran', serif",
-                    fontSize,
-                    lineHeight: 2.2,
-                    color: '#2c2415',
-                    wordSpacing: '0.12em',
-                    letterSpacing: '0.01em',
-                  }}
-                  /*
-                   * Le texte tajweed de quran.com inclut déjà le marqueur de fin de verset.
-                   * Aucun numéro supplémentaire n'est ajouté.
-                   */
-                  dangerouslySetInnerHTML={{ __html: v.text_uthmani_tajweed }}
+            {/* Versets — texte continu fluide, tous joints dans un même bloc */}
+            <div
+              className="tajweed-text text-right mb-6"
+              dir="rtl"
+              style={{
+                fontFamily: "'Scheherazade New', 'Noto Naskh Arabic', serif",
+                fontSize,
+                lineHeight: 2.6,
+                color: '#1c1610',
+                wordSpacing: '0.06em',
+              }}
+            >
+              {group.verses.map((v) => (
+                /*
+                 * Chaque verset est rendu inline — le texte tajweed de quran.com
+                 * inclut déjà le marqueur de fin de verset (◯ + numéro arabe).
+                 * Aucun numéro séparé n'est ajouté.
+                 */
+                <span
+                  key={v.verse_key}
+                  dangerouslySetInnerHTML={{ __html: v.text_uthmani_tajweed + ' ' }}
                 />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ))}
 
@@ -374,18 +372,18 @@ function ReadingView({
         className="shrink-0 flex items-center justify-between px-4 py-2.5"
         style={{ background: '#f8f5ee', borderTop: '1px solid #e8e1d5' }}
       >
-        {/* Prev */}
+        {/* Prev — visible uniquement sur desktop */}
         <button
           onClick={() => goTo(page - 1)}
           disabled={page === 1}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-stone-500 hover:bg-stone-200/70 disabled:opacity-25 transition-colors"
+          className="invisible md:visible w-9 h-9 rounded-full flex items-center justify-center text-stone-500 hover:bg-stone-200/70 disabled:opacity-25 transition-colors"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
 
-        {/* J · H · P */}
+        {/* J · H · P — centré sur mobile */}
         <div className="flex items-center gap-1.5 text-[13px] font-semibold">
-          <span className="text-emerald-600 dark:text-emerald-400">J</span>
+          <span className="text-emerald-600">J</span>
           <span className="text-stone-800 tabular-nums">{juz}</span>
           <span className="text-stone-300 mx-1">·</span>
           <span className="text-amber-600">H</span>
@@ -395,11 +393,11 @@ function ReadingView({
           <span className="text-stone-800 tabular-nums">{page}</span>
         </div>
 
-        {/* Next */}
+        {/* Next — visible uniquement sur desktop */}
         <button
           onClick={() => goTo(page + 1)}
           disabled={page === QURAN_TOTAL_PAGES}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-stone-500 hover:bg-stone-200/70 disabled:opacity-25 transition-colors"
+          className="invisible md:visible w-9 h-9 rounded-full flex items-center justify-center text-stone-500 hover:bg-stone-200/70 disabled:opacity-25 transition-colors"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
@@ -469,27 +467,18 @@ export function QuranClient() {
 
   return (
     <>
-      {/* Vue lecture full-screen */}
-      <AnimatePresence>
-        {readingPage !== null && (
-          <motion.div
-            key="reading"
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'tween', duration: 0.22, ease: 'easeInOut' }}
-            className="fixed inset-0 z-50"
-          >
-            <ReadingView
-              initialPage={readingPage}
-              surahs={surahs}
-              onClose={() => setReadingPage(null)}
-              onMarkRead={handleMarkRead}
-              readPages={readPages}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Vue lecture full-screen — sans transition (instantané) */}
+      {readingPage !== null && (
+        <div className="fixed inset-0 z-50">
+          <ReadingView
+            initialPage={readingPage}
+            surahs={surahs}
+            onClose={() => setReadingPage(null)}
+            onMarkRead={handleMarkRead}
+            readPages={readPages}
+          />
+        </div>
+      )}
 
       {/* Liste des sourates */}
       <div className="pb-6">
@@ -497,7 +486,7 @@ export function QuranClient() {
         <div className="text-center pt-2 pb-5">
           <h1
             className="text-3xl font-bold text-stone-900 dark:text-stone-100"
-            style={{ fontFamily: "'Amiri Quran', 'Noto Naskh Arabic', serif", lineHeight: 1.8 }}
+            style={{ fontFamily: "'Scheherazade New', 'Noto Naskh Arabic', serif", lineHeight: 1.8 }}
           >
             القرآن الكريم
           </h1>
