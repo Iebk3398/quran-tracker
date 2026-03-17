@@ -1,11 +1,24 @@
 @import 'tailwindcss';
 @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
 
+/**
+ * Police Uthmanic Script Hafs — édition King Fahd (KFGQPC)
+ * Source : qurancdn.com CDN (utilisé par quran.com)
+ * Fallback : Scheherazade New (SIL)
+ */
+@font-face {
+  font-family: 'UthmanicHafs';
+  src: url('https://static.qurancdn.com/fonts/UthmanicHafs1Ver18.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-emerald-brand: #059669;
   --color-gold-brand: #d97706;
   --font-arabic: 'Noto Naskh Arabic', serif;
-  --font-quran: 'Scheherazade New', 'Noto Naskh Arabic', serif;
+  --font-quran: 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Scheherazade New', 'Noto Naskh Arabic', serif;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
@@ -122,6 +135,18 @@
     display: none;
   }
 }
+
+/* ── Animation changement de page Coran ─────────────────────────────────── */
+@keyframes quran-page-forward {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes quran-page-back {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.quran-page-forward { animation: quran-page-forward 0.22s ease-out both; }
+.quran-page-back    { animation: quran-page-back    0.22s ease-out both; }
 
 /* ── Couleurs Tajweed — hors @layer pour priorité maximale ───────────────────
    Source : api.quran.com/api/v4 — champ text_uthmani_tajweed
