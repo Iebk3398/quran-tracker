@@ -136,14 +136,42 @@ const TAJWEED_COLORS: Record<string, string> = {
 }
 
 /**
+ * Convertit un nombre en chiffres arabes orientaux (٠١٢٣٤٥٦٧٨٩)
+ */
+function toAr(n: number): string {
+  return n.toString().replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)] ?? d)
+}
+
+/**
+ * Supprime le marqueur de fin de verset (chiffres arabes finaux) du HTML de l'API.
+ * L'API quran.com inclut le numéro de verset dans text_uthmani_tajweed.
+ * On le supprime pour le remplacer par notre propre badge stylisé.
+ */
+function stripVerseEndMarker(html: string): string {
+  // Supprime le dernier span contenant uniquement des chiffres arabes (fin de verset)
+  return html
+    .replace(/<span[^>]*>[\u0660-\u0669\u06F0-\u06F9]+<\/span>\s*$/, '')
+    .replace(/[\u0660-\u0669\u06F0-\u06F9]+\s*$/, '')
+    .trim()
+}
+
+/**
  * Injecte les couleurs tajweed en style inline dans le HTML brut de l'API.
- * Plus fiable que les sélecteurs CSS attribut (parfois écrasés par Tailwind).
+ * L'API quran.com utilise des guillemets SIMPLES → rule='qalqalah'
+ * On gère les deux (simple ET double) pour robustesse.
  */
 function applyTajweedColors(html: string): string {
-  return html.replace(/rule="([^"]+)"/g, (match, rule: string) => {
+  // Guillemets simples : rule='xxx'
+  let result = html.replace(/rule='([^']+)'/g, (match, rule: string) => {
     const color = TAJWEED_COLORS[rule]
     return color ? `${match} style="color:${color}"` : match
   })
+  // Guillemets doubles : rule="xxx" (fallback)
+  result = result.replace(/rule="([^"]+)"/g, (match, rule: string) => {
+    const color = TAJWEED_COLORS[rule]
+    return color ? `${match} style="color:${color}"` : match
+  })
+  return result
 }
 
 // ─── SurahRow ─────────────────────────────────────────────────────────────────
@@ -422,35 +450,67 @@ function ReadingView({
               </div>
             )}
 
-            {/* ── Versets — texte continu avec tap pour marque-page ── */}
+            {/* ── Versets — texte continu avec numéros en cercles dorés ── */}
             <div
               className="tajweed-text text-right mb-6"
               dir="rtl"
               style={{
                 fontFamily: QURAN_FONT,
                 fontSize,
-                lineHeight: 3.2,
+                lineHeight: 3.8,        // espace suffisant pour tous les diacritiques
                 color: '#1c1610',
-                wordSpacing: '0.04em',
               }}
             >
               {group.verses.map((v) => {
                 const isVBk = verseBookmark?.verseKey === v.verse_key
+                /* Badge numéro de verset — cercle doré style mushaf */
+                const verseBadge = (
+                  <span
+                    aria-label={`Verset ${v.verse_number}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '1.55em',
+                      height: '1.55em',
+                      borderRadius: '50%',
+                      border: '1.5px solid #b8942a',
+                      color: '#7a5c1e',
+                      fontSize: '0.52em',
+                      margin: '0 5px',
+                      verticalAlign: 'middle',
+                      backgroundColor: 'rgba(200,168,75,0.12)',
+                      flexShrink: 0,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {toAr(v.verse_number)}
+                  </span>
+                )
                 return (
                   <span
                     key={v.verse_key}
                     id={`verse-${v.verse_key}`}
                     onClick={() => handleVerseBookmark(v, group.surah)}
                     style={isVBk ? {
-                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                      backgroundColor: 'rgba(16,185,129,0.12)',
                       borderRadius: '6px',
-                      padding: '2px 4px',
+                      padding: '1px 4px',
                       cursor: 'pointer',
-                      outline: '1.5px solid rgba(16,185,129,0.4)',
+                      outline: '1.5px solid rgba(16,185,129,0.35)',
                       outlineOffset: '2px',
                     } : { cursor: 'pointer' }}
-                    dangerouslySetInnerHTML={{ __html: applyTajweedColors(v.text_uthmani_tajweed) + ' ' }}
-                  />
+                  >
+                    {/* Texte tajweed sans le marqueur de fin intégré par l'API */}
+                    <span
+                      dangerouslySetInnerHTML={{
+                        __html: applyTajweedColors(stripVerseEndMarker(v.text_uthmani_tajweed))
+                      }}
+                    />
+                    {/* Notre propre badge numéro verset */}
+                    {verseBadge}
+                    {' '}
+                  </span>
                 )
               })}
             </div>
