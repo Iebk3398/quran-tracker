@@ -5,11 +5,12 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Share2, Check, Copy, BookOpen, Star, Target, Plus } from 'lucide-react'
+import { Share2, Check, Copy, BookOpen, Star, Target, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store'
 import { apiFetch } from '@/lib/api'
 import { Leaderboard } from '@/components/group/leaderboard'
+import { MemberActivityCards } from '@/components/group/member-activity-cards'
 import { GroupGoal } from '@/components/group/group-goal'
 import { useGroupRealtime } from '@/hooks/use-group-realtime'
 import { cn } from '@/lib/utils'
@@ -126,6 +127,13 @@ interface HizbEntry {
   xp: string
 }
 
+/** Formate YYYY-MM en "MOIS YYYY" (ex: "MARS 2026") */
+function formatMonthLabel(yyyyMm: string): string {
+  const [year, month] = yyyyMm.split('-')
+  const date = new Date(Number(year), Number(month) - 1, 1)
+  return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }).toUpperCase()
+}
+
 function HizbLectureTab({
   groupId,
   currentUserId,
@@ -136,6 +144,29 @@ function HizbLectureTab({
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [count, setCount] = useState(1)
+
+  // Mois affiché pour l'activité du groupe (YYYY-MM)
+  const [activityMonth, setActivityMonth] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+
+  function prevMonth() {
+    const [y, m] = activityMonth.split('-').map(Number) as [number, number]
+    const d = new Date(y, m - 2, 1) // -2 car m est 1-based
+    setActivityMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+
+  function nextMonth() {
+    const [y, m] = activityMonth.split('-').map(Number) as [number, number]
+    const d = new Date(y, m, 1) // m = prochain mois (0-based ok)
+    setActivityMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+
+  const isCurrentMonth = activityMonth === (() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })()
 
   const { data: leaderboard = [] } = useQuery<HizbEntry[]>({
     queryKey: ['group', groupId, 'leaderboard'],
@@ -244,6 +275,37 @@ function HizbLectureTab({
           </div>
         </div>
       )}
+
+      {/* ── Activité mensuelle du groupe ── */}
+      <div className="rounded-2xl border bg-card p-4 space-y-3">
+        {/* Navigateur de mois */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+            Activité du groupe
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={prevMonth}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-stone-500"
+              aria-label="Mois précédent"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-[11px] font-semibold text-stone-600 dark:text-stone-300 min-w-[90px] text-center tabular-nums">
+              {formatMonthLabel(activityMonth)}
+            </span>
+            <button
+              onClick={nextMonth}
+              disabled={isCurrentMonth}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-stone-500 disabled:opacity-30"
+              aria-label="Mois suivant"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <MemberActivityCards groupId={groupId} month={activityMonth} />
+      </div>
 
       {/* ── Modal ajout hizbs ── */}
       <AnimatePresence>
@@ -474,7 +536,9 @@ export function DashboardClient() {
     )
   }
 
-  const leaderboard = rawLeaderboard ? mapLeaderboard(rawLeaderboard) : []
+  const leaderboard = rawLeaderboard
+    ? mapLeaderboard(rawLeaderboard).sort((a, b) => b.surahsMemorized - a.surahsMemorized)
+    : []
 
   // ── Dashboard principal ──────────────────────────────────────────────────────
 

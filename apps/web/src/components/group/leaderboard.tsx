@@ -30,7 +30,7 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
     <div className="rounded-xl border bg-card p-3 sm:p-4">
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <h3 className="font-semibold text-sm sm:text-base">🏆 Classement</h3>
-        <span className="text-xs text-muted-foreground">Par hizbs lus</span>
+        <span className="text-xs text-muted-foreground">Par sourates mémorisées</span>
       </div>
 
       {entries.length === 0 ? (
@@ -74,11 +74,11 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
                   <p className="font-medium truncate text-xs sm:text-sm">{entry.name}</p>
                 </div>
 
-                {/* Hizbs lus + streak */}
+                {/* Sourates mémorisées + streak */}
                 <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                   <span className={`text-xs sm:text-sm font-bold tabular-nums ${isFirst ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {entry.hizbsRead ?? 0}
-                    <span className="font-normal text-muted-foreground text-[10px] ml-0.5">hz</span>
+                    {entry.surahsMemorized ?? 0}
+                    <span className="font-normal text-muted-foreground text-[10px] ml-0.5">s.</span>
                   </span>
                   {entry.currentStreak > 0 && (
                     <span className="text-[10px] text-orange-500 font-semibold">

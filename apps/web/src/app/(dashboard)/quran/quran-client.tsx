@@ -398,10 +398,18 @@ function ReadingView({
       </div>
 
       {/* ══ CONTENU ══════════════════════════════════════════════════════════════ */}
-      <div
-        key={animKey}
-        className={`flex-1 overflow-y-auto scrollbar-none px-5 py-3 ${pageDir === 'forward' ? 'quran-page-forward' : 'quran-page-back'}`}
-      >
+      {/* Wrapper relatif + overflow-hidden → permet à deux pages d'être visibles simultanément */}
+      <div className="flex-1 relative overflow-hidden">
+        <AnimatePresence mode="sync" initial={false} custom={pageDir}>
+        <motion.div
+          key={animKey}
+          custom={pageDir}
+          initial={(dir: string) => ({ x: dir === 'forward' ? '100%' : '-100%', opacity: 0.7 })}
+          animate={{ x: 0, opacity: 1 }}
+          exit={(dir: string) => ({ x: dir === 'forward' ? '-100%' : '100%', opacity: 0.7 })}
+          transition={{ duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
+          className="absolute inset-0 overflow-y-auto scrollbar-none px-5 py-3"
+        >
         {isLoading && (
           <div className="flex justify-center items-center h-52">
             <div className="w-7 h-7 rounded-full border-2 border-stone-300 border-t-amber-500 animate-spin" />
@@ -519,6 +527,8 @@ function ReadingView({
         ))}
 
         <div className="h-4" />
+        </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* ══ FOOTER ═══════════════════════════════════════════════════════════════ */}

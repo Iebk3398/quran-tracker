@@ -321,17 +321,41 @@ groupRoutes.delete('/:id/goals/:goalId', requireSheikh, async (c) => {
 
 /**
  * GET /api/groups/:id/activity?days=7
- * Retourne l'activité journalière en hizbs lus pour chaque membre du groupe,
- * sur les N derniers jours (défaut : 7).
+ * GET /api/groups/:id/activity?month=2026-03
+ * Retourne l'activité journalière en hizbs lus pour chaque membre du groupe.
+ * - days=N  : N derniers jours (défaut 7, max 31)
+ * - month=YYYY-MM : tous les jours du mois donné
  */
 groupRoutes.get('/:id/activity', requireAuth, async (c) => {
   const groupId = c.req.param('id')
-  const days = Math.min(parseInt(c.req.query('days') ?? '7'), 30)
+  const monthParam = c.req.query('month')   // "2026-03"
 
-  // Date de début (il y a N jours, format YYYY-MM-DD)
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - (days - 1))
-  const startDateStr = startDate.toISOString().slice(0, 10)
+  let startDateStr: string
+  let dateRange: string[]
+
+  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+    // Mode mois : du 1er au dernier jour du mois
+    const [year, month] = monthParam.split('-').map(Number) as [number, number]
+    const firstDay = new Date(year, month - 1, 1)
+    const lastDay  = new Date(year, month, 0)   // dernier jour
+    startDateStr   = firstDay.toISOString().slice(0, 10)
+    dateRange = []
+    for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
+      dateRange.push(d.toISOString().slice(0, 10))
+    }
+  } else {
+    // Mode jours (legacy)
+    const days = Math.min(parseInt(c.req.query('days') ?? '7'), 31)
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - (days - 1))
+    startDateStr = startDate.toISOString().slice(0, 10)
+    dateRange = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      dateRange.push(d.toISOString().slice(0, 10))
+    }
+  }
 
   // Membres du groupe avec infos de base
   const members = await db
@@ -362,14 +386,6 @@ groupRoutes.get('/:id/activity', requireAuth, async (c) => {
       inArray(hizbDailyLog.userId, memberIds),
       gte(hizbDailyLog.date, startDateStr),
     ))
-
-  // Générer la liste des N jours (YYYY-MM-DD)
-  const dateRange: string[] = []
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    dateRange.push(d.toISOString().slice(0, 10))
-  }
 
   // Mapper logs par userId → date → count
   const logMap = new Map<string, Map<string, number>>()

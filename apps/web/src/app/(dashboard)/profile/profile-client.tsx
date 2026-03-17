@@ -2,11 +2,10 @@
 /**
  * @file ProfileClient — Profil utilisateur (stats + heatmap + progression Juz)
  */
-import { Suspense, useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppStore } from '@/store'
 import { apiFetch } from '@/lib/api'
-import { HeatmapCalendar } from '@/components/quran/heatmap-calendar'
 import Link from 'next/link'
 import type { Surah, MemorizationStatus } from '@quran-tracker/types'
 
@@ -204,18 +203,6 @@ export function ProfileClient() {
   const totalVerses = allSurahs?.reduce((acc, s) => acc + (s.versesCount ?? 0), 0) ?? 6236
   const completionPct = allSurahs?.length ? Math.round((surahsMemorized / 114) * 100) : 0
 
-  // Group revisions by date (sum per day)
-  const heatmapData = (() => {
-    const map = new Map<string, number>()
-    progress
-      ?.filter(p => p.lastRevisedAt)
-      .forEach(p => {
-        const date = new Date(p.lastRevisedAt!).toISOString().split('T')[0]!
-        map.set(date, (map.get(date) ?? 0) + 1)
-      })
-    return Array.from(map.entries()).map(([date, count]) => ({ date, count, duration: 0 }))
-  })()
-
   if (profileLoading || progressLoading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -409,14 +396,6 @@ export function ProfileClient() {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Activité */}
-      <div className="rounded-2xl border bg-card p-4">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Mon activité</p>
-        <Suspense fallback={<div className="h-20 bg-muted animate-pulse rounded-lg" />}>
-          <HeatmapCalendar data={heatmapData} />
-        </Suspense>
       </div>
 
       {/* Progression Coran */}
