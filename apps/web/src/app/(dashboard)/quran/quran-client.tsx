@@ -310,6 +310,8 @@ function ReadingView({
   /**
    * Marque un verset comme signet de lecture.
    * Un deuxième tap sur le même verset supprime le signet.
+   * Quand le signet est posé, synchronise aussi l'avancement de lecture
+   * dans le dashboard (hizb lu → compteur + feed groupe).
    */
   function handleVerseBookmark(v: QuranVerse, surah?: Surah) {
     const isCurrentBookmark = verseBookmark?.verseKey === v.verse_key
@@ -319,7 +321,7 @@ function ReadingView({
     } else {
       const bk: VerseBookmark = {
         verseKey: v.verse_key,
-        page,
+        page: v.page_number ?? page,
         hizbNumber: v.hizb_number,
         juzNumber: v.juz_number,
         surahNameTranslit: surah?.nameTranslit ?? '',
@@ -327,7 +329,9 @@ function ReadingView({
         verseNumber: v.verse_number,
       }
       onSetVerseBookmark(bk)
-      showToast(`Marque-page : ${surah?.nameTranslit ?? ''} ${v.verse_key}`)
+      // Sync avancement dashboard : marque la page comme lue
+      onMarkRead(v.page_number ?? page, v.hizb_number)
+      showToast(`Marque-page · H${v.hizb_number} · ${surah?.nameTranslit ?? ''} ${v.verse_key}`)
     }
   }
 

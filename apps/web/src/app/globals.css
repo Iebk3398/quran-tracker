@@ -145,8 +145,8 @@
   0%   { opacity: 0; transform: perspective(1200px) rotateY(8deg)  translateX(12px); }
   100% { opacity: 1; transform: perspective(1200px) rotateY(0deg)  translateX(0); }
 }
-.quran-page-forward { animation: quran-page-forward 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
-.quran-page-back    { animation: quran-page-back    0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+.quran-page-forward { animation: quran-page-forward 0.60s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+.quran-page-back    { animation: quran-page-back    0.60s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
 
 /* ── Couleurs Tajweed — format réel API quran.com v4 ────────────────────────
    Format HTML : <tajweed class=ham_wasl>ٱ</tajweed>  (tag custom, class sans guillemets)
