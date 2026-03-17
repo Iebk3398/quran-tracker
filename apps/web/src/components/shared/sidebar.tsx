@@ -32,11 +32,12 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard', mobileLabel: 'Accueil' },
-  { href: '/profile',   icon: User,            labelKey: 'nav.profile',   mobileLabel: 'Profil'  },
-  { href: '/surahs',    icon: BookMarked,       labelKey: 'nav.surahs',    mobileLabel: 'Sourates' },
-  { href: '/validate',  icon: CheckCircle,      labelKey: 'nav.validate',  mobileLabel: 'Valider', adminOnly: true },
-  { href: '/settings',  icon: Settings,         labelKey: 'nav.settings',  mobileLabel: 'Réglages' },
+  { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard', mobileLabel: 'Accueil'  },
+  { href: '/profile',   icon: User,            labelKey: 'nav.profile',   mobileLabel: 'Profil'   },
+  { href: '/quran',     icon: BookOpen,        labelKey: 'nav.quran',     mobileLabel: 'Coran'    },
+  { href: '/surahs',    icon: BookMarked,      labelKey: 'nav.surahs',    mobileLabel: 'Mémo'     },
+  { href: '/validate',  icon: CheckCircle,     labelKey: 'nav.validate',  mobileLabel: 'Valider', adminOnly: true },
+  { href: '/settings',  icon: Settings,        labelKey: 'nav.settings',  mobileLabel: 'Réglages' },
 ]
 
 /**
