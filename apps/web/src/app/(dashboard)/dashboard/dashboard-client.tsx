@@ -236,7 +236,7 @@ function HizbLectureTab({
           >+</button>
         </div>
         {addHizb.isError && (
-          <p className="text-xs text-red-500 text-center mt-2">Erreur lors de l'enregistrement</p>
+          <p className="text-xs text-red-500 text-center mt-2">Erreur lors de l&apos;enregistrement</p>
         )}
       </div>
 
