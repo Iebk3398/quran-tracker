@@ -136,7 +136,6 @@ function HizbLectureTab({
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [count, setCount] = useState(1)
-  const [xpToast, setXpToast] = useState<number | null>(null)
 
   const { data: leaderboard = [] } = useQuery<HizbEntry[]>({
     queryKey: ['group', groupId, 'leaderboard'],
@@ -156,12 +155,10 @@ function HizbLectureTab({
         method: 'POST',
         body: JSON.stringify({ count: n }),
       }),
-    onSuccess: (_data, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', groupId, 'leaderboard'] })
       setShowAdd(false)
       setCount(1)
-      setXpToast(variables * 5)
-      setTimeout(() => setXpToast(null), 2500)
     },
   })
 
@@ -169,20 +166,6 @@ function HizbLectureTab({
     <div className="space-y-6">
       {/* ── Hero : progress ring personnel ── */}
       <div className="flex flex-col items-center pt-2 pb-4 relative">
-        {/* Toast XP */}
-        <AnimatePresence>
-          {xpToast !== null && (
-            <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.9 }}
-              animate={{ opacity: 1, y: -8, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="absolute top-0 z-10 bg-amber-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg"
-            >
-              +{xpToast} XP ✨
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Ring + texte centré */}
         <div className="relative">
           <ProgressRing value={myHizbs} max={60} size={200} thickness={14} color="#f59e0b" />

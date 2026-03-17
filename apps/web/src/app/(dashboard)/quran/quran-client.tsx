@@ -155,17 +155,17 @@ function stripVerseEndMarker(html: string): string {
 }
 
 /**
- * Injecte les couleurs tajweed en style inline dans le HTML brut de l'API.
- * Format réel API : <tajweed class=ham_wasl>ٱ</tajweed>
- * Tag custom <tajweed> avec class sans guillemets.
+ * Injecte les couleurs tajweed en style inline.
+ * Remplace les tags <tajweed> custom par des <span> standard pour garantir
+ * la connexion des lettres arabes sur tous les navigateurs (Safari inclus).
  */
 function applyTajweedColors(html: string): string {
-  return html.replace(/<tajweed class=([a-z_]+)>/g, (_match, cls: string) => {
-    const color = TAJWEED_COLORS[cls]
-    return color
-      ? `<tajweed class=${cls} style="color:${color};font-style:normal">`
-      : `<tajweed class=${cls}>`
-  })
+  return html
+    .replace(/<tajweed class=([a-z_]+)>/g, (_match, cls: string) => {
+      const color = TAJWEED_COLORS[cls]
+      return color ? `<span style="color:${color}">` : '<span>'
+    })
+    .replace(/<\/tajweed>/g, '</span>')
 }
 
 // ─── SurahRow ─────────────────────────────────────────────────────────────────

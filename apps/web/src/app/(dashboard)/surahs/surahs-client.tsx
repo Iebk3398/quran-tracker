@@ -47,13 +47,15 @@ const STATUS: Record<MemorizationStatus, { label: string; dot: string; pill: str
 
 const ALL_STATUSES = ['not_started', 'in_progress', 'memorized'] as MemorizationStatus[]
 
-const FILTERS: { value: MemorizationStatus | 'all' | 'to_review'; label: string }[] = [
-  { value: 'all', label: 'Toutes' },
-  { value: 'memorized', label: 'Mémorisées' },
-  { value: 'in_progress', label: 'En cours' },
-  { value: 'not_started', label: 'Non commencé' },
-  { value: 'to_review', label: 'À réviser' },
-]
+const JUZ_NAMES_AR: Record<number, string> = {
+  1: 'الأوَّل', 2: 'الثَّاني', 3: 'الثَّالث', 4: 'الرَّابع', 5: 'الخَامس',
+  6: 'السَّادس', 7: 'السَّابع', 8: 'الثَّامن', 9: 'التَّاسع', 10: 'العَاشر',
+  11: 'الحَادي عَشَر', 12: 'الثَّاني عَشَر', 13: 'الثَّالث عَشَر', 14: 'الرَّابع عَشَر', 15: 'الخَامس عَشَر',
+  16: 'السَّادس عَشَر', 17: 'السَّابع عَشَر', 18: 'الثَّامن عَشَر', 19: 'التَّاسع عَشَر', 20: 'العِشْرُون',
+  21: 'الحَادي والعِشْرُون', 22: 'الثَّاني والعِشْرُون', 23: 'الثَّالث والعِشْرُون',
+  24: 'الرَّابع والعِشْرُون', 25: 'الخَامس والعِشْرُون', 26: 'السَّادس والعِشْرُون',
+  27: 'السَّابع والعِشْرُون', 28: 'الثَّامن والعِشْرُون', 29: 'التَّاسع والعِشْرُون', 30: 'الثَّلَاثُون',
+}
 
 interface MenuState {
   surahId: number
@@ -62,8 +64,6 @@ interface MenuState {
   verseFrom: number | null
   verseTo: number | null
   pendingStatus: MemorizationStatus | null
-  /** "À réviser" = memorized + markForReview, exclusive avec "Consolidé" */
-  markForReview: boolean
   /** Position fixe du dropdown pour échapper au overflow-hidden */
   rect?: { top: number; right: number }
 }
@@ -74,7 +74,6 @@ export function SurahsClient() {
   const queryClient = useQueryClient()
 
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<MemorizationStatus | 'all' | 'to_review'>('all')
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [closedJuz, setClosedJuz] = useState<Set<number>>(new Set())
@@ -120,16 +119,15 @@ export function SurahsClient() {
   })
 
   const updateStatus = useMutation({
-    mutationFn: ({ surahId, status, verseFrom, verseTo, markForReview }: {
+    mutationFn: ({ surahId, status, verseFrom, verseTo }: {
       surahId: number; status: MemorizationStatus
       verseFrom?: number | null; verseTo?: number | null
-      markForReview?: boolean
     }) =>
       apiFetch('/api/progress', {
         method: 'POST',
-        body: JSON.stringify({ surahId, status, verseFrom: verseFrom ?? null, verseTo: verseTo ?? null, markForReview: markForReview ?? false }),
+        body: JSON.stringify({ surahId, status, verseFrom: verseFrom ?? null, verseTo: verseTo ?? null }),
       }),
-    onMutate: async ({ surahId, status, verseFrom, verseTo, markForReview }) => {
+    onMutate: async ({ surahId, status, verseFrom, verseTo }) => {
       await queryClient.cancelQueries({ queryKey: ['progress', user?.id] })
       const prev = queryClient.getQueryData<ProgressEntry[]>(['progress', user?.id])
       queryClient.setQueryData<ProgressEntry[]>(['progress', user?.id], (old = []) => {
@@ -137,7 +135,6 @@ export function SurahsClient() {
           status,
           verseFrom: verseFrom ?? null,
           verseTo: verseTo ?? null,
-          ...(markForReview && { nextReviewAt: new Date().toISOString() }),
         }
         const idx = old.findIndex(p => p.surahId === surahId)
         if (idx >= 0) return old.map(p => p.surahId === surahId ? { ...p, ...patch } : p)
@@ -181,19 +178,18 @@ export function SurahsClient() {
     enriched.filter(s => {
       const q = search.toLowerCase()
       const matchSearch = q === '' || s.nameFr.toLowerCase().includes(q) || s.nameAr.includes(search) || String(s.number) === search
-      const matchFilter =
-        filter === 'all' ? true :
-        filter === 'to_review' ? s.dueReview :
-        s.status === filter
-      return matchSearch && matchFilter
-    }), [enriched, search, filter])
+      return matchSearch
+    }), [enriched, search])
 
   const juzGroups = useMemo(() => {
     const map = new Map<number, typeof filtered>()
     filtered.forEach(s => { map.set(s.juzNumber, [...(map.get(s.juzNumber) ?? []), s]) })
     return [...map.entries()].sort(([a], [b]) => b - a).map(([juz, list]) => {
-      const done = list.filter(s => s.status === 'memorized').length
-      return { juz, list, pct: Math.round((done / list.length) * 100) }
+      const totalVerses = list.reduce((sum, s) => sum + s.versesCount, 0)
+      const doneVerses = list
+        .filter(s => s.status === 'memorized' || s.status === 'consolidated')
+        .reduce((sum, s) => sum + s.versesCount, 0)
+      return { juz, list, pct: totalVerses > 0 ? Math.round((doneVerses / totalVerses) * 100) : 0 }
     })
   }, [filtered])
 
@@ -206,7 +202,6 @@ export function SurahsClient() {
       verseFrom: s.verseFrom,
       verseTo: s.verseTo,
       pendingStatus: null,
-      markForReview: false,
       rect: { top: r.bottom + 6, right: window.innerWidth - r.right },
     })
   }
@@ -220,7 +215,6 @@ export function SurahsClient() {
       status,
       verseFrom: menu.verseFrom,
       verseTo: menu.verseTo,
-      markForReview: menu.markForReview,
     })
   }
 
@@ -230,23 +224,21 @@ export function SurahsClient() {
     <div className="space-y-4 pb-20 md:pb-0">
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {[
-          { n: stats.memorized, label: 'Mémorisées', dot: 'bg-emerald-500', v: 'memorized' as const },
-          { n: stats.inProgress, label: 'En cours', dot: 'bg-amber-400', v: 'in_progress' as const },
-          { n: stats.notStarted, label: 'Non commencé', dot: 'bg-slate-300', v: 'not_started' as const },
-          { n: stats.toReview, label: 'À réviser', dot: 'bg-violet-500', v: null },
-        ].map(({ n, label, dot, v }) => (
-          <button key={label}
-            onClick={() => v && setFilter(f => f === v ? 'all' : v)}
-            className={`flex flex-col gap-1.5 p-3 rounded-2xl border bg-card text-left transition-all active:scale-[0.97] ${v && filter === v ? 'ring-2 ring-emerald-600 ring-offset-1 shadow-sm' : 'hover:shadow-sm'}`}
+          { n: stats.memorized, label: 'Mémorisées', dot: 'bg-emerald-500' },
+          { n: stats.inProgress, label: 'En cours', dot: 'bg-amber-400' },
+          { n: stats.notStarted, label: 'Non commencé', dot: 'bg-slate-300' },
+        ].map(({ n, label, dot }) => (
+          <div key={label}
+            className="flex flex-col gap-1.5 p-3 rounded-2xl border bg-card text-left"
           >
             <div className="flex items-center gap-1.5">
               <span className={`w-2 h-2 rounded-full ${dot}`} />
               <span className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight">{n}</span>
             </div>
             <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
-          </button>
+          </div>
         ))}
       </div>
 
@@ -259,24 +251,6 @@ export function SurahsClient() {
           placeholder="Rechercher — Al-Fatiha, 114…"
           className="w-full pl-10 pr-4 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 placeholder:text-muted-foreground shadow-sm"
         />
-      </div>
-
-      {/* Filter pills */}
-      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-        {FILTERS.map(f => (
-          <button key={f.value} onClick={() => setFilter(f.value)}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              filter === f.value
-                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200 dark:shadow-emerald-900'
-                : 'bg-card border text-muted-foreground hover:text-foreground hover:border-foreground/20'
-            }`}
-          >
-            {f.value !== 'all' && (
-              <span className={`w-1.5 h-1.5 rounded-full ${f.value === 'to_review' ? 'bg-orange-400' : STATUS[f.value as MemorizationStatus].dot}`} />
-            )}
-            {f.label}
-          </button>
-        ))}
       </div>
 
       {/* Juz list */}
@@ -300,6 +274,9 @@ export function SurahsClient() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                   </svg>
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Juz {juz}</span>
+                  <span className="arabic-text text-sm font-semibold text-stone-600 dark:text-stone-400 mx-2">
+                    {JUZ_NAMES_AR[juz] ?? ''}
+                  </span>
                   {pct === 100 && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2 py-0.5 rounded-full tracking-wide">COMPLET</span>}
                 </div>
                 <div className="flex items-center gap-2">
@@ -329,7 +306,7 @@ export function SurahsClient() {
                       </div>
                     </div>
 
-                    <span className="arabic-text text-sm font-bold hidden sm:block flex-shrink-0 text-right opacity-80">{surah.nameAr}</span>
+                    <span className="arabic-text text-sm font-bold flex-shrink-0 text-right opacity-80">{surah.nameAr}</span>
 
                     {/* Status button */}
                     <div className="flex-shrink-0">
@@ -386,44 +363,20 @@ export function SurahsClient() {
               <button key={s}
                 onClick={() => setMenu(m => m ? { ...m, pendingStatus: s, markForReview: false } : null)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                  (menu.pendingStatus ?? menu.currentStatus) === s && !menu.markForReview
+                  (menu.pendingStatus ?? menu.currentStatus) === s
                     ? `${STATUS[s].pill} font-semibold`
                     : `text-foreground ${STATUS[s].bg}`
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS[s].dot}`} />
                 {STATUS[s].label}
-                {(menu.pendingStatus ?? menu.currentStatus) === s && !menu.markForReview && (
+                {(menu.pendingStatus ?? menu.currentStatus) === s && (
                   <svg className="w-3.5 h-3.5 ml-auto text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
               </button>
             ))}
-
-            {/* À réviser — planifie une révision immédiate (SM-2) */}
-            <div className="mt-1 pt-1.5 border-t">
-              <button
-                onClick={() => setMenu(m => m ? {
-                  ...m,
-                  pendingStatus: m.currentStatus === 'memorized' ? 'memorized' : 'memorized',
-                  markForReview: !m.markForReview,
-                } : null)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                  menu.markForReview
-                    ? 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 font-semibold'
-                    : 'text-foreground hover:bg-orange-50/80 dark:hover:bg-orange-900/20'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full flex-shrink-0 bg-orange-400" />
-                À réviser
-                {menu.markForReview && (
-                  <svg className="w-3.5 h-3.5 ml-auto text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </button>
-            </div>
 
             {/* Plage de versets si "En cours" */}
             {(menu.pendingStatus ?? menu.currentStatus) === 'in_progress' && (

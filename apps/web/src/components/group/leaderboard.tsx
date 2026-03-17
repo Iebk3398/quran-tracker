@@ -1,6 +1,6 @@
 'use client'
 /**
- * @file Leaderboard — Classement XP du groupe
+ * @file Leaderboard — Classement par hizbs lus
  */
 import { motion } from 'framer-motion'
 import type { LeaderboardEntry } from '@quran-tracker/types'
@@ -11,33 +11,6 @@ interface LeaderboardProps {
 }
 
 const RANK_MEDALS = ['🥇', '🥈', '🥉']
-
-/** Niveaux : condition double (XP ET sourates mémorisées) */
-const LEVELS = [
-  { min: 0,     minSurahs: 0,  max: 499,      name: 'Murîd',  emoji: '🌱' },
-  { min: 500,   minSurahs: 1,  max: 1499,     name: 'Taleb',  emoji: '📖' },
-  { min: 1500,  minSurahs: 5,  max: 3999,     name: 'Qari',   emoji: '📜' },
-  { min: 4000,  minSurahs: 20, max: 9999,     name: 'Hafiz',  emoji: '⭐' },
-  { min: 10000, minSurahs: 57, max: Infinity, name: 'Sheikh', emoji: '🎓' },
-]
-
-/**
- * Niveau le plus élevé où XP >= seuil ET surahs >= seuil (condition AND).
- */
-function getLevel(xp: number, surahs: number) {
-  return LEVELS.findLast(l => xp >= l.min && surahs >= l.minSurahs) ?? LEVELS[0]!
-}
-
-/**
- * Progression XP en % vers le prochain niveau.
- */
-function getLevelProgress(xp: number, surahs: number) {
-  const currentIdx = LEVELS.findLastIndex(l => xp >= l.min && surahs >= l.minSurahs)
-  if (currentIdx === LEVELS.length - 1) return 100
-  const current = LEVELS[currentIdx]!
-  const next = LEVELS[currentIdx + 1]!
-  return Math.min(100, Math.round(((xp - current.min) / (next.min - current.min)) * 100))
-}
 
 export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
   if (isLoading) {
@@ -57,7 +30,7 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
     <div className="rounded-xl border bg-card p-3 sm:p-4">
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <h3 className="font-semibold text-sm sm:text-base">🏆 Classement</h3>
-        <span className="text-xs text-muted-foreground">Par XP</span>
+        <span className="text-xs text-muted-foreground">Par hizbs lus</span>
       </div>
 
       {entries.length === 0 ? (
@@ -67,8 +40,6 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
       ) : (
         <div className="space-y-2">
           {entries.map((entry, index) => {
-            const level = getLevel(entry.totalXp, entry.surahsMemorized)
-            const progress = getLevelProgress(entry.totalXp, entry.surahsMemorized)
             const isFirst = index === 0
 
             return (
@@ -98,31 +69,16 @@ export function Leaderboard({ entries = [], isLoading }: LeaderboardProps) {
                   )}
                 </div>
 
-                {/* Infos + barre de niveau */}
+                {/* Nom + streak */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <p className="font-medium truncate text-xs sm:text-sm">{entry.name}</p>
-                    <span className="flex-shrink-0 text-xs">{level.emoji}</span>
-                    <span className="flex-shrink-0 text-[10px] font-semibold text-muted-foreground hidden sm:inline">{level.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${isFirst ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                      {entry.surahsMemorized}s
-                    </span>
-                  </div>
+                  <p className="font-medium truncate text-xs sm:text-sm">{entry.name}</p>
                 </div>
 
-                {/* XP + streak */}
+                {/* Hizbs lus + streak */}
                 <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                   <span className={`text-xs sm:text-sm font-bold tabular-nums ${isFirst ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {entry.totalXp.toLocaleString()}
-                    <span className="font-normal text-muted-foreground text-[10px] ml-0.5">xp</span>
+                    {entry.hizbsRead ?? 0}
+                    <span className="font-normal text-muted-foreground text-[10px] ml-0.5">hz</span>
                   </span>
                   {entry.currentStreak > 0 && (
                     <span className="text-[10px] text-orange-500 font-semibold">

@@ -148,48 +148,13 @@
 .quran-page-forward { animation: quran-page-forward 0.60s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
 .quran-page-back    { animation: quran-page-back    0.60s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
 
-/* ── Couleurs Tajweed — format réel API quran.com v4 ────────────────────────
-   Format HTML : <tajweed class=ham_wasl>ٱ</tajweed>  (tag custom, class sans guillemets)
-   Injection inline style via applyTajweedColors() — CSS en backup.
+/* ── Couleurs Tajweed — Spans (remplacé de <tajweed>) ────────────────────────
+   Injection inline via applyTajweedColors() garantit la connexion des lettres arabes
+   sur tous les navigateurs (Safari inclus) — CSS minimal pour les spans.
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* Hamza Wasl / lettres silencieuses / laam shamsiyah */
-.tajweed-text tajweed[class="ham_wasl"]           { color: #9ba3ae !important; }
-.tajweed-text tajweed[class="slnt"]               { color: #c9d0d7 !important; }
-.tajweed-text tajweed[class="laam_shamsiyah"]     { color: #9ba3ae !important; }
-
-/* Madd (prolongation) — dégradé de bleus */
-.tajweed-text tajweed[class="madda_obligatory"]   { color: #0d47a1 !important; }
-.tajweed-text tajweed[class="madda_necessary"]    { color: #1565c0 !important; }
-.tajweed-text tajweed[class="madda_permissible"]  { color: #1976d2 !important; }
-.tajweed-text tajweed[class="madda_normal"]       { color: #64b5f6 !important; }
-
-/* Ghunnah (nasalisation) — vert émeraude */
-.tajweed-text tajweed[class="ghunnah"]            { color: #2e7d32 !important; }
-
-/* Ikhafa (occultation) — orange brûlé */
-.tajweed-text tajweed[class="ikhafa"]             { color: #e65100 !important; }
-.tajweed-text tajweed[class="ikhafa_shafawi"]     { color: #bf360c !important; }
-
-/* Idgham (assimilation) — verts foncés */
-.tajweed-text tajweed[class="idgham_ghunnah"]         { color: #388e3c !important; }
-.tajweed-text tajweed[class="idgham_wo_ghunnah"]      { color: #1b5e20 !important; }
-.tajweed-text tajweed[class="idgham_shafawi"]         { color: #33691e !important; }
-.tajweed-text tajweed[class="idgham_mutajanisayn"]    { color: #2e7d32 !important; }
-.tajweed-text tajweed[class="idgham_mutaqaribbayn"]   { color: #1b5e20 !important; }
-
-/* Iqlab (transformation) — violet */
-.tajweed-text tajweed[class="iqlab"]              { color: #7b1fa2 !important; }
-
-/* Qalaqah (écho) — rouge vif */
-.tajweed-text tajweed[class="qalaqah"]            { color: #c62828 !important; }
-
-/* ── Tag <tajweed> — élément custom retourné par api.quran.com ──────────── */
-/* Assure le rendu inline + héritage police sur tous les navigateurs */
-tajweed {
-  display: inline;
-  font-family: inherit;
-  font-size: inherit;
+/* Spans tajweed — coloration inline injectée par applyTajweedColors() */
+.tajweed-text span {
   font-style: normal;
 }
 
