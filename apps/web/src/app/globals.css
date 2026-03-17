@@ -156,8 +156,18 @@
    ─────────────────────────────────────────────────────────────────────────── */
 
 /* Spans tajweed — coloration inline injectée par applyTajweedColors() */
+/* unicode-bidi: inherit empêche les spans de casser les ligatures arabes */
 .tajweed-text span {
   font-style: normal;
+  unicode-bidi: inherit;
+  display: inline;
+}
+
+/* Force le rendu optimisé des ligatures arabes sur toute la zone de lecture */
+.tajweed-text {
+  font-feature-settings: "liga" 1, "calt" 1, "kern" 1, "curs" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Numéro de verset inline */
