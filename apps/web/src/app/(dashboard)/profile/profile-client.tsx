@@ -177,6 +177,14 @@ export function ProfileClient() {
     })
   }
 
+  // Vérifie si l'utilisateur est dans un groupe (pour masquer la section hizbs redondante)
+  const { data: myGroups } = useQuery({
+    queryKey: ['my-groups'],
+    queryFn: () => apiFetch<{ id: string }[]>('/api/groups/me'),
+    enabled: !!storeUser?.id,
+  })
+  const isInGroup = (myGroups?.length ?? 0) > 0
+
   const { data: progress, isLoading: progressLoading } = useQuery({
     queryKey: ['progress', user?.id],
     queryFn: () => apiFetch<ProgressEntry[]>(`/api/progress/${user!.id}`),
@@ -464,20 +472,22 @@ export function ProfileClient() {
           </p>
         </div>
 
-        {/* Lecture quotidienne — hizbs lus */}
-        <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 p-3 space-y-1.5">
-          <div className="flex items-baseline justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">📚 Lecture quotidienne — hizbs lus</span>
-            <span className="text-xs font-bold text-blue-600">{Math.min(Math.round(((profile?.hizbsRead ?? 0) / 60) * 100), 100)}%</span>
+        {/* Lecture quotidienne — hizbs lus (masqué si déjà dans un groupe) */}
+        {!isInGroup && (
+          <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 p-3 space-y-1.5">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">📚 Lecture quotidienne — hizbs lus</span>
+              <span className="text-xs font-bold text-blue-600">{Math.min(Math.round(((profile?.hizbsRead ?? 0) / 60) * 100), 100)}%</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-blue-600 tabular-nums">{profile?.hizbsRead ?? 0}</span>
+              <span className="text-xs font-semibold text-muted-foreground">/60 hizbs</span>
+            </div>
+            <div className="h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
+              <div className="h-full bg-blue-500 rounded-full transition-all duration-700" style={{ width: `${Math.min(Math.round(((profile?.hizbsRead ?? 0) / 60) * 100), 100)}%` }} />
+            </div>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-black text-blue-600 tabular-nums">{profile?.hizbsRead ?? 0}</span>
-            <span className="text-xs font-semibold text-muted-foreground">/60 hizbs</span>
-          </div>
-          <div className="h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 rounded-full transition-all duration-700" style={{ width: `${Math.min(Math.round(((profile?.hizbsRead ?? 0) / 60) * 100), 100)}%` }} />
-          </div>
-        </div>
+        )}
 
         {/* ── Badges ── */}
         <div className="pt-2 border-t space-y-3">
