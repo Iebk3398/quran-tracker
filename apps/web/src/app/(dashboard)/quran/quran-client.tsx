@@ -14,12 +14,12 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { apiFetch } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
   Bookmark, BookmarkCheck, Search, X,
-  ArrowLeft, ChevronLeft, ChevronRight, BookOpen,
+  ArrowLeft, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -69,6 +69,22 @@ const FONT_SIZES           = [20, 24, 28, 32, 36, 40] as const
 const DEFAULT_FONT_IDX     = 2   // 28px
 
 const QURAN_FONT = "'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Scheherazade New', 'Noto Naskh Arabic', serif"
+
+/** Variants de transition de page — custom = 'forward' | 'back' */
+const PAGE_VARIANTS: Variants = {
+  enter: (dir: string) => ({
+    x: dir === 'forward' ? '100%' : '-100%',
+    opacity: 0.7,
+  }),
+  visible: {
+    x: 0,
+    opacity: 1,
+  },
+  exit: (dir: string) => ({
+    x: dir === 'forward' ? '-100%' : '100%',
+    opacity: 0.7,
+  }),
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -404,9 +420,10 @@ function ReadingView({
         <motion.div
           key={animKey}
           custom={pageDir}
-          initial={(dir: string) => ({ x: dir === 'forward' ? '100%' : '-100%', opacity: 0.7 })}
-          animate={{ x: 0, opacity: 1 }}
-          exit={(dir: string) => ({ x: dir === 'forward' ? '-100%' : '100%', opacity: 0.7 })}
+          variants={PAGE_VARIANTS}
+          initial="enter"
+          animate="visible"
+          exit="exit"
           transition={{ duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
           className="absolute inset-0 overflow-y-auto scrollbar-none px-5 py-3"
         >

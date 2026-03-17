@@ -3,6 +3,7 @@
  * @file MemberActivityCards — Activité mensuelle de chaque membre du groupe
  * @description Affiche une card par membre avec sa grille de jours du mois sélectionné.
  */
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -44,9 +45,110 @@ function dotColor(count: number): string {
   return 'bg-amber-500'
 }
 
+// ── Vue par jour (agrégée pour tout le groupe) ────────────────────────────────
+
+interface DayStat {
+  date: string
+  total: number
+  activeMembers: { name: string; avatar: string | null; count: number }[]
+}
+
+/**
+ * Barre journalière avec tooltip listant les membres actifs ce jour-là.
+ */
+function GroupDaySummary({ members }: { members: MemberActivity[] }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const [hovered, setHovered] = useState<string | null>(null)
+
+  if (members.length === 0) return null
+
+  // Agréger toutes les dates présentes
+  const dateMap = new Map<string, DayStat>()
+  for (const member of members) {
+    for (const day of member.activity) {
+      if (!dateMap.has(day.date)) {
+        dateMap.set(day.date, { date: day.date, total: 0, activeMembers: [] })
+      }
+      const stat = dateMap.get(day.date)!
+      stat.total += day.count
+      if (day.count > 0) {
+        stat.activeMembers.push({ name: member.name, avatar: member.avatar, count: day.count })
+      }
+    }
+  }
+
+  const days = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+  const maxTotal = Math.max(...days.map(d => d.total), 1)
+  const BAR_MAX_H = 36
+
+  return (
+    <div className="rounded-xl bg-stone-50 dark:bg-stone-800/50 p-3 space-y-1.5">
+      <p className="text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">
+        Total groupe / jour
+      </p>
+
+      {/* Graphique en barres */}
+      <div className="flex items-end gap-[3px] overflow-x-auto scrollbar-none select-none pb-1">
+        {days.map((day) => {
+          const dayNum = parseInt(day.date.split('-')[2] ?? '0')
+          const isToday = day.date === today
+          const barH = day.total > 0 ? Math.max(3, Math.round((day.total / maxTotal) * BAR_MAX_H)) : 2
+          const isHov = hovered === day.date
+
+          return (
+            <div
+              key={day.date}
+              className="flex flex-col items-center gap-[2px] flex-shrink-0"
+              style={{ minWidth: 14 }}
+              onMouseEnter={() => setHovered(day.date)}
+              onMouseLeave={() => setHovered(null)}
+              onTouchStart={() => setHovered(hovered === day.date ? null : day.date)}
+            >
+              {/* Tooltip au hover */}
+              <div className={cn(
+                'absolute z-20 bottom-full mb-1 left-1/2 -translate-x-1/2',
+                'bg-stone-800 text-white rounded-lg px-2 py-1 text-[10px] whitespace-nowrap shadow-lg',
+                'pointer-events-none transition-opacity duration-100',
+                isHov ? 'opacity-100' : 'opacity-0',
+              )}>
+                <p className="font-bold mb-0.5">{day.date} · {day.total} hz</p>
+                {day.activeMembers.slice(0, 4).map(m => (
+                  <p key={m.name} className="text-stone-300">{m.name} — {m.count}hz</p>
+                ))}
+              </div>
+
+              {/* Barre */}
+              <div
+                className={cn(
+                  'w-full rounded-sm transition-all duration-200 relative',
+                  day.total === 0
+                    ? 'bg-stone-200 dark:bg-stone-700'
+                    : isToday
+                      ? 'bg-amber-500'
+                      : 'bg-amber-400',
+                  isToday && 'ring-1 ring-amber-600 ring-offset-[1px]',
+                )}
+                style={{ height: barH, minWidth: 12 }}
+              />
+
+              {/* Numéro du jour */}
+              <span className={cn(
+                'text-[7px] leading-none tabular-nums',
+                isToday ? 'text-amber-600 font-bold' : 'text-stone-400 dark:text-stone-600',
+              )}>
+                {dayNum}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Composant card ─────────────────────────────────────────────────────────────
 
-function MemberCard({ member, month }: { member: MemberActivity; month: string }) {
+function MemberCard({ member, month: _month }: { member: MemberActivity; month: string }) {
   const today = new Date().toISOString().slice(0, 10)
   // Regrouper les jours par semaines (lignes de 7)
   const weeks: DayActivity[][] = []
@@ -167,6 +269,7 @@ export function MemberActivityCards({ groupId, month }: MemberActivityCardsProps
 
   return (
     <div className="space-y-2">
+      <GroupDaySummary members={data} />
       {data.map((member) => (
         <MemberCard key={member.userId} member={member} month={month} />
       ))}

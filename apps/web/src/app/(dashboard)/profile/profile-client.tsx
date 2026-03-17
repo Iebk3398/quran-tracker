@@ -136,14 +136,6 @@ export function ProfileClient() {
     })
   }
 
-  // Vérifie si l'utilisateur est dans un groupe (pour masquer la section hizbs redondante)
-  const { data: myGroups } = useQuery({
-    queryKey: ['my-groups'],
-    queryFn: () => apiFetch<{ id: string }[]>('/api/groups/me'),
-    enabled: !!storeUser?.id,
-  })
-  const isInGroup = (myGroups?.length ?? 0) > 0
-
   const { data: progress, isLoading: progressLoading } = useQuery({
     queryKey: ['progress', user?.id],
     queryFn: () => apiFetch<ProgressEntry[]>(`/api/progress/${user!.id}`),
