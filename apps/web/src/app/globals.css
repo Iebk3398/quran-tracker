@@ -136,17 +136,19 @@
   }
 }
 
-/* ── Animation tournage de page Coran — style livre ─────────────────────── */
+/* ── Animation défilement de page Coran ──────────────────────────────────── */
+/* Livre arabe : avancer = nouvelle page entre par la DROITE (glisse ←)      */
+/* Swipe droite (g→d) = page suivante → nouvelle page vient de la droite     */
 @keyframes quran-page-forward {
-  0%   { opacity: 0; transform: perspective(1200px) rotateY(-8deg) translateX(-12px); }
-  100% { opacity: 1; transform: perspective(1200px) rotateY(0deg)  translateX(0); }
+  0%   { opacity: 0.2; transform: translateX(70px); }
+  100% { opacity: 1;   transform: translateX(0); }
 }
 @keyframes quran-page-back {
-  0%   { opacity: 0; transform: perspective(1200px) rotateY(8deg)  translateX(12px); }
-  100% { opacity: 1; transform: perspective(1200px) rotateY(0deg)  translateX(0); }
+  0%   { opacity: 0.2; transform: translateX(-70px); }
+  100% { opacity: 1;   transform: translateX(0); }
 }
-.quran-page-forward { animation: quran-page-forward 0.60s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
-.quran-page-back    { animation: quran-page-back    0.60s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+.quran-page-forward { animation: quran-page-forward 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.quran-page-back    { animation: quran-page-back    0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 
 /* ── Couleurs Tajweed — Spans (remplacé de <tajweed>) ────────────────────────
    Injection inline via applyTajweedColors() garantit la connexion des lettres arabes

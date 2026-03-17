@@ -288,12 +288,12 @@ function ReadingView({
     setPage(newPage)
   }, [page])
 
-  // Swipe mobile
+  // Swipe mobile — livre arabe : glisser DROITE (g→d) = page suivante
   function onTouchStart(e: React.TouchEvent) { touchStartX.current = e.touches[0]?.clientX ?? null }
   function onTouchEnd(e: React.TouchEvent) {
     if (touchStartX.current === null) return
     const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current
-    if (Math.abs(dx) > 55) dx > 0 ? goTo(page - 1) : goTo(page + 1)
+    if (Math.abs(dx) > 55) dx > 0 ? goTo(page + 1) : goTo(page - 1)
     touchStartX.current = null
   }
 
