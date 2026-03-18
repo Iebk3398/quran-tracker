@@ -412,10 +412,11 @@ export function DashboardClient() {
 
   async function handleShare() {
     if (!group) return
-    const text = `Rejoins ma halqa "${group.name}" sur Quran Tracker 📖\n\nCode : ${group.inviteCode}\n\nhttps://quran-tracker-web.vercel.app`
+    const joinUrl = `${window.location.origin}/join/${group.inviteCode}`
+    const text = `Rejoins ma halqa "${group.name}" sur Quran Tracker 📖\n\n${joinUrl}`
     try {
       if (navigator.share) {
-        await navigator.share({ title: `Rejoins ${group.name}`, text })
+        await navigator.share({ title: `Rejoins ${group.name}`, url: joinUrl, text })
       } else {
         await navigator.clipboard.writeText(text)
         setShared(true)
@@ -512,7 +513,7 @@ export function DashboardClient() {
             )}
           >
             <Icon className="h-4 w-4 flex-shrink-0" />
-            <span className="hidden xs:inline sm:inline">{label}</span>
+            <span>{label}</span>
           </button>
         ))}
       </div>
