@@ -21,10 +21,12 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Redirige vers dashboard si déjà connecté
+  const redirect = searchParams.get('redirect') ?? '/dashboard'
+
+  // Redirige vers la destination si déjà connecté
   useEffect(() => {
     verifySessionDirect().then((user) => {
-      if (user) router.replace('/dashboard')
+      if (user) router.replace(redirect)
     }).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -39,7 +41,9 @@ export default function LoginPage() {
     setLoading(true)
     const appURL = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').trim()
     const apiURL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').trim()
-    const callbackURL = encodeURIComponent(`${appURL}/dashboard`)
+    // Propager le redirect post-login (ex: /join/CODE après invitation)
+    const destination = redirect.startsWith('/') ? `${appURL}${redirect}` : `${appURL}/dashboard`
+    const callbackURL = encodeURIComponent(destination)
     window.location.href = `${apiURL}/auth/google?callbackURL=${callbackURL}`
   }
 

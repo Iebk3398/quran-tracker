@@ -1,7 +1,7 @@
 /**
  * @file Schéma Drizzle — Tables groups, group_members & group_goals
  */
-import { pgTable, text, timestamp, pgEnum, primaryKey, index, integer, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, pgEnum, primaryKey, index, integer, boolean, unique } from 'drizzle-orm/pg-core'
 import { users } from './users.ts'
 
 export const groupMemberRoleEnum = pgEnum('group_member_role', [
@@ -72,8 +72,47 @@ export const groupGoals = pgTable(
   })
 )
 
+// ─── Demandes d'adhésion ──────────────────────────────────────────────────────
+
+export const joinRequestStatusEnum = pgEnum('join_request_status', [
+  'pending',
+  'accepted',
+  'rejected',
+])
+
+/**
+ * Table des demandes d'adhésion à un groupe.
+ * Créée quand un utilisateur clique sur un lien d'invitation et demande à rejoindre.
+ * Le sheikh accepte ou rejette. En cas d'acceptation, l'utilisateur est ajouté
+ * à group_members et reçoit un email de confirmation.
+ */
+export const joinRequests = pgTable(
+  'join_requests',
+  {
+    id: text('id').primaryKey(),
+    groupId: text('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: joinRequestStatusEnum('status').notNull().default('pending'),
+    /** Message optionnel du demandeur */
+    message: text('message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    /** Un seul statut de demande par (groupe, utilisateur) */
+    uniq: unique('join_requests_group_user_uniq').on(table.groupId, table.userId),
+    groupIdx: index('join_requests_group_idx').on(table.groupId),
+    statusIdx: index('join_requests_status_idx').on(table.status),
+  })
+)
+
 export type Group = typeof groups.$inferSelect
 export type NewGroup = typeof groups.$inferInsert
 export type GroupMember = typeof groupMembers.$inferSelect
 export type GroupGoal = typeof groupGoals.$inferSelect
 export type NewGroupGoal = typeof groupGoals.$inferInsert
+export type JoinRequest = typeof joinRequests.$inferSelect

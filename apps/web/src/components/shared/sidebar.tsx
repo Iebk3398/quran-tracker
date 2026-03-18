@@ -195,9 +195,19 @@ function GroupSwitcher({ collapsed }: { collapsed: boolean }) {
 export function DashboardSidebar() {
   const t = useTranslations()
   const pathname = usePathname()
-  const { sidebarOpen, toggleSidebar, user, reset } = useAppStore()
+  const { sidebarOpen, toggleSidebar, user, reset, activeGroupId } = useAppStore()
 
   const isSheikh = user?.role === 'sheikh' || user?.role === 'super_admin'
+
+  /** Nombre de demandes d'adhésion en attente (sheikh seulement) */
+  const { data: pendingRequests = [] } = useQuery<Array<{ id: string }>>({
+    queryKey: ['join-requests', activeGroupId],
+    queryFn: () => apiFetch(`/api/groups/${activeGroupId}/requests`),
+    enabled: !!activeGroupId && isSheikh,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  })
+  const pendingCount = pendingRequests.length
 
   /**
    * Déconnexion : vide les données locales, reset le store,
@@ -270,6 +280,8 @@ export function DashboardSidebar() {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
             const Icon = item.icon
 
+            const badge = item.href === '/validate' && pendingCount > 0 ? pendingCount : 0
+
             return (
               <Link
                 key={item.href}
@@ -281,12 +293,19 @@ export function DashboardSidebar() {
                     : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100'
                 )}
               >
-                <Icon
-                  className={cn(
-                    'h-5 w-5 flex-shrink-0',
-                    isActive ? 'text-emerald-600 dark:text-emerald-400' : ''
+                <div className="relative flex-shrink-0">
+                  <Icon
+                    className={cn(
+                      'h-5 w-5',
+                      isActive ? 'text-emerald-600 dark:text-emerald-400' : ''
+                    )}
+                  />
+                  {badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {badge > 9 ? '9+' : badge}
+                    </span>
                   )}
-                />
+                </div>
                 <AnimatePresence mode="wait">
                   {sidebarOpen && (
                     <motion.span
@@ -294,12 +313,17 @@ export function DashboardSidebar() {
                       animate={{ opacity: 1, width: 'auto' }}
                       exit={{ opacity: 0, width: 0 }}
                       transition={{ duration: 0.15 }}
-                      className="overflow-hidden whitespace-nowrap"
+                      className="overflow-hidden whitespace-nowrap flex-1"
                     >
                       {t(item.labelKey)}
                     </motion.span>
                   )}
                 </AnimatePresence>
+                {sidebarOpen && badge > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -342,6 +366,8 @@ export function DashboardSidebar() {
             const isActive = pathname === item.href
             const Icon = item.icon
 
+            const mobileBadge = item.href === '/validate' && pendingCount > 0 ? pendingCount : 0
+
             return (
               <Link
                 key={item.href}
@@ -353,7 +379,14 @@ export function DashboardSidebar() {
                     : 'text-stone-500 dark:text-stone-400'
                 )}
               >
-                <Icon className="h-[22px] w-[22px] flex-shrink-0" />
+                <div className="relative">
+                  <Icon className="h-[22px] w-[22px]" />
+                  {mobileBadge > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {mobileBadge > 9 ? '9+' : mobileBadge}
+                    </span>
+                  )}
+                </div>
                 <span className="truncate w-full text-center leading-tight px-0.5">
                   {item.mobileLabel}
                 </span>

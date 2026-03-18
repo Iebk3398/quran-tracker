@@ -36,6 +36,20 @@
       "when": 1773496971120,
       "tag": "0004_light_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1742220000000,
+      "tag": "0005_add_hizb_daily_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1742306400000,
+      "tag": "0006_add_join_requests",
+      "breakpoints": true
     }
   ]
 }

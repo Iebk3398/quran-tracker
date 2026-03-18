@@ -5,7 +5,7 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
-import { db, groups, groupMembers, users, memorizationProgress, groupGoals, userBadges, badges, hizbDailyLog } from '../../../../packages/db/src/index.ts'
+import { db, groups, groupMembers, users, memorizationProgress, groupGoals, userBadges, badges, hizbDailyLog, joinRequests } from '../../../../packages/db/src/index.ts'
 import { eq, and, desc, sql, isNull, inArray, gte } from 'drizzle-orm'
 import { requireAuth, requireSheikh } from '../middleware/auth.ts'
 
@@ -40,6 +40,60 @@ groupRoutes.post('/', requireSheikh, zValidator('json', createGroupSchema), asyn
   })
 
   return c.json({ success: true, data: group[0] }, 201)
+})
+
+// ─── Preview publique (pas d'auth requise) ────────────────────────────────────
+
+/**
+ * GET /api/groups/preview/:code — Aperçu public d'un groupe via son code d'invitation.
+ * Retourne nom, sheikh, memberCount, description, activeGoalDeadline.
+ * Utilisé par la page /join/[code] côté frontend (accessible sans compte).
+ */
+groupRoutes.get('/preview/:code', async (c) => {
+  const code = c.req.param('code').toUpperCase()
+
+  const group = await db
+    .select({
+      id: groups.id,
+      name: groups.name,
+      description: groups.description,
+      sheikhId: groups.sheikhId,
+      createdAt: groups.createdAt,
+      memberCount: sql<number>`(SELECT COUNT(*)::int FROM group_members gm WHERE gm.group_id = ${groups.id})`,
+      sheikhName: users.name,
+    })
+    .from(groups)
+    .innerJoin(users, eq(groups.sheikhId, users.id))
+    .where(eq(groups.inviteCode, code))
+    .limit(1)
+
+  if (!group[0]) {
+    return c.json({ success: false, error: 'INVALID_CODE', message: 'Groupe introuvable' }, 404)
+  }
+
+  // Récupérer la deadline de l'objectif actif si disponible
+  const activeGoal = await db
+    .select({ deadline: groupGoals.deadline })
+    .from(groupGoals)
+    .where(and(eq(groupGoals.groupId, group[0].id), eq(groupGoals.isActive, true)))
+    .limit(1)
+
+  const deadline = activeGoal[0]?.deadline ?? null
+  const daysRemaining = deadline
+    ? Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 86_400_000))
+    : null
+
+  return c.json({
+    success: true,
+    data: {
+      id: group[0].id,
+      name: group[0].name,
+      description: group[0].description,
+      sheikhName: group[0].sheikhName,
+      memberCount: group[0].memberCount,
+      daysRemaining,
+    },
+  })
 })
 
 /** GET /api/groups/me — Groupes de l'utilisateur connecté (avec memberCount) */
@@ -109,6 +163,213 @@ groupRoutes.post(
     })
 
     return c.json({ success: true, data: group[0] }, 201)
+  }
+)
+
+// ─── Demandes d'adhésion ──────────────────────────────────────────────────────
+
+/**
+ * POST /api/groups/invite/:code/request — Envoyer une demande d'adhésion.
+ * L'utilisateur doit être authentifié. Crée une demande 'pending' ou retourne
+ * l'état existant si déjà membre / demande déjà en cours.
+ */
+groupRoutes.post(
+  '/invite/:code/request',
+  requireAuth,
+  zValidator('json', z.object({ message: z.string().max(300).optional() })),
+  async (c) => {
+    const user = c.get('user')
+    const code = c.req.param('code').toUpperCase()
+    const { message } = c.req.valid('json')
+
+    const group = await db
+      .select({ id: groups.id, name: groups.name })
+      .from(groups)
+      .where(eq(groups.inviteCode, code))
+      .limit(1)
+
+    if (!group[0]) {
+      return c.json({ success: false, error: 'INVALID_CODE' }, 404)
+    }
+
+    // Déjà membre ?
+    const existing = await db
+      .select()
+      .from(groupMembers)
+      .where(and(eq(groupMembers.userId, user.id), eq(groupMembers.groupId, group[0].id)))
+      .limit(1)
+    if (existing[0]) {
+      return c.json({ success: false, error: 'ALREADY_MEMBER' }, 409)
+    }
+
+    // Demande déjà envoyée ?
+    const existingReq = await db
+      .select()
+      .from(joinRequests)
+      .where(and(eq(joinRequests.userId, user.id), eq(joinRequests.groupId, group[0].id)))
+      .limit(1)
+    if (existingReq[0]) {
+      return c.json({ success: true, data: existingReq[0] }, 200)
+    }
+
+    const { nanoid: id } = await import('nanoid')
+    const req = await db
+      .insert(joinRequests)
+      .values({ id: id(), groupId: group[0].id, userId: user.id, message: message ?? null })
+      .returning()
+
+    return c.json({ success: true, data: req[0] }, 201)
+  }
+)
+
+/**
+ * GET /api/groups/:id/requests — Liste des demandes en attente (sheikh uniquement).
+ */
+groupRoutes.get('/:id/requests', requireAuth, async (c) => {
+  const user = c.get('user')
+  const groupId = c.req.param('id')
+
+  const membership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.userId, user.id), eq(groupMembers.groupId, groupId)))
+    .limit(1)
+
+  if (!membership[0] || membership[0].role !== 'sheikh') {
+    return c.json({ success: false, error: 'FORBIDDEN' }, 403)
+  }
+
+  const pending = await db
+    .select({
+      id: joinRequests.id,
+      userId: joinRequests.userId,
+      status: joinRequests.status,
+      message: joinRequests.message,
+      createdAt: joinRequests.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+      userAvatar: users.avatar,
+    })
+    .from(joinRequests)
+    .innerJoin(users, eq(joinRequests.userId, users.id))
+    .where(and(eq(joinRequests.groupId, groupId), eq(joinRequests.status, 'pending')))
+    .orderBy(desc(joinRequests.createdAt))
+
+  return c.json({ success: true, data: pending })
+})
+
+/**
+ * PATCH /api/groups/:id/requests/:requestId — Accepter ou rejeter une demande (sheikh).
+ * Sur acceptation : ajoute le membre + envoie un email de confirmation.
+ */
+groupRoutes.patch(
+  '/:id/requests/:requestId',
+  requireAuth,
+  zValidator('json', z.object({ action: z.enum(['accept', 'reject']) })),
+  async (c) => {
+    const user = c.get('user')
+    const groupId = c.req.param('id')
+    const requestId = c.req.param('requestId')
+    const { action } = c.req.valid('json')
+
+    // Vérifier que l'utilisateur est sheikh du groupe
+    const membership = await db
+      .select({ role: groupMembers.role })
+      .from(groupMembers)
+      .where(and(eq(groupMembers.userId, user.id), eq(groupMembers.groupId, groupId)))
+      .limit(1)
+
+    if (!membership[0] || membership[0].role !== 'sheikh') {
+      return c.json({ success: false, error: 'FORBIDDEN' }, 403)
+    }
+
+    // Récupérer la demande
+    const reqRows = await db
+      .select({
+        id: joinRequests.id,
+        userId: joinRequests.userId,
+        status: joinRequests.status,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(joinRequests)
+      .innerJoin(users, eq(joinRequests.userId, users.id))
+      .where(and(eq(joinRequests.id, requestId), eq(joinRequests.groupId, groupId)))
+      .limit(1)
+
+    if (!reqRows[0]) {
+      return c.json({ success: false, error: 'NOT_FOUND' }, 404)
+    }
+    const req = reqRows[0]
+
+    if (req.status !== 'pending') {
+      return c.json({ success: false, error: 'ALREADY_PROCESSED' }, 409)
+    }
+
+    // Récupérer le nom du groupe
+    const groupRow = await db
+      .select({ name: groups.name })
+      .from(groups)
+      .where(eq(groups.id, groupId))
+      .limit(1)
+
+    const status = action === 'accept' ? 'accepted' : 'rejected'
+
+    // Mettre à jour le statut
+    await db
+      .update(joinRequests)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(joinRequests.id, requestId))
+
+    if (action === 'accept') {
+      // Ajouter le membre
+      await db.insert(groupMembers).values({
+        userId: req.userId,
+        groupId,
+        role: 'student',
+      }).onConflictDoNothing()
+
+      // Envoyer l'email de confirmation via Resend
+      try {
+        const { Resend } = await import('resend')
+        const resend = new Resend(process.env['RESEND_API_KEY'])
+        const appURL = (process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://quran-tracker-web.vercel.app').trim()
+        const groupName = groupRow[0]?.name ?? 'le groupe'
+
+        await resend.emails.send({
+          from: process.env['EMAIL_FROM'] ?? 'noreply@qurantracker.app',
+          to: req.userEmail,
+          subject: `🕌 Bienvenue dans "${groupName}" — Quran Tracker`,
+          html: `
+            <div style="font-family: Inter, sans-serif; max-width: 520px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #e5e7eb;">
+              <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 32px 24px; text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 8px;">🕌</div>
+                <h1 style="color: #fff; margin: 0; font-size: 22px; font-weight: 700;">Quran Tracker</h1>
+              </div>
+              <div style="padding: 32px 24px;">
+                <h2 style="color: #111827; margin: 0 0 8px;">Salam ${req.userName} 👋</h2>
+                <p style="color: #374151; margin: 0 0 24px; line-height: 1.6;">
+                  Votre demande d'adhésion au groupe <strong>"${groupName}"</strong> a été <strong style="color: #10b981;">acceptée</strong> par le sheikh. Vous pouvez maintenant accéder au tableau de bord et rejoindre la communauté.
+                </p>
+                <div style="text-align: center; margin: 24px 0;">
+                  <a href="${appURL}/dashboard" style="display: inline-block; background: #10b981; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 16px;">
+                    Accéder au tableau de bord →
+                  </a>
+                </div>
+                <p style="color: #9ca3af; font-size: 13px; text-align: center; margin-top: 24px;">
+                  Que Allah vous facilite la mémorisation du Coran 🤲
+                </p>
+              </div>
+            </div>
+          `,
+        })
+      } catch (emailErr) {
+        // Non-bloquant : l'acceptation est faite même si l'email échoue
+        console.error('[Join Request] Email failed (non-blocking):', emailErr)
+      }
+    }
+
+    return c.json({ success: true, data: { status } })
   }
 )
 
