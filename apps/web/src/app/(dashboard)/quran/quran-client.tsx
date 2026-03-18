@@ -44,6 +44,8 @@ interface QuranVerse {
   verse_key: string
   /** Texte Uthmani brut (sans balisage tajweed) — rendu natif sans spans */
   text_uthmani: string
+  /** Texte avec balisage tajweed <tajweed class=...> → couleurs */
+  text_uthmani_tajweed: string
   juz_number: number
   hizb_number: number
   page_number: number
@@ -67,7 +69,7 @@ const QURAN_API            = 'https://api.quran.com/api/v4'
 const STORAGE_KEY_READ     = 'ikraa_pages_read'
 const STORAGE_KEY_VERSE_BK = 'ikraa_verse_bookmark'
 const FONT_SIZES           = [20, 24, 28, 32, 36, 40] as const
-const DEFAULT_FONT_IDX     = 3   // 32px
+const DEFAULT_FONT_IDX     = 4   // 36px — plus lisible
 
 const QURAN_FONT = "'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Scheherazade New', 'Noto Naskh Arabic', serif"
 
@@ -119,8 +121,8 @@ function revelationLabel(t: string) {
 }
 
 async function fetchPage(page: number): Promise<QuranVerse[]> {
-  // text_uthmani : texte Uthmani brut (sans HTML) → lettres connectées correctement
-  const url = `${QURAN_API}/verses/by_page/${page}?language=fr&fields=text_uthmani,juz_number,hizb_number,page_number&per_page=50`
+  // Deux champs : text_uthmani (brut) + text_uthmani_tajweed (couleurs)
+  const url = `${QURAN_API}/verses/by_page/${page}?language=fr&fields=text_uthmani,text_uthmani_tajweed,juz_number,hizb_number,page_number&per_page=50`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json() as { verses: QuranVerse[] }
@@ -129,9 +131,30 @@ async function fetchPage(page: number): Promise<QuranVerse[]> {
 
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ'
 
-// TAJWEED_COLORS conservé pour référence future (feature v2 : toggle tajweed)
-// Actuellement désactivé — on utilise text_uthmani (brut) pour un shaping arabe correct.
-// const TAJWEED_COLORS = { ... }
+/**
+ * Couleurs tajweed — 15 règles de récitation Hafs ʿan ʿĀṣim.
+ * Les spans dans le CSS utilisent display:contents → transparent pour le shaping
+ * arabe (les lettres se connectent correctement malgré les spans de couleur).
+ */
+const TAJWEED_COLORS: Record<string, string> = {
+  ham_wasl:               '#9ba3ae',
+  slnt:                   '#9ba3ae',
+  laam_shamsiyah:         '#9ba3ae',
+  madda_obligatory:       '#0d47a1',
+  madda_necessary:        '#1565c0',
+  madda_permissible:      '#1976d2',
+  madda_normal:           '#64b5f6',
+  ghunnah:                '#2e7d32',
+  ikhafa:                 '#e65100',
+  ikhafa_shafawi:         '#bf360c',
+  idgham_ghunnah:         '#388e3c',
+  idgham_wo_ghunnah:      '#1b5e20',
+  idgham_shafawi:         '#33691e',
+  idgham_mutajanisayn:    '#2e7d32',
+  idgham_mutaqaribbayn:   '#1b5e20',
+  iqlab:                  '#7b1fa2',
+  qalaqah:                '#c62828',
+}
 
 /**
  * Convertit un nombre en chiffres arabes orientaux (٠١٢٣٤٥٦٧٨٩)
@@ -140,8 +163,29 @@ function toAr(n: number): string {
   return n.toString().replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)] ?? d)
 }
 
-// Note : tajweed colors (applyTajweedColors / stripVerseEndMarker) retirés.
-// Le champ text_uthmani (brut) garantit un shaping arabe correct sur tous navigateurs.
+/**
+ * Supprime le marqueur de fin de verset de l'API quran.com.
+ * Format tajweed : <span class=end>١</span>
+ */
+function stripVerseEndMarker(html: string): string {
+  return html
+    .replace(/<span class=end>[^<]*<\/span>\s*$/, '')
+    .replace(/<span[^>]*>[\u0660-\u0669\u06F0-\u06F9]+<\/span>\s*$/, '')
+    .trim()
+}
+
+/**
+ * Injecte les couleurs tajweed en style inline.
+ * Les <span> utilisent display:contents (CSS globals) → shaping arabe préservé.
+ */
+function applyTajweedColors(html: string): string {
+  return html
+    .replace(/<tajweed class=([a-z_]+)>/g, (_m, cls: string) => {
+      const color = TAJWEED_COLORS[cls]
+      return color ? `<span style="color:${color}">` : '<span>'
+    })
+    .replace(/<\/tajweed>/g, '</span>')
+}
 
 // ─── SurahRow ─────────────────────────────────────────────────────────────────
 
@@ -481,11 +525,14 @@ function ReadingView({
                       outlineOffset: '2px',
                     } : { cursor: 'pointer' }}
                   >
-                    {/* Texte Uthmani brut — pas de spans → shaping arabe natif intact */}
-                    {v.text_uthmani}{' '}
-                    {/* Notre propre badge numéro verset */}
-                    {verseBadge}
-                    {' '}
+                    {/* Texte tajweed — spans avec display:contents (CSS) → couleurs + shaping intact */}
+                    <span
+                      dangerouslySetInnerHTML={{
+                        __html: applyTajweedColors(stripVerseEndMarker(v.text_uthmani_tajweed))
+                      }}
+                    />
+                    {/* Badge numéro verset */}
+                    {verseBadge}{' '}
                   </span>
                 )
               })}

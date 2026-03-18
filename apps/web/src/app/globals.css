@@ -155,15 +155,17 @@
    sur tous les navigateurs (Safari inclus) — CSS minimal pour les spans.
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* Spans tajweed — coloration inline injectée par applyTajweedColors() */
-/* unicode-bidi: inherit empêche les spans de casser les ligatures arabes */
+/* ─── Tajweed spans ─────────────────────────────────────────────────────────
+   display:contents rend le span "transparent" pour le moteur de layout.
+   Le navigateur shape les lettres arabes en voyant le texte comme continu,
+   sans frontière de boîte qui casserait les ligatures.
+   La couleur (color:...) est héritée par le nœud texte enfant → tajweed OK.
+   ─────────────────────────────────────────────────────────────────────────── */
 .tajweed-text span {
-  font-style: normal;
-  unicode-bidi: inherit;
-  display: inline;
+  display: contents;
 }
 
-/* Force le rendu optimisé des ligatures arabes sur toute la zone de lecture */
+/* Zone de texte coranique — ligatures OpenType forcées */
 .tajweed-text {
   font-feature-settings: "liga" 1, "calt" 1, "kern" 1, "curs" 1;
   text-rendering: optimizeLegibility;

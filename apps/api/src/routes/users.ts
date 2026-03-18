@@ -89,17 +89,17 @@ userRoutes.put(
   }
 )
 
-/** POST /api/users/me/hizb — Enregistrer des hizbs lus (incrémente le compteur) */
+/** POST /api/users/me/hizb — Enregistrer ou corriger des hizbs lus (+ ou −) */
 userRoutes.post(
   '/me/hizb',
   requireAuth,
-  zValidator('json', z.object({ count: z.number().int().min(1).max(60) })),
+  // count peut être négatif (correction) — jamais 0, jamais hors [-60, 60]
+  zValidator('json', z.object({ count: z.number().int().min(-60).max(60).refine((n) => n !== 0, { message: 'count ne peut pas être 0' }) })),
   async (c) => {
     const user = c.get('user')
     const { count } = c.req.valid('json')
 
     const XP_PER_HIZB = 5
-    const xpGain = count * XP_PER_HIZB
 
     // Récupère l'état actuel pour le calcul du niveau
     const currentRow = await db
@@ -108,32 +108,35 @@ userRoutes.post(
       .where(eq(users.id, user.id))
       .limit(1)
 
-    const xpBefore = parseInt(currentRow[0]?.xp ?? '0')
+    const currentHizbsRead = currentRow[0]?.hizbsRead ?? 0
+    const xpBefore         = parseInt(currentRow[0]?.xp ?? '0')
+
+    // Valeur finale clampée entre 0 et 60
+    const newHizbsRead = Math.max(0, Math.min(60, currentHizbsRead + count))
+    const effectiveDelta = newHizbsRead - currentHizbsRead  // 0 si déjà au min/max
+    const xpGain = Math.max(0, effectiveDelta * XP_PER_HIZB)  // XP seulement si gain
 
     const updated = await db
       .update(users)
       .set({
-        hizbsRead: sql`${users.hizbsRead} + ${count}`,
+        hizbsRead: newHizbsRead,
         xp: sql`(${users.xp}::integer + ${xpGain})::text`,
         updatedAt: new Date(),
       })
       .where(eq(users.id, user.id))
       .returning({ hizbsRead: users.hizbsRead, xp: users.xp })
 
-    const newHizbsRead = updated[0]?.hizbsRead ?? 0
-    const xpAfter      = xpBefore + xpGain
-
-    // Log journalier — upsert (userId, date) avec addition du count
-    const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-    await db.execute(sql`
-      INSERT INTO hizb_daily_log (id, user_id, date, count, created_at, updated_at)
-      VALUES (${nanoid()}, ${user.id}, ${today}, ${count}, NOW(), NOW())
-      ON CONFLICT (user_id, date)
-      DO UPDATE SET count = hizb_daily_log.count + ${count}, updated_at = NOW()
-    `)
-
-    // Fire-and-forget : feed event hizb_read + level_up éventuel
-    handlePostHizbEvents(user.id, count, newHizbsRead, xpBefore, xpAfter).catch(() => {})
+    // Log journalier — seulement si delta effectif positif
+    if (effectiveDelta > 0) {
+      const today = new Date().toISOString().slice(0, 10)
+      await db.execute(sql`
+        INSERT INTO hizb_daily_log (id, user_id, date, count, created_at, updated_at)
+        VALUES (${nanoid()}, ${user.id}, ${today}, ${effectiveDelta}, NOW(), NOW())
+        ON CONFLICT (user_id, date)
+        DO UPDATE SET count = hizb_daily_log.count + ${effectiveDelta}, updated_at = NOW()
+      `)
+      handlePostHizbEvents(user.id, effectiveDelta, newHizbsRead, xpBefore, xpBefore + xpGain).catch(() => {})
+    }
 
     return c.json({ success: true, data: { hizbsRead: newHizbsRead, xp: updated[0]?.xp ?? '0' } })
   }

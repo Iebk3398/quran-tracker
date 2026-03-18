@@ -180,12 +180,21 @@ function HizbLectureTab({
 
   const addHizb = useMutation({
     mutationFn: (delta: number) =>
-      apiFetch<{ hizbsRead: number }>('/api/users/me/hizb', {
+      apiFetch<{ success: boolean; data: { hizbsRead: number } }>('/api/users/me/hizb', {
         method: 'POST',
         body: JSON.stringify({ count: delta }),
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group', groupId, 'leaderboard'] })
+    onSuccess: (res) => {
+      // Mise à jour optimiste directe du cache → ring se met à jour immédiatement
+      const newHizbs = res?.data?.hizbsRead
+      if (newHizbs !== undefined) {
+        queryClient.setQueryData<Array<{ userId: string; hizbsRead: number }>>(
+          ['group', groupId, 'leaderboard'],
+          (old) => old?.map((e) => e.userId === currentUserId ? { ...e, hizbsRead: newHizbs } : e)
+        )
+      }
+      // Invalidation large pour syncer le reste (activité, leaderboard complet…)
+      queryClient.invalidateQueries({ queryKey: ['group'] })
     },
   })
 
