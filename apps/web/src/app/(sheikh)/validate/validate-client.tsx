@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle, XCircle, Clock, Users, RefreshCw, UserPlus, MessageSquare, ChevronDown } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Users, RefreshCw, UserPlus, MessageSquare } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useAppStore } from '@/store'
 import Link from 'next/link'
@@ -218,7 +218,7 @@ export default function ValidateClient() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100 dark:border-stone-800">
           <div className="flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-emerald-500" />
-            <h2 className="font-semibold text-stone-800 dark:text-stone-200">Demandes d'adhésion</h2>
+            <h2 className="font-semibold text-stone-800 dark:text-stone-200">Demandes d&apos;adhésion</h2>
           </div>
           {visible.length > 0 && (
             <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full">
@@ -240,7 +240,7 @@ export default function ValidateClient() {
               <Clock className="w-8 h-8 text-stone-300 mx-auto" />
               <p className="text-stone-500 text-sm">Aucune demande en attente</p>
               <p className="text-stone-400 text-xs">
-                Partagez le lien d'invitation depuis la{' '}
+                Partagez le lien d&apos;invitation depuis la{' '}
                 <Link href="/groups" className="text-emerald-500 hover:underline">gestion des groupes</Link>
               </p>
             </div>

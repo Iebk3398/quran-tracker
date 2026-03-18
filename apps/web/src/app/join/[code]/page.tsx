@@ -11,8 +11,7 @@ interface Props {
   params: Promise<{ code: string }>
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { code } = await params
+export async function generateMetadata(_props: Props): Promise<Metadata> {
   return {
     title: `Rejoindre un groupe — Quran Tracker`,
     description: `Vous avez été invité à rejoindre un groupe sur Quran Tracker.`,

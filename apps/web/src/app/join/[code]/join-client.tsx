@@ -37,7 +37,7 @@ type RequestStatus = 'idle' | 'pending_send' | 'sent' | 'already_member' | 'alre
  */
 export default function JoinClient({ code }: { code: string }) {
   const router = useRouter()
-  const { user } = useAppStore()
+  useAppStore()
 
   const [preview, setPreview] = useState<GroupPreview | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -128,7 +128,7 @@ export default function JoinClient({ code }: { code: string }) {
             <h2 className="text-xl font-bold text-stone-800 dark:text-stone-100">Demande envoyée !</h2>
             <p className="text-stone-500 text-sm mt-2 leading-relaxed">
               Le sheikh de <strong className="text-stone-700 dark:text-stone-300">{preview?.name}</strong> va
-              recevoir votre demande. Vous serez notifié par email dès qu'il l'accepte.
+              recevoir votre demande. Vous serez notifié par email dès qu&apos;il l&apos;accepte.
             </p>
           </div>
           <button
