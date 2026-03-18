@@ -480,9 +480,11 @@ function ReadingView({
               style={{
                 fontFamily: QURAN_FONT,
                 fontSize,
-                lineHeight: 4.2,        // espace suffisant pour tous les diacritiques
+                lineHeight: 2.8,
                 color: '#1c1610',
                 textAlign: 'center',
+                WebkitFontSmoothing: 'antialiased',
+                MozOsxFontSmoothing: 'grayscale',
               }}
             >
               {group.verses.map((v) => {

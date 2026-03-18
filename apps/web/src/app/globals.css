@@ -8,7 +8,8 @@
  */
 @font-face {
   font-family: 'UthmanicHafs';
-  src: url('https://static.qurancdn.com/fonts/UthmanicHafs1Ver18.woff2') format('woff2');
+  src: url('https://static.qurancdn.com/fonts/UthmanicHafs1Ver22.woff2') format('woff2'),
+       url('https://static.qurancdn.com/fonts/UthmanicHafs1Ver18.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
