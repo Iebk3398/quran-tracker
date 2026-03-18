@@ -1,11 +1,13 @@
 'use client'
 /**
  * @file Sidebar du dashboard
- * @description Navigation latérale avec support RTL et mobile
+ * @description Navigation latérale avec group switcher et support RTL/mobile
  */
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { useState, useRef, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
@@ -17,10 +19,15 @@ import {
   ChevronRight,
   BookOpen,
   BookMarked,
+  Users,
+  ChevronDown,
+  Plus,
+  Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store'
 import { signOut, AUTH_TOKEN_KEY } from '@/lib/auth-client'
+import { apiFetch } from '@/lib/api'
 
 interface NavItem {
   href: string
@@ -33,12 +40,150 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard', mobileLabel: 'Accueil'  },
+  { href: '/groups',    icon: Users,           labelKey: 'nav.groups',    mobileLabel: 'Groupes'  },
   { href: '/profile',   icon: User,            labelKey: 'nav.profile',   mobileLabel: 'Profil'   },
   { href: '/quran',     icon: BookOpen,        labelKey: 'nav.quran',     mobileLabel: 'Coran'    },
   { href: '/surahs',    icon: BookMarked,      labelKey: 'nav.surahs',    mobileLabel: 'Mémo'     },
   { href: '/validate',  icon: CheckCircle,     labelKey: 'nav.validate',  mobileLabel: 'Valider', adminOnly: true },
   { href: '/settings',  icon: Settings,        labelKey: 'nav.settings',  mobileLabel: 'Réglages' },
 ]
+
+// ─── Group Switcher ───────────────────────────────────────────────────────────
+
+interface GroupOption {
+  id: string
+  name: string
+  role: 'sheikh' | 'student' | 'parent'
+}
+
+/**
+ * Sélecteur de groupe actif affiché dans la sidebar desktop.
+ * Affiche le groupe courant avec un dropdown pour en changer.
+ */
+function GroupSwitcher({ collapsed }: { collapsed: boolean }) {
+  const router = useRouter()
+  const { activeGroupId, activeGroup, setActiveGroup, user } = useAppStore()
+  const [open, setOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const { data: myGroups = [] } = useQuery<GroupOption[]>({
+    queryKey: ['my-groups'],
+    queryFn: () => apiFetch('/api/groups/me'),
+    enabled: !!user?.id,
+    staleTime: 30_000,
+  })
+
+  // Fermer le dropdown en cliquant ailleurs
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    if (open) document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [open])
+
+  // Synchroniser activeGroup depuis myGroups si le store n'a pas encore de groupe
+  useEffect(() => {
+    if (!activeGroupId && myGroups.length > 0 && myGroups[0]) {
+      setActiveGroup(myGroups[0] as Parameters<typeof setActiveGroup>[0])
+    }
+  }, [myGroups, activeGroupId, setActiveGroup])
+
+  const currentName = activeGroup?.name ?? myGroups.find(g => g.id === activeGroupId)?.name
+
+  if (myGroups.length === 0) {
+    return (
+      <Link
+        href="/groups"
+        className="flex items-center gap-2 mx-2 mb-1 px-3 py-2 rounded-xl border-2 border-dashed border-stone-200 dark:border-stone-700 text-stone-400 dark:text-stone-500 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors group"
+        title="Rejoindre un groupe"
+      >
+        <Plus className="h-4 w-4 flex-shrink-0" />
+        {!collapsed && <span className="text-xs font-medium truncate">Rejoindre un groupe</span>}
+      </Link>
+    )
+  }
+
+  return (
+    <div ref={dropdownRef} className="relative mx-2 mb-1">
+      <button
+        onClick={() => setOpen(!open)}
+        title={currentName ?? 'Groupes'}
+        className={cn(
+          'w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition-colors text-left',
+          collapsed && 'justify-center'
+        )}
+      >
+        <div className="w-5 h-5 rounded-md bg-emerald-500 flex items-center justify-center flex-shrink-0">
+          <Users className="w-3 h-3 text-white" />
+        </div>
+        {!collapsed && (
+          <>
+            <span className="flex-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 truncate leading-tight">
+              {currentName ?? '—'}
+            </span>
+            <ChevronDown className={cn('w-3 h-3 text-emerald-500 flex-shrink-0 transition-transform', open && 'rotate-180')} />
+          </>
+        )}
+      </button>
+
+      {/* Dropdown */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            transition={{ duration: 0.12 }}
+            className={cn(
+              'absolute z-50 mt-1 w-56 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-lg overflow-hidden',
+              collapsed ? 'left-10' : 'left-0 right-0 w-auto'
+            )}
+          >
+            <div className="p-1">
+              {myGroups.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => {
+                    setActiveGroup(g as Parameters<typeof setActiveGroup>[0])
+                    setOpen(false)
+                    router.push('/dashboard')
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors text-left"
+                >
+                  <div className={cn(
+                    'w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0',
+                    g.id === activeGroupId ? 'bg-emerald-500' : 'bg-stone-200 dark:bg-stone-700'
+                  )}>
+                    {g.id === activeGroupId
+                      ? <Check className="w-3 h-3 text-white" />
+                      : <Users className="w-3 h-3 text-stone-500" />}
+                  </div>
+                  <span className="flex-1 text-sm text-stone-700 dark:text-stone-300 truncate">{g.name}</span>
+                  {g.role === 'sheikh' && (
+                    <span className="text-[10px] text-amber-500 font-semibold flex-shrink-0">Sheikh</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-stone-100 dark:border-stone-800 p-1">
+              <Link
+                href="/groups"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors text-stone-500 dark:text-stone-400"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm">Gérer les groupes</span>
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 
 /**
  * Sidebar principale du dashboard
@@ -107,6 +252,11 @@ export function DashboardSidebar() {
               <BookOpen className="h-4 w-4 text-white" />
             </div>
           )}
+        </div>
+
+        {/* Group Switcher */}
+        <div className="py-2 border-b border-stone-100 dark:border-stone-800">
+          <GroupSwitcher collapsed={!sidebarOpen} />
         </div>
 
         {/* Navigation */}

@@ -1,7 +1,9 @@
 {
   "nav": {
     "dashboard": "لوحة التحكم",
+    "groups": "مجموعاتي",
     "profile": "ملفي الشخصي",
+    "quran": "القرآن",
     "surahs": "سوراتي",
     "validate": "التحقق",
     "settings": "الإعدادات",

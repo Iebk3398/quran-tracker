@@ -1,7 +1,9 @@
 {
   "nav": {
     "dashboard": "Dashboard",
+    "groups": "My Groups",
     "profile": "My Profile",
+    "quran": "Quran",
     "surahs": "My Surahs",
     "validate": "Validate",
     "settings": "Settings",

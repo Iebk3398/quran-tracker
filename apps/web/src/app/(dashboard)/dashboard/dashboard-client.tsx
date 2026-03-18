@@ -3,7 +3,7 @@
  * @file DashboardClient — Lecture | Mémorisation | Objectifs
  * Architecture 3 tabs avec progress ring animé pour la lecture quotidienne.
  */
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Share2, Check, Copy, BookOpen, Star, Target, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -366,25 +366,31 @@ const TABS: { id: DashboardMode; label: string; icon: React.ElementType; activeC
 ]
 
 export function DashboardClient() {
-  const storeUser = useAppStore((s) => s.user)
+  const storeUser   = useAppStore((s) => s.user)
+  const activeGroupId = useAppStore((s) => s.activeGroupId)
+  const setActiveGroup = useAppStore((s) => s.setActiveGroup)
   const queryClient = useQueryClient()
 
   const [mode, setMode] = useState<DashboardMode>('lecture')
-  const [inviteCode, setInviteCode] = useState('')
-  const [joining, setJoining] = useState(false)
-  const [joinError, setJoinError] = useState<string | null>(null)
-  const [groupName, setGroupName] = useState('')
-  const [createError, setCreateError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [shared, setShared] = useState(false)
+  const [shared, setShared]   = useState(false)
 
-  const { data: myGroups, isLoading: groupsLoading, refetch: refetchGroups } = useQuery({
+  const { data: myGroups, isLoading: groupsLoading } = useQuery({
     queryKey: ['my-groups'],
     queryFn: () => apiFetch<MyGroup[]>('/api/groups/me'),
     enabled: !!storeUser?.id,
   })
 
-  const group = myGroups?.[0]
+  // Synchroniser le groupe actif : si le store n'a pas encore d'activeGroupId,
+  // utiliser le premier groupe retourné par l'API.
+  useEffect(() => {
+    if (!activeGroupId && myGroups && myGroups.length > 0 && myGroups[0]) {
+      setActiveGroup(myGroups[0])
+    }
+  }, [myGroups, activeGroupId, setActiveGroup])
+
+  // Groupe courant = celui du store (ou premier de la liste si store vide)
+  const group   = myGroups?.find(g => g.id === activeGroupId) ?? myGroups?.[0]
   const groupId = group?.id
 
   const { data: rawLeaderboard, isLoading: lbLoading } = useQuery({
@@ -394,42 +400,6 @@ export function DashboardClient() {
   })
 
   useGroupRealtime({ groupId: groupId ?? '', enabled: !!groupId })
-
-  const createGroup = useMutation({
-    mutationFn: ({ name, description }: { name: string; description?: string }) =>
-      apiFetch<MyGroup>('/api/groups', {
-        method: 'POST',
-        body: JSON.stringify({ name, description: description ?? '' }),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-groups'] })
-      refetchGroups()
-    },
-    onError: (err) => setCreateError(err instanceof Error ? err.message : 'Erreur'),
-  })
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    setCreateError(null)
-    createGroup.mutate({ name: groupName })
-  }
-
-  async function handleJoin(e: React.FormEvent) {
-    e.preventDefault()
-    setJoining(true)
-    setJoinError(null)
-    try {
-      await apiFetch('/api/groups/join', {
-        method: 'POST',
-        body: JSON.stringify({ inviteCode }),
-      })
-      await refetchGroups()
-    } catch (err) {
-      setJoinError(err instanceof Error ? err.message : 'Erreur')
-    } finally {
-      setJoining(false)
-    }
-  }
 
   async function handleCopyCode() {
     if (!group) return
@@ -473,52 +443,20 @@ export function DashboardClient() {
 
   if (!group) {
     return (
-      <div className="py-12 space-y-6 max-w-lg mx-auto">
-        <div className="text-center space-y-2">
-          <div className="text-5xl">🕌</div>
-          <h2 className="text-xl font-semibold">Rejoignez ou créez une halqa</h2>
-          <p className="text-muted-foreground text-sm">Une halqa est un groupe de mémorisation du Coran.</p>
+      <div className="py-16 flex flex-col items-center gap-5 text-center max-w-sm mx-auto">
+        <div className="text-5xl">🕌</div>
+        <div className="space-y-1.5">
+          <h2 className="text-xl font-semibold text-stone-900 dark:text-stone-100">Aucun groupe actif</h2>
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            Rejoignez ou créez une halqa pour suivre votre progression en groupe.
+          </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="rounded-2xl border-2 border-dashed p-6 space-y-3">
-            <div className="text-3xl">✨</div>
-            <h3 className="font-semibold">Créer une halqa</h3>
-            <p className="text-sm text-muted-foreground">Vous êtes sheikh ? Créez votre groupe.</p>
-            <form onSubmit={handleCreate} className="space-y-2">
-              <input
-                value={groupName}
-                onChange={e => setGroupName(e.target.value)}
-                placeholder="Nom du groupe"
-                maxLength={60}
-                className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
-              />
-              <button type="submit" disabled={createGroup.isPending || groupName.length < 2}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
-                {createGroup.isPending ? 'Création…' : 'Créer'}
-              </button>
-            </form>
-            {createError && <p className="text-xs text-red-500">{createError}</p>}
-          </div>
-          <div className="rounded-2xl border-2 border-dashed p-6 space-y-3">
-            <div className="text-3xl">🤝</div>
-            <h3 className="font-semibold">Rejoindre une halqa</h3>
-            <p className="text-sm text-muted-foreground">Entrez le code de votre sheikh.</p>
-            <form onSubmit={handleJoin} className="space-y-2">
-              <input
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                placeholder="Code d'invitation"
-                maxLength={12}
-                className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-muted-foreground"
-              />
-              <button type="submit" disabled={joining || inviteCode.length < 6}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
-                {joining ? 'Connexion…' : 'Rejoindre'}
-              </button>
-            </form>
-            {joinError && <p className="text-xs text-red-500">{joinError}</p>}
-          </div>
-        </div>
+        <a
+          href="/groups"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-2xl transition-colors"
+        >
+          Gérer mes groupes →
+        </a>
       </div>
     )
   }

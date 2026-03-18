@@ -1,7 +1,9 @@
 {
   "nav": {
     "dashboard": "Tableau de bord",
+    "groups": "Mes Groupes",
     "profile": "Mon Profil",
+    "quran": "Coran",
     "surahs": "Mes Sourates",
     "validate": "Valider",
     "settings": "Paramètres",

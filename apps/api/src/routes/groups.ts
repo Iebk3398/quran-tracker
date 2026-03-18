@@ -42,7 +42,7 @@ groupRoutes.post('/', requireSheikh, zValidator('json', createGroupSchema), asyn
   return c.json({ success: true, data: group[0] }, 201)
 })
 
-/** GET /api/groups/me — Groupes de l'utilisateur connecté */
+/** GET /api/groups/me — Groupes de l'utilisateur connecté (avec memberCount) */
 groupRoutes.get('/me', requireAuth, async (c) => {
   const user = c.get('user')
 
@@ -55,6 +55,7 @@ groupRoutes.get('/me', requireAuth, async (c) => {
       sheikhId: groups.sheikhId,
       createdAt: groups.createdAt,
       role: groupMembers.role,
+      memberCount: sql<number>`(SELECT COUNT(*)::int FROM group_members gm2 WHERE gm2.group_id = ${groups.id})`,
     })
     .from(groupMembers)
     .innerJoin(groups, eq(groupMembers.groupId, groups.id))
@@ -444,4 +445,142 @@ groupRoutes.get('/:id/activity', requireAuth, async (c) => {
   data.sort((a, b) => b.totalThisPeriod - a.totalThisPeriod)
 
   return c.json({ success: true, data })
+})
+
+// ─── Gestion du groupe (édition, départ, suppression) ────────────────────────
+
+/**
+ * PATCH /api/groups/:id — Modifier le nom/description d'un groupe.
+ * Réservé au sheikh du groupe.
+ */
+groupRoutes.patch(
+  '/:id',
+  requireAuth,
+  zValidator('json', z.object({
+    name: z.string().min(2).max(100).optional(),
+    description: z.string().max(500).nullable().optional(),
+  })),
+  async (c) => {
+    const user = c.get('user')
+    const groupId = c.req.param('id')
+    const body = c.req.valid('json')
+
+    const membership = await db
+      .select({ role: groupMembers.role })
+      .from(groupMembers)
+      .where(and(eq(groupMembers.userId, user.id), eq(groupMembers.groupId, groupId)))
+      .limit(1)
+
+    if (!membership[0] || membership[0].role !== 'sheikh') {
+      return c.json({ success: false, error: 'FORBIDDEN' }, 403)
+    }
+
+    const updates: Partial<{ name: string; description: string | null; updatedAt: Date }> = {
+      updatedAt: new Date(),
+    }
+    if (body.name !== undefined) updates.name = body.name
+    if (body.description !== undefined) updates.description = body.description
+
+    const updated = await db
+      .update(groups)
+      .set(updates)
+      .where(eq(groups.id, groupId))
+      .returning()
+
+    return c.json({ success: true, data: updated[0] })
+  }
+)
+
+/**
+ * POST /api/groups/:id/regenerate-invite — Régénérer le code d'invitation.
+ * L'ancien code est immédiatement invalidé.
+ */
+groupRoutes.post('/:id/regenerate-invite', requireAuth, async (c) => {
+  const user = c.get('user')
+  const groupId = c.req.param('id')
+
+  const membership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.userId, user.id), eq(groupMembers.groupId, groupId)))
+    .limit(1)
+
+  if (!membership[0] || membership[0].role !== 'sheikh') {
+    return c.json({ success: false, error: 'FORBIDDEN' }, 403)
+  }
+
+  const newCode = nanoid(8).toUpperCase()
+  const updated = await db
+    .update(groups)
+    .set({ inviteCode: newCode, updatedAt: new Date() })
+    .where(eq(groups.id, groupId))
+    .returning({ inviteCode: groups.inviteCode })
+
+  return c.json({ success: true, data: { inviteCode: updated[0]?.inviteCode } })
+})
+
+/**
+ * POST /api/groups/:id/leave — Quitter un groupe.
+ * Un sheikh ne peut pas partir s'il est le seul sheikh du groupe
+ * (il doit supprimer le groupe à la place).
+ */
+groupRoutes.post('/:id/leave', requireAuth, async (c) => {
+  const user = c.get('user')
+  const groupId = c.req.param('id')
+
+  const membership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.userId, user.id), eq(groupMembers.groupId, groupId)))
+    .limit(1)
+
+  if (!membership[0]) {
+    return c.json({ success: false, error: 'NOT_MEMBER' }, 404)
+  }
+
+  if (membership[0].role === 'sheikh') {
+    // Compter le nombre de sheikhs dans ce groupe
+    const sheikhs = await db
+      .select({ userId: groupMembers.userId })
+      .from(groupMembers)
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.role, 'sheikh')))
+
+    if (sheikhs.length <= 1) {
+      return c.json({
+        success: false,
+        error: 'LAST_SHEIKH',
+        message: 'Vous êtes le seul sheikh. Supprimez le groupe pour le dissoudre.',
+      }, 409)
+    }
+  }
+
+  await db
+    .delete(groupMembers)
+    .where(and(eq(groupMembers.userId, user.id), eq(groupMembers.groupId, groupId)))
+
+  return c.json({ success: true, data: { left: true } })
+})
+
+/**
+ * DELETE /api/groups/:id — Supprimer le groupe (propriétaire uniquement).
+ * La suppression est en cascade : membres, objectifs, feed, notifications.
+ */
+groupRoutes.delete('/:id', requireAuth, async (c) => {
+  const user = c.get('user')
+  const groupId = c.req.param('id')
+
+  const group = await db
+    .select({ sheikhId: groups.sheikhId })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .limit(1)
+
+  if (!group[0]) return c.json({ success: false, error: 'NOT_FOUND' }, 404)
+  if (group[0].sheikhId !== user.id) {
+    return c.json({ success: false, error: 'FORBIDDEN' }, 403)
+  }
+
+  await db.delete(groups).where(eq(groups.id, groupId))
+
+  return c.json({ success: true, data: { deleted: true } })
 })
