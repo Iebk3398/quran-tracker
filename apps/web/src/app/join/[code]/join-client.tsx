@@ -109,7 +109,7 @@ export default function JoinClient({ code }: { code: string }) {
             onClick={() => router.push('/dashboard')}
             className="w-full py-3 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition-colors"
           >
-            Retour à l'accueil
+            Retour à l&apos;accueil
           </button>
         </div>
       </div>
