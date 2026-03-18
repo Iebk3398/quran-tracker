@@ -53,6 +53,10 @@ const navItems: NavItem[] = [
 interface GroupOption {
   id: string
   name: string
+  description: string | null
+  sheikhId: string
+  inviteCode: string
+  createdAt: string
   role: 'sheikh' | 'student' | 'parent'
 }
 

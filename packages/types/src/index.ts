@@ -51,7 +51,8 @@ export interface Group {
   description: string | null
   sheikhId: string
   inviteCode: string
-  createdAt: Date
+  /** ISO string (JSON serialised from Date) */
+  createdAt: string
 }
 
 export interface GroupMember {
