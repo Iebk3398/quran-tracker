@@ -42,7 +42,8 @@ interface QuranVerse {
   id: number
   verse_number: number
   verse_key: string
-  text_uthmani_tajweed: string
+  /** Texte Uthmani brut (sans balisage tajweed) — rendu natif sans spans */
+  text_uthmani: string
   juz_number: number
   hizb_number: number
   page_number: number
@@ -118,7 +119,8 @@ function revelationLabel(t: string) {
 }
 
 async function fetchPage(page: number): Promise<QuranVerse[]> {
-  const url = `${QURAN_API}/verses/by_page/${page}?language=fr&fields=text_uthmani_tajweed,juz_number,hizb_number,page_number&per_page=50`
+  // text_uthmani : texte Uthmani brut (sans HTML) → lettres connectées correctement
+  const url = `${QURAN_API}/verses/by_page/${page}?language=fr&fields=text_uthmani,juz_number,hizb_number,page_number&per_page=50`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json() as { verses: QuranVerse[] }
@@ -127,30 +129,9 @@ async function fetchPage(page: number): Promise<QuranVerse[]> {
 
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ'
 
-// ─── Tajweed — injection inline style ────────────────────────────────────────
-// L'API quran.com retourne : <tajweed class=ham_wasl>ٱ</tajweed>
-// Tag custom <tajweed> avec attribut class SANS guillemets.
-// Noms réels vérifiés sur l'API : ikhafa, qalaqah, laam_shamsiyah...
-
-const TAJWEED_COLORS: Record<string, string> = {
-  ham_wasl:               '#9ba3ae',
-  slnt:                   '#c9d0d7',
-  laam_shamsiyah:         '#9ba3ae',   // API: laam_shamsiyah (pas laam_shamsiyya)
-  madda_obligatory:       '#0d47a1',
-  madda_necessary:        '#1565c0',
-  madda_permissible:      '#1976d2',
-  madda_normal:           '#64b5f6',
-  ghunnah:                '#2e7d32',
-  ikhafa:                 '#e65100',   // API: ikhafa (pas ikhfa)
-  ikhafa_shafawi:         '#bf360c',
-  idgham_ghunnah:         '#388e3c',
-  idgham_wo_ghunnah:      '#1b5e20',
-  idgham_shafawi:         '#33691e',
-  idgham_mutajanisayn:    '#2e7d32',
-  idgham_mutaqaribbayn:   '#1b5e20',
-  iqlab:                  '#7b1fa2',
-  qalaqah:                '#c62828',   // API: qalaqah (pas qalqalah)
-}
+// TAJWEED_COLORS conservé pour référence future (feature v2 : toggle tajweed)
+// Actuellement désactivé — on utilise text_uthmani (brut) pour un shaping arabe correct.
+// const TAJWEED_COLORS = { ... }
 
 /**
  * Convertit un nombre en chiffres arabes orientaux (٠١٢٣٤٥٦٧٨٩)
@@ -159,30 +140,8 @@ function toAr(n: number): string {
   return n.toString().replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)] ?? d)
 }
 
-/**
- * Supprime le marqueur de fin de verset de l'API quran.com.
- * Format réel : <span class=end>١</span>
- */
-function stripVerseEndMarker(html: string): string {
-  return html
-    .replace(/<span class=end>[^<]*<\/span>\s*$/, '')
-    .replace(/<span[^>]*>[\u0660-\u0669\u06F0-\u06F9]+<\/span>\s*$/, '')
-    .trim()
-}
-
-/**
- * Injecte les couleurs tajweed en style inline.
- * Remplace les tags <tajweed> custom par des <span> standard pour garantir
- * la connexion des lettres arabes sur tous les navigateurs (Safari inclus).
- */
-function applyTajweedColors(html: string): string {
-  return html
-    .replace(/<tajweed class=([a-z_]+)>/g, (_match, cls: string) => {
-      const color = TAJWEED_COLORS[cls]
-      return color ? `<span style="color:${color}">` : '<span>'
-    })
-    .replace(/<\/tajweed>/g, '</span>')
-}
+// Note : tajweed colors (applyTajweedColors / stripVerseEndMarker) retirés.
+// Le champ text_uthmani (brut) garantit un shaping arabe correct sur tous navigateurs.
 
 // ─── SurahRow ─────────────────────────────────────────────────────────────────
 
@@ -311,7 +270,8 @@ function ReadingView({
   function onTouchEnd(e: React.TouchEvent) {
     if (touchStartX.current === null) return
     const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current
-    if (Math.abs(dx) > 55) { if (dx > 0) goTo(page - 1); else goTo(page + 1) }
+    // Livre arabe RTL : glisser DROITE (g→d) avance d'une page (numéro supérieur)
+    if (Math.abs(dx) > 55) { if (dx > 0) goTo(page + 1); else goTo(page - 1) }
     touchStartX.current = null
   }
 
@@ -441,20 +401,16 @@ function ReadingView({
             {/* En-tête de sourate */}
             {group.verses[0]?.verse_number === 1 && (
               <div className="mb-5 mt-2 text-center">
-                <div
-                  className="mx-auto mb-2.5 px-5 py-2.5 rounded-2xl inline-flex items-center justify-center"
-                  style={{
-                    background: 'linear-gradient(135deg, #c8a84b 0%, #8a6a1f 100%)',
-                    boxShadow: '0 2px 12px rgba(180,130,30,0.25)',
-                    minWidth: 200,
-                  }}
-                >
+                {/* Titre sobre : séparateur fin + nom en texte opaque */}
+                <div className="flex items-center gap-3 mx-4 mb-3">
+                  <div className="flex-1 h-px" style={{ background: 'rgba(180,130,30,0.2)' }} />
                   <span
-                    className="text-white text-xl font-bold"
-                    style={{ fontFamily: QURAN_FONT, letterSpacing: '0.02em' }}
+                    className="text-xl"
+                    style={{ fontFamily: QURAN_FONT, color: 'rgba(60,40,10,0.75)', letterSpacing: '0.01em' }}
                   >
-                    سُورَةُ {group.surah?.nameAr ?? ''}
+                    {group.surah?.nameAr ?? ''}
                   </span>
+                  <div className="flex-1 h-px" style={{ background: 'rgba(180,130,30,0.2)' }} />
                 </div>
                 <p className="text-[11px] text-stone-500 dark:text-stone-400 mb-3">
                   {group.surah?.nameTranslit} · {group.surah?.nameFr} · {group.surah?.versesCount} versets · {revelationLabel(group.surah?.revelationType ?? '')}
@@ -525,12 +481,8 @@ function ReadingView({
                       outlineOffset: '2px',
                     } : { cursor: 'pointer' }}
                   >
-                    {/* Texte tajweed sans le marqueur de fin intégré par l'API */}
-                    <span
-                      dangerouslySetInnerHTML={{
-                        __html: applyTajweedColors(stripVerseEndMarker(v.text_uthmani_tajweed))
-                      }}
-                    />
+                    {/* Texte Uthmani brut — pas de spans → shaping arabe natif intact */}
+                    {v.text_uthmani}{' '}
                     {/* Notre propre badge numéro verset */}
                     {verseBadge}
                     {' '}
@@ -547,9 +499,10 @@ function ReadingView({
       </div>
 
       {/* ══ FOOTER compact ══════════════════════════════════════════════════════ */}
+      <div className="shrink-0 px-3 pb-3 pt-1.5" style={{ background: '#f8f5ee' }}>
       <div
-        className="shrink-0 flex items-center justify-between px-4 py-2"
-        style={{ background: '#f8f5ee', borderTop: '1px solid #ede8df' }}
+        className="flex items-center justify-between px-4 py-2.5 rounded-2xl"
+        style={{ background: '#eee8dc', border: '1px solid #e0d8ca' }}
       >
         {/* Gauche : font size */}
         <div className="flex items-center gap-0.5">
@@ -601,6 +554,7 @@ function ReadingView({
           <span className="text-stone-300 mx-1">·</span>
           <span>P{page}</span>
         </div>
+      </div>
       </div>
 
       {/* ══ TOAST ════════════════════════════════════════════════════════════════ */}
@@ -742,8 +696,8 @@ export function QuranClient() {
     mutationFn: (position: number) =>
       apiFetch('/api/users/me/hizb', { method: 'PUT', body: JSON.stringify({ position }) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group-activity'] })
-      queryClient.invalidateQueries({ queryKey: ['leaderboard'] })
+      // 'group' invalide toutes les clés préfixées par 'group' : leaderboard, activité…
+      queryClient.invalidateQueries({ queryKey: ['group'] })
     },
   })
 

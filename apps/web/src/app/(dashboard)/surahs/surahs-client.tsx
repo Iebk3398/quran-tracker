@@ -104,9 +104,9 @@ export function SurahsClient() {
       return { prev }
     },
     onSuccess: () => {
-      // Invalider progress ET leaderboard → classement par sourates se met à jour
+      // Invalider progress + tout ce qui commence par 'group' (leaderboard, activité…)
       queryClient.invalidateQueries({ queryKey: ['progress'] })
-      queryClient.invalidateQueries({ queryKey: ['leaderboard'] })
+      queryClient.invalidateQueries({ queryKey: ['group'] })
     },
     onError: (e: Error, _v, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(['progress', user?.id], ctx.prev)

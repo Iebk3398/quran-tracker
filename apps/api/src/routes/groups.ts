@@ -413,28 +413,28 @@ groupRoutes.get('/:id/activity', requireAuth, async (c) => {
     }
   })
 
-  // Si le mois demandé = mois précédent et aucune activité réelle → mock data
+  // Pour tout mois passé sans activité réelle → injecter mock data déterministe
   if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
     const now = new Date()
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const prevMonthStr = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`
+    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-    // Injecter des mocks si on est sur le mois précédent et aucune donnée réelle
-    if (monthParam === prevMonthStr) {
+    // Injecter uniquement pour les mois passés (jamais le mois courant ni le futur)
+    if (monthParam < currentMonthStr) {
       for (const member of data) {
         if (member.totalThisPeriod === 0) {
-          // Seed déterministe basé sur userId pour reproductibilité
-          const seed = member.userId.charCodeAt(0) + member.userId.charCodeAt(1)
+          // Seed déterministe : userId + mois → reproductible entre rechargements
+          const monthSeed = monthParam.charCodeAt(5) + monthParam.charCodeAt(6)  // "MM"
+          const seed = member.userId.charCodeAt(0) + (member.userId.charCodeAt(1) ?? 0) + monthSeed
           let mockTotal = 0
           member.activity = member.activity.map((day, i) => {
-            // Activité ~15 jours sur 30, 1-3 hizbs par jour actif
+            // ~1/3 des jours actifs, 1-3 hizbs par jour actif
             const active = ((seed + i * 7) % 3) === 0
             const count = active ? 1 + ((seed + i) % 3) : 0
             mockTotal += count
             return { ...day, count }
           })
           member.totalThisPeriod = mockTotal
-          member.hizbsRead = Math.max(member.hizbsRead, mockTotal)
+          member.hizbsRead = Math.max(Number(member.hizbsRead) || 0, mockTotal)
         }
       }
     }
