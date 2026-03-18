@@ -40,7 +40,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard', mobileLabel: 'Accueil'  },
-  { href: '/groups',    icon: Users,           labelKey: 'nav.groups',    mobileLabel: 'Groupes'  },
   { href: '/profile',   icon: User,            labelKey: 'nav.profile',   mobileLabel: 'Profil'   },
   { href: '/quran',     icon: BookOpen,        labelKey: 'nav.quran',     mobileLabel: 'Coran'    },
   { href: '/surahs',    icon: BookMarked,      labelKey: 'nav.surahs',    mobileLabel: 'Mémo'     },
