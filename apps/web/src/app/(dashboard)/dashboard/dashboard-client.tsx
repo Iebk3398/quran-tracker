@@ -24,6 +24,7 @@ interface MyGroup {
   description: string | null
   inviteCode: string
   sheikhId: string
+  createdAt: string
   role: string
 }
 
@@ -369,7 +370,6 @@ export function DashboardClient() {
   const storeUser   = useAppStore((s) => s.user)
   const activeGroupId = useAppStore((s) => s.activeGroupId)
   const setActiveGroup = useAppStore((s) => s.setActiveGroup)
-  const queryClient = useQueryClient()
 
   const [mode, setMode] = useState<DashboardMode>('lecture')
   const [copied, setCopied] = useState(false)
