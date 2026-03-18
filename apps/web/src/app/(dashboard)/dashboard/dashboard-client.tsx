@@ -3,7 +3,7 @@
  * @file DashboardClient — Lecture | Mémorisation | Objectifs
  * Architecture 3 tabs avec progress ring animé pour la lecture quotidienne.
  */
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Share2, Check, Copy, BookOpen, Star, Target, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -174,7 +174,15 @@ function HizbLectureTab({
 
   const myEntry = leaderboard.find((e) => e.userId === currentUserId)
   const myHizbs = myEntry?.hizbsRead ?? 0
-  const milestone = hizbMilestone(myHizbs)
+
+  // ── Compteur avec debounce : clics rapides accumulés, 1 requête après 600 ms ──
+  const [localHizbs, setLocalHizbs] = useState<number | null>(null)
+  const pendingDeltaRef = useRef(0)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /** Valeur affichée : override local pendant la saisie rapide, serveur sinon */
+  const shownHizbs = localHizbs ?? myHizbs
+  const milestone = hizbMilestone(shownHizbs)
 
   const sorted = [...leaderboard].sort((a, b) => (b.hizbsRead ?? 0) - (a.hizbsRead ?? 0))
 
@@ -185,7 +193,6 @@ function HizbLectureTab({
         body: JSON.stringify({ count: delta }),
       }),
     onSuccess: (res) => {
-      // Mise à jour optimiste directe du cache → ring se met à jour immédiatement
       const newHizbs = res?.data?.hizbsRead
       if (newHizbs !== undefined) {
         queryClient.setQueryData<Array<{ userId: string; hizbsRead: number }>>(
@@ -193,10 +200,28 @@ function HizbLectureTab({
           (old) => old?.map((e) => e.userId === currentUserId ? { ...e, hizbsRead: newHizbs } : e)
         )
       }
-      // Invalidation large pour syncer le reste (activité, leaderboard complet…)
+      setLocalHizbs(null) // revenir à la valeur serveur
       queryClient.invalidateQueries({ queryKey: ['group'] })
     },
   })
+
+  /**
+   * Enregistre un clic +/- avec debounce de 600 ms.
+   * Les clics rapides s'accumulent et déclenchent une seule requête.
+   */
+  const tapHizb = (step: number) => {
+    const current = localHizbs ?? myHizbs
+    const next = Math.max(0, Math.min(60, current + step))
+    if (next === current) return // déjà aux bornes
+    setLocalHizbs(next)
+    pendingDeltaRef.current += step
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+    debounceTimerRef.current = setTimeout(() => {
+      const total = pendingDeltaRef.current
+      pendingDeltaRef.current = 0
+      if (total !== 0) addHizb.mutate(total)
+    }, 600)
+  }
 
   return (
     <div className="space-y-6">
@@ -204,10 +229,10 @@ function HizbLectureTab({
       <div className="flex flex-col items-center pt-2 pb-4 relative">
         {/* Ring + texte centré */}
         <div className="relative">
-          <ProgressRing value={myHizbs} max={60} size={200} thickness={14} color="#f59e0b" />
+          <ProgressRing value={shownHizbs} max={60} size={200} thickness={14} color="#f59e0b" />
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <span className="text-4xl font-extrabold text-stone-900 dark:text-stone-100 tabular-nums leading-none">
-              {myHizbs}
+              {shownHizbs}
             </span>
             <span className="text-sm text-stone-500 dark:text-stone-400 mt-1">
               / 60 hizbs
@@ -222,25 +247,25 @@ function HizbLectureTab({
 
         {/* Sous-titre */}
         <p className="text-xs text-stone-400 dark:text-stone-500 mt-3">
-          {myHizbs === 0
+          {shownHizbs === 0
             ? "Commencez votre lecture dès aujourd'hui"
-            : `${Math.round((myHizbs / 60) * 100)}% du Coran lu`}
+            : `${Math.round((shownHizbs / 60) * 100)}% du Coran lu`}
         </p>
 
         {/* ── Compteur inline +/- ── */}
         <div className="mt-4 flex items-center gap-4 justify-center">
           <button
-            onClick={() => addHizb.mutate(-1)}
-            disabled={addHizb.isPending || myHizbs <= 0}
+            onClick={() => tapHizb(-1)}
+            disabled={shownHizbs <= 0}
             className="w-12 h-12 rounded-2xl border-2 border-stone-200 dark:border-stone-700 text-2xl font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 active:scale-95 transition-all disabled:opacity-30"
           >−</button>
           <div className="text-center min-w-[80px]">
-            <span className="text-2xl font-extrabold text-stone-800 dark:text-stone-100 tabular-nums">{myHizbs}</span>
+            <span className="text-2xl font-extrabold text-stone-800 dark:text-stone-100 tabular-nums">{shownHizbs}</span>
             <p className="text-xs text-stone-400 mt-0.5">hizbs lus</p>
           </div>
           <button
-            onClick={() => addHizb.mutate(1)}
-            disabled={addHizb.isPending || myHizbs >= 60}
+            onClick={() => tapHizb(1)}
+            disabled={shownHizbs >= 60}
             className="w-12 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-2xl font-bold shadow-md shadow-amber-200 dark:shadow-amber-900/30 transition-all disabled:opacity-30"
           >+</button>
         </div>

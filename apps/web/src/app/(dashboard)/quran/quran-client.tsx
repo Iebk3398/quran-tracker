@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { apiFetch } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useAppStore } from '@/store'
 import {
   Bookmark, BookmarkCheck, Search, X,
   ArrowLeft, ChevronLeft, ChevronRight,
@@ -691,7 +692,9 @@ function ReadingView({
 const STORAGE_KEY_ONBOARDED = 'ikraa_quran_onboarded'
 
 export function QuranClient() {
-  const queryClient = useQueryClient()
+  const queryClient   = useQueryClient()
+  const currentUserId = useAppStore(s => s.user?.id)
+  const groupId       = useAppStore(s => s.activeGroupId)
   const [search, setSearch]               = useState('')
   const [readingPage, setReadingPage]     = useState<number | null>(null)
   const [initialVerseKey, setInitialVerseKey] = useState<string | undefined>(undefined)
@@ -743,9 +746,21 @@ export function QuranClient() {
   /** Synchronise la position de lecture absolue dans le dashboard (PUT — jamais en arrière) */
   const syncHizbPosition = useMutation({
     mutationFn: (position: number) =>
-      apiFetch('/api/users/me/hizb', { method: 'PUT', body: JSON.stringify({ position }) }),
-    onSuccess: () => {
-      // 'group' invalide toutes les clés préfixées par 'group' : leaderboard, activité…
+      apiFetch<{ success: boolean; data: { hizbsRead: number } }>(
+        '/api/users/me/hizb', { method: 'PUT', body: JSON.stringify({ position }) }
+      ),
+    onSuccess: (res, position) => {
+      const newHizbs = res?.data?.hizbsRead ?? position
+      // Met à jour directement le cache du leaderboard pour que la ring s'affiche
+      // immédiatement quand l'utilisateur revient sur le dashboard, même si la
+      // staleTime (60s) n'est pas encore écoulée.
+      if (currentUserId && groupId) {
+        queryClient.setQueryData<Array<{ userId: string; hizbsRead: number }>>(
+          ['group', groupId, 'leaderboard'],
+          (old) => old?.map((e) => e.userId === currentUserId ? { ...e, hizbsRead: newHizbs } : e)
+        )
+      }
+      // Invalide également pour forcer un refetch en arrière-plan
       queryClient.invalidateQueries({ queryKey: ['group'] })
     },
   })
