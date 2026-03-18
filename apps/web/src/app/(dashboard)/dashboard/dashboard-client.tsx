@@ -195,12 +195,17 @@ function HizbLectureTab({
     onSuccess: (res) => {
       const newHizbs = res?.data?.hizbsRead
       if (newHizbs !== undefined) {
+        // Fixe localHizbs à la valeur serveur AVANT setQueryData.
+        // Si on faisait setLocalHizbs(null), React pourrait traiter ce render avant
+        // que setQueryData ne mette myHizbs à jour → shownHizbs = null ?? ancienMyHizbs
+        // → flash bref à l'ancienne valeur. En gardant un localHizbs explicite on
+        // évite tout clignotement.
+        setLocalHizbs(newHizbs)
         queryClient.setQueryData<Array<{ userId: string; hizbsRead: number }>>(
           ['group', groupId, 'leaderboard'],
           (old) => old?.map((e) => e.userId === currentUserId ? { ...e, hizbsRead: newHizbs } : e)
         )
       }
-      setLocalHizbs(null) // revenir à la valeur serveur
       queryClient.invalidateQueries({ queryKey: ['group'] })
     },
   })
