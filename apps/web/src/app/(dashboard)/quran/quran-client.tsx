@@ -70,7 +70,7 @@ const QURAN_API            = 'https://api.quran.com/api/v4'
 const STORAGE_KEY_READ     = 'ikraa_pages_read'
 const STORAGE_KEY_VERSE_BK = 'ikraa_verse_bookmark'
 const FONT_SIZES           = [20, 24, 28, 32, 36, 40] as const
-const DEFAULT_FONT_IDX     = 4   // 36px — plus lisible
+const DEFAULT_FONT_IDX     = 2   // 28px — Moushaf Madani 1421 (KFGQPC Hafs)
 
 const QURAN_FONT = "'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Scheherazade New', 'Noto Naskh Arabic', serif"
 
