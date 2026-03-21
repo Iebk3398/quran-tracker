@@ -177,54 +177,58 @@ const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَ
  *  • qalaqah                  → rouge (écho consonantique)
  */
 /**
- * Palette tajweed — RÈGLES SIGNIFICATIVES UNIQUEMENT.
+ * Palette tajweed — couleurs conformes au standard de l'app de référence.
  *
- * Règles délibérément exclues (trop ubiquitaires → colorent tout) :
- *  • ham_wasl       : présent dans chaque ٱل → rendrait tout gris
- *  • laam_shamsiyah : présent dans chaque ال + lettre solaire → idem
- *  • madda_normal   : madd naturel 2 harakat, quasi-omniprésent → rendrait tout bleu
- *  • slnt           : lettre silencieuse, peu pédagogique au niveau mot
+ * Mapping extrait du panneau "Paramètres de lecture" (légende officielle) :
+ *  🟢 Vert        — Ghunnah (nasalisation ن/م)
+ *  🔴 Rouge       — Idgham (assimilation avec ou sans ghunna)
+ *  🔵 Bleu        — Qalaqah (écho consonantique ق ط ب ج د)
+ *  🔵 Bleu foncé  — Madd long/nécessaire (6 harakat obligatoires)
+ *  🩵 Teal/Cyan   — Ikhfa (occultation ن sakin / tanwin)
+ *  🟣 Violet      — Iqlab (ن sakin → م avant ب)
+ *  🟠 Orange      — Madd (prolongation normale · permissible · obligatoire)
  *
- * Règles colorées (celles qu'un lecteur doit apprendre à repérer) :
- *  🔵 Bleu     — madd non-naturel (permissible 2-6h, obligatoire 4-5h, nécessaire 6h)
- *  🟢 Vert     — ghunna (nasalisation) · idgham avec ghunna
- *  🟤 Vert sombre — idgham sans ghunna / lettres homorganes / proches
- *  🟠 Orange   — ikhfa · ikhfa shafawi
- *  🟣 Violet   — iqlab (ن sakin → م)
- *  🔴 Rouge    — qalaqah (écho consonantique)
+ * Exclus intentionnellement (ubiquitaires, pas d'enseignement spécifique) :
+ *  • ham_wasl      : présent dans chaque ٱ → quasi chaque mot
+ *  • laam_shamsiyah: présent dans chaque ال + lettre solaire
+ *  • slnt          : lettre silencieuse
  */
 const TAJWEED_COLORS: Record<string, string> = {
-  // Madd non-naturels (lettres de prolongation non automatiques)
-  madda_permissible:     '#4b86f5',  // bleu — madd permissible  (2 ou 4 ou 6 harakat)
-  madda_necessary:       '#1a4fd8',  // bleu vif — madd nécessaire (6 harakat)
-  madda_obligatory:      '#3a6de0',  // bleu — madd obligatoire (4 harakat)
-  // Nasalisation
-  ghunna:                '#16a34a',  // vert — ghunna (2 temps de nasalisation)
-  idgham_ghunna:         '#16a34a',  // vert — idgham avec ghunna (ن/م + ي ن م و)
-  // Assimilation
-  idgham_wo_ghunna:      '#5c8c5c',  // vert sombre — idgham sans ghunna (ل ر)
-  idgham_mutajanisayn:   '#5c8c5c',  // vert sombre — lettres homorganes
-  idgham_mutaqaribayn:   '#5c8c5c',  // vert sombre — lettres proches
-  // Occultation
-  ikhafa:                '#d97706',  // orange — ikhfa (ن sakin/tanwin + 15 lettres)
-  ikhafa_shafawi:        '#d97706',  // orange — ikhfa shafawi (م sakin avant ب)
-  // Transformation
+  // 🟠 Madd (orange) — toutes prolongations normales + permissibles + obligatoires
+  madda_normal:          '#c47f17',  // orange doux — madd naturel (2 harakat)
+  madda_permissible:     '#c47f17',  // orange — madd permissible (2-4-6)
+  madda_obligatory:      '#c47f17',  // orange — madd obligatoire (4-5)
+  // 🔵 Bleu foncé — Madd nécessaire (6 harakat stricts, le plus rare)
+  madda_necessary:       '#1d4ed8',  // bleu foncé — madd nécessaire (6 harakat)
+  // 🟢 Vert — Ghunnah (nasalisation)
+  ghunna:                '#16a34a',  // vert — ghunna (ن/م avec tashdid)
+  // 🔴 Rouge — Idgham (toutes variantes)
+  idgham_ghunna:         '#dc2626',  // rouge — idgham avec ghunna
+  idgham_wo_ghunna:      '#dc2626',  // rouge — idgham sans ghunna
+  idgham_mutajanisayn:   '#dc2626',  // rouge — lettres homorganes
+  idgham_mutaqaribayn:   '#dc2626',  // rouge — lettres proches
+  // 🩵 Teal — Ikhfa (occultation)
+  ikhafa:                '#0d9488',  // teal — ikhfa (ن sakin / tanwin + 15 lettres)
+  ikhafa_shafawi:        '#0d9488',  // teal — ikhfa shafawi (م sakin avant ب)
+  // 🟣 Violet — Iqlab
   iqlab:                 '#9333ea',  // violet — iqlab (ن sakin → م avant ب)
-  // Écho
-  qalaqah:               '#dc2626',  // rouge — qalaqah (ق ط ب ج د)
+  // 🔵 Bleu — Qalaqah (écho consonantique)
+  qalaqah:               '#3b82f6',  // bleu — qalaqah (ق ط ب ج د)
 }
 
 /**
- * Priorité visuelle : on cherche la règle la plus pédagogiquement visible.
- * Les règles exclues de TAJWEED_COLORS (ham_wasl, laam_shamsiyah, madda_normal)
- * ne figurent pas ici → retour undefined → texte affiché en noir standard.
+ * Ordre de priorité : quand un mot porte plusieurs règles tajweed,
+ * on affiche la couleur de la règle la plus pédagogiquement significative.
+ * madda_normal est en bas car très fréquent — les règles "rares" priment.
  */
 const TAJWEED_PRIORITY = [
   'qalaqah',
-  'ghunna', 'ikhafa', 'ikhafa_shafawi',
-  'idgham_ghunna', 'iqlab',
-  'madda_necessary', 'madda_obligatory', 'madda_permissible',
-  'idgham_wo_ghunna', 'idgham_mutajanisayn', 'idgham_mutaqaribayn',
+  'ghunna',
+  'ikhafa', 'ikhafa_shafawi',
+  'idgham_ghunna', 'idgham_wo_ghunna', 'idgham_mutajanisayn', 'idgham_mutaqaribayn',
+  'iqlab',
+  'madda_necessary',
+  'madda_obligatory', 'madda_permissible', 'madda_normal',
 ] as const
 
 /**
