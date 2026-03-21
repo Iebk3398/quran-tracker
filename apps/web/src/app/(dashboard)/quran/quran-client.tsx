@@ -619,7 +619,7 @@ function ReadingView({
                       return (
                         <span
                           key={wi}
-                          style={color ? { color } : undefined}
+                          style={{ color: color ?? '#1c1610' }}
                         >
                           {w.text_uthmani}{' '}
                         </span>
