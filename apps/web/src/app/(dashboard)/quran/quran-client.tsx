@@ -179,7 +179,8 @@ const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَ
 const TAJWEED_COLORS: Record<string, string> = {
   ham_wasl:              '#9ea8b3',  // gris — hamza wasl (non lue)
   slnt:                  '#9ea8b3',  // gris — lettre silencieuse
-  laam_shamsiyya:        '#7d7d7d',  // gris foncé — lam shamsiyya assimilée
+  laam_shamsiyah:        '#7d7d7d',  // gris foncé — lam shamsiyya assimilée (graphie API)
+  laam_shamsiyya:        '#7d7d7d',  // alias alternatif
   madda_normal:          '#4b86f5',  // bleu — madd naturel (2 harakat)
   madda_permissible:     '#3a6de0',  // bleu moyen — madd permissible (2-4-6)
   madda_necessary:       '#1a4fd8',  // bleu vif — madd obligatoire (6)
@@ -187,27 +188,47 @@ const TAJWEED_COLORS: Record<string, string> = {
   ghunna:                '#16a34a',  // vert — ghunna (nasalisation 2 temps)
   idgham_ghunna:         '#16a34a',  // vert — idgham avec ghunna
   idgham_wo_ghunna:      '#5c8c5c',  // vert sombre — idgham sans ghunna
-  idgham_mutajanisayn:   '#5c8c5c',  // vert sombre — idgham lettres proches
-  idgham_mutaqaribayn:   '#5c8c5c',  // vert sombre — idgham lettres similaires
+  idgham_mutajanisayn:   '#5c8c5c',  // vert sombre — idgham lettres homorganes
+  idgham_mutaqaribayn:   '#5c8c5c',  // vert sombre — idgham lettres proches
   ikhafa:                '#d97706',  // orange — ikhfa (occultation)
   ikhafa_shafawi:        '#d97706',  // orange — ikhfa shafawi (م avant ب)
   iqlab:                 '#9333ea',  // violet — iqlab (ن → م)
-  qalaqah:               '#dc2626',  // rouge — qalaqah (écho)
+  qalaqah:               '#dc2626',  // rouge — qalaqah (écho consonantique)
 }
 
 /**
- * Extrait la couleur tajweed d'un mot à partir du HTML tajweed mot-par-mot.
- * On parse uniquement le premier data-type="…" trouvé dans le HTML.
- * Aucun HTML n'est injecté dans le DOM — uniquement la couleur CSS est utilisée.
+ * Ordre de priorité visuelle des règles tajweed.
+ * Un mot peut avoir plusieurs règles (ex: ham_wasl + laam_shamsiyah + madda_normal).
+ * On retourne la couleur de la règle la plus pédagogiquement significative.
+ * ham_wasl / laam_shamsiyah sont en bas car quasi-omniprésents en tant que préfixes.
+ */
+const TAJWEED_PRIORITY = [
+  'qalaqah', 'ghunna', 'ikhafa', 'ikhafa_shafawi',
+  'idgham_ghunna', 'iqlab',
+  'madda_necessary', 'madda_obligatory', 'madda_permissible', 'madda_normal',
+  'idgham_wo_ghunna', 'idgham_mutajanisayn', 'idgham_mutaqaribayn',
+  'laam_shamsiyah', 'laam_shamsiyya', 'ham_wasl', 'slnt',
+] as const
+
+/**
+ * Extrait la couleur tajweed d'un mot depuis le HTML mot-par-mot de l'API quran.com.
  *
- * @param tajweedHtml - Valeur du champ text_uthmani_tajweed côté API
- * @returns Couleur CSS hex ou undefined (→ couleur par défaut du texte)
+ * L'API renvoie : `<rule class=ham_wasl>ٱ</rule>للَّهِ` (attribut sans guillemets).
+ * On collecte toutes les classes présentes, puis on retourne la couleur de la règle
+ * la plus prioritaire. Aucun HTML n'est injecté dans le DOM.
+ *
+ * @param tajweedHtml - Valeur du champ text_uthmani_tajweed (niveau mot)
+ * @returns Couleur CSS hex ou undefined (couleur de texte par défaut)
  */
 function getTajweedColor(tajweedHtml?: string): string | undefined {
   if (!tajweedHtml) return undefined
-  const match = /data-type="([^"]+)"/.exec(tajweedHtml)
-  if (!match?.[1]) return undefined
-  return TAJWEED_COLORS[match[1]]
+  // Format API : <rule class=TYPE> — attribut sans guillemets
+  const found = [...tajweedHtml.matchAll(/class=([a-z_]+)/g)].map((m) => m[1] ?? '')
+  if (found.length === 0) return undefined
+  for (const rule of TAJWEED_PRIORITY) {
+    if (found.includes(rule)) return TAJWEED_COLORS[rule]
+  }
+  return found[0] ? TAJWEED_COLORS[found[0]] : undefined
 }
 
 /**
