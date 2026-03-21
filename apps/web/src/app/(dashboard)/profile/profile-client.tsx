@@ -4,7 +4,7 @@
  */
 import { Suspense, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useStore } from '@/store'
+import { useAppStore as useStore } from '@/store'
 import { apiFetch } from '@/lib/api'
 import { HeatmapCalendar } from '@/components/quran/heatmap-calendar'
 import Link from 'next/link'
