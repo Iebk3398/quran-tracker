@@ -43,10 +43,8 @@ interface QuranVerse {
   id: number
   verse_number: number
   verse_key: string
-  /** Texte Uthmani brut (sans balisage tajweed) — rendu natif sans spans */
+  /** Texte Uthmani — bons caractères Unicode (U+0670 ٰ), rendu natif sans spans */
   text_uthmani: string
-  /** Texte avec balisage tajweed <tajweed class=...> → couleurs */
-  text_uthmani_tajweed: string
   juz_number: number
   hizb_number: number
   page_number: number
@@ -122,8 +120,11 @@ function revelationLabel(t: string) {
 }
 
 async function fetchPage(page: number): Promise<QuranVerse[]> {
-  // Deux champs : text_uthmani (brut) + text_uthmani_tajweed (couleurs)
-  const url = `${QURAN_API}/verses/by_page/${page}?language=fr&fields=text_uthmani,text_uthmani_tajweed,juz_number,hizb_number,page_number&per_page=50`
+  // text_uthmani uniquement — le champ text_uthmani_tajweed utilise un encodage
+  // Unicode différent (U+0672 ٲ au lieu de U+0670 ٰ) qui casse le shaping arabe
+  // quand wrappé dans des spans display:contents. text_uthmani est le seul champ
+  // qui render correctement avec UthmanicHafs / Scheherazade New.
+  const url = `${QURAN_API}/verses/by_page/${page}?language=fr&fields=text_uthmani,juz_number,hizb_number,page_number&per_page=50`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json() as { verses: QuranVerse[] }
@@ -133,59 +134,10 @@ async function fetchPage(page: number): Promise<QuranVerse[]> {
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ'
 
 /**
- * Couleurs tajweed — 15 règles de récitation Hafs ʿan ʿĀṣim.
- * Les spans dans le CSS utilisent display:contents → transparent pour le shaping
- * arabe (les lettres se connectent correctement malgré les spans de couleur).
- */
-const TAJWEED_COLORS: Record<string, string> = {
-  ham_wasl:               '#9ba3ae',
-  slnt:                   '#9ba3ae',
-  laam_shamsiyah:         '#9ba3ae',
-  madda_obligatory:       '#0d47a1',
-  madda_necessary:        '#1565c0',
-  madda_permissible:      '#1976d2',
-  madda_normal:           '#64b5f6',
-  ghunnah:                '#2e7d32',
-  ikhafa:                 '#e65100',
-  ikhafa_shafawi:         '#bf360c',
-  idgham_ghunnah:         '#388e3c',
-  idgham_wo_ghunnah:      '#1b5e20',
-  idgham_shafawi:         '#33691e',
-  idgham_mutajanisayn:    '#2e7d32',
-  idgham_mutaqaribbayn:   '#1b5e20',
-  iqlab:                  '#7b1fa2',
-  qalaqah:                '#c62828',
-}
-
-/**
  * Convertit un nombre en chiffres arabes orientaux (٠١٢٣٤٥٦٧٨٩)
  */
 function toAr(n: number): string {
   return n.toString().replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)] ?? d)
-}
-
-/**
- * Supprime le marqueur de fin de verset de l'API quran.com.
- * Format tajweed : <span class=end>١</span>
- */
-function stripVerseEndMarker(html: string): string {
-  return html
-    .replace(/<span class=end>[^<]*<\/span>\s*$/, '')
-    .replace(/<span[^>]*>[\u0660-\u0669\u06F0-\u06F9]+<\/span>\s*$/, '')
-    .trim()
-}
-
-/**
- * Injecte les couleurs tajweed en style inline.
- * Les <span> utilisent display:contents (CSS globals) → shaping arabe préservé.
- */
-function applyTajweedColors(html: string): string {
-  return html
-    .replace(/<tajweed class=([a-z_]+)>/g, (_m, cls: string) => {
-      const color = TAJWEED_COLORS[cls]
-      return color ? `<span style="color:${color}">` : '<span>'
-    })
-    .replace(/<\/tajweed>/g, '</span>')
 }
 
 // ─── SurahRow ─────────────────────────────────────────────────────────────────
@@ -460,7 +412,10 @@ function ReadingView({
                 <p className="text-[11px] text-stone-500 dark:text-stone-400 mb-3">
                   {group.surah?.nameTranslit} · {group.surah?.nameFr} · {group.surah?.versesCount} versets · {revelationLabel(group.surah?.revelationType ?? '')}
                 </p>
-                {group.sn !== 9 && (
+                {/* Bismillah header uniquement pour les sourates 2–114 (sauf At-Tawbah 9).
+                    La sourate 1 (Al-Fatiha) est exclue car son verset 1 EST la bismillah —
+                    l'afficher ici créerait un double. */}
+                {group.sn !== 9 && group.sn !== 1 && (
                   <div className="my-4">
                     <p
                       className="text-center text-stone-700"
@@ -528,12 +483,12 @@ function ReadingView({
                       outlineOffset: '2px',
                     } : { cursor: 'pointer' }}
                   >
-                    {/* Texte tajweed — spans avec display:contents (CSS) → couleurs + shaping intact */}
-                    <span
-                      dangerouslySetInnerHTML={{
-                        __html: applyTajweedColors(stripVerseEndMarker(v.text_uthmani_tajweed))
-                      }}
-                    />
+                    {/* text_uthmani — rendu natif sans spans HTML.
+                        Le champ text_uthmani_tajweed utilisait un encodage Unicode
+                        différent (U+0672 ٲ) qui cassait les ligatures avec display:contents.
+                        text_uthmani contient les bons caractères (U+0670 ٰ) et se shape
+                        correctement avec UthmanicHafs. */}
+                    {v.text_uthmani}
                     {/* Badge numéro verset */}
                     {verseBadge}{' '}
                   </span>
