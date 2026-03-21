@@ -176,38 +176,55 @@ const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَ
  *  • iqlab                    → violet (transformation n→m)
  *  • qalaqah                  → rouge (écho consonantique)
  */
+/**
+ * Palette tajweed — RÈGLES SIGNIFICATIVES UNIQUEMENT.
+ *
+ * Règles délibérément exclues (trop ubiquitaires → colorent tout) :
+ *  • ham_wasl       : présent dans chaque ٱل → rendrait tout gris
+ *  • laam_shamsiyah : présent dans chaque ال + lettre solaire → idem
+ *  • madda_normal   : madd naturel 2 harakat, quasi-omniprésent → rendrait tout bleu
+ *  • slnt           : lettre silencieuse, peu pédagogique au niveau mot
+ *
+ * Règles colorées (celles qu'un lecteur doit apprendre à repérer) :
+ *  🔵 Bleu     — madd non-naturel (permissible 2-6h, obligatoire 4-5h, nécessaire 6h)
+ *  🟢 Vert     — ghunna (nasalisation) · idgham avec ghunna
+ *  🟤 Vert sombre — idgham sans ghunna / lettres homorganes / proches
+ *  🟠 Orange   — ikhfa · ikhfa shafawi
+ *  🟣 Violet   — iqlab (ن sakin → م)
+ *  🔴 Rouge    — qalaqah (écho consonantique)
+ */
 const TAJWEED_COLORS: Record<string, string> = {
-  ham_wasl:              '#9ea8b3',  // gris — hamza wasl (non lue)
-  slnt:                  '#9ea8b3',  // gris — lettre silencieuse
-  laam_shamsiyah:        '#7d7d7d',  // gris foncé — lam shamsiyya assimilée (graphie API)
-  laam_shamsiyya:        '#7d7d7d',  // alias alternatif
-  madda_normal:          '#4b86f5',  // bleu — madd naturel (2 harakat)
-  madda_permissible:     '#3a6de0',  // bleu moyen — madd permissible (2-4-6)
-  madda_necessary:       '#1a4fd8',  // bleu vif — madd obligatoire (6)
-  madda_obligatory:      '#3a6de0',  // bleu — madd obligatoire variante
-  ghunna:                '#16a34a',  // vert — ghunna (nasalisation 2 temps)
-  idgham_ghunna:         '#16a34a',  // vert — idgham avec ghunna
-  idgham_wo_ghunna:      '#5c8c5c',  // vert sombre — idgham sans ghunna
-  idgham_mutajanisayn:   '#5c8c5c',  // vert sombre — idgham lettres homorganes
-  idgham_mutaqaribayn:   '#5c8c5c',  // vert sombre — idgham lettres proches
-  ikhafa:                '#d97706',  // orange — ikhfa (occultation)
-  ikhafa_shafawi:        '#d97706',  // orange — ikhfa shafawi (م avant ب)
-  iqlab:                 '#9333ea',  // violet — iqlab (ن → م)
-  qalaqah:               '#dc2626',  // rouge — qalaqah (écho consonantique)
+  // Madd non-naturels (lettres de prolongation non automatiques)
+  madda_permissible:     '#4b86f5',  // bleu — madd permissible  (2 ou 4 ou 6 harakat)
+  madda_necessary:       '#1a4fd8',  // bleu vif — madd nécessaire (6 harakat)
+  madda_obligatory:      '#3a6de0',  // bleu — madd obligatoire (4 harakat)
+  // Nasalisation
+  ghunna:                '#16a34a',  // vert — ghunna (2 temps de nasalisation)
+  idgham_ghunna:         '#16a34a',  // vert — idgham avec ghunna (ن/م + ي ن م و)
+  // Assimilation
+  idgham_wo_ghunna:      '#5c8c5c',  // vert sombre — idgham sans ghunna (ل ر)
+  idgham_mutajanisayn:   '#5c8c5c',  // vert sombre — lettres homorganes
+  idgham_mutaqaribayn:   '#5c8c5c',  // vert sombre — lettres proches
+  // Occultation
+  ikhafa:                '#d97706',  // orange — ikhfa (ن sakin/tanwin + 15 lettres)
+  ikhafa_shafawi:        '#d97706',  // orange — ikhfa shafawi (م sakin avant ب)
+  // Transformation
+  iqlab:                 '#9333ea',  // violet — iqlab (ن sakin → م avant ب)
+  // Écho
+  qalaqah:               '#dc2626',  // rouge — qalaqah (ق ط ب ج د)
 }
 
 /**
- * Ordre de priorité visuelle des règles tajweed.
- * Un mot peut avoir plusieurs règles (ex: ham_wasl + laam_shamsiyah + madda_normal).
- * On retourne la couleur de la règle la plus pédagogiquement significative.
- * ham_wasl / laam_shamsiyah sont en bas car quasi-omniprésents en tant que préfixes.
+ * Priorité visuelle : on cherche la règle la plus pédagogiquement visible.
+ * Les règles exclues de TAJWEED_COLORS (ham_wasl, laam_shamsiyah, madda_normal)
+ * ne figurent pas ici → retour undefined → texte affiché en noir standard.
  */
 const TAJWEED_PRIORITY = [
-  'qalaqah', 'ghunna', 'ikhafa', 'ikhafa_shafawi',
+  'qalaqah',
+  'ghunna', 'ikhafa', 'ikhafa_shafawi',
   'idgham_ghunna', 'iqlab',
-  'madda_necessary', 'madda_obligatory', 'madda_permissible', 'madda_normal',
+  'madda_necessary', 'madda_obligatory', 'madda_permissible',
   'idgham_wo_ghunna', 'idgham_mutajanisayn', 'idgham_mutaqaribayn',
-  'laam_shamsiyah', 'laam_shamsiyya', 'ham_wasl', 'slnt',
 ] as const
 
 /**
