@@ -166,6 +166,16 @@
   display: contents;
 }
 
+/* ── Spans mot-par-mot (.qw) — display:inline obligatoire ─────────────────
+   Safari iOS ignore color sur display:contents → le mot hérite la couleur
+   du sibling précédent. Avec display:inline le color inline style s'applique
+   toujours correctement. Les ligatures intra-mot sont préservées (chaque
+   span contient un mot complet, espace-séparé).
+   ─────────────────────────────────────────────────────────────────────── */
+.tajweed-text span.qw {
+  display: inline;
+}
+
 /* Zone de texte coranique — ligatures OpenType forcées */
 .tajweed-text {
   font-feature-settings: "liga" 1, "calt" 1, "kern" 1, "curs" 1;

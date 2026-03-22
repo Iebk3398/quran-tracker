@@ -619,6 +619,7 @@ function ReadingView({
                       return (
                         <span
                           key={wi}
+                          className="qw"
                           style={{ color: color ?? '#1c1610' }}
                         >
                           {w.text_uthmani}{' '}
