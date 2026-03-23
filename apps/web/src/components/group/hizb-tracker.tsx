@@ -12,6 +12,8 @@ interface HizbEntry {
   name: string
   avatar: string | null
   hizbsRead: number
+  /** Page du mushaf où l'utilisateur a posé son marque-page (null si jamais synchronisé) */
+  currentReadingPage?: number | null
 }
 
 interface HizbTrackerProps {
@@ -143,10 +145,19 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
                 </div>
               </div>
 
-              {/* Page estimée */}
+              {/* Page actuelle (réelle si synchronisée, estimée sinon) */}
               <div className="flex-shrink-0 text-right">
-                <span className="text-xs font-bold text-amber-600 tabular-nums">P.{page}</span>
-                <p className="text-[9px] text-muted-foreground">~page</p>
+                {entry.currentReadingPage ? (
+                  <>
+                    <span className="text-xs font-bold text-amber-600 tabular-nums">P.{entry.currentReadingPage}</span>
+                    <p className="text-[9px] text-emerald-500 font-medium">page</p>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs font-bold text-amber-400 tabular-nums">~P.{page}</span>
+                    <p className="text-[9px] text-muted-foreground">estimée</p>
+                  </>
+                )}
               </div>
             </div>
           )

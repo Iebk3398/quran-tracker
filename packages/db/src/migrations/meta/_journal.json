@@ -50,6 +50,13 @@
       "when": 1742306400000,
       "tag": "0006_add_join_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774229653172,
+      "tag": "0005_add_current_reading_page",
+      "breakpoints": true
     }
   ]
 }

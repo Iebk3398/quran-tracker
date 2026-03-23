@@ -143,6 +143,59 @@ userRoutes.post(
 )
 
 /**
+ * PUT /api/users/me/hizb — Synchroniser la position absolue de lecture.
+ * Met à jour hizbsRead seulement si position > valeur actuelle (jamais en arrière).
+ * Stocke également la page du mushaf pour l'affichage dans le classement groupe.
+ */
+userRoutes.put(
+  '/me/hizb',
+  requireAuth,
+  zValidator('json', z.object({
+    position: z.number().int().min(1).max(60),
+    page: z.number().int().min(1).max(604).optional(),
+  })),
+  async (c) => {
+    const user = c.get('user')
+    const { position, page } = c.req.valid('json')
+
+    // Récupère la valeur actuelle pour ne jamais reculer
+    const current = await db
+      .select({ hizbsRead: users.hizbsRead })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+
+    const currentHizbs = current[0]?.hizbsRead ?? 0
+
+    // Ne met à jour que si la position demandée est supérieure
+    if (position <= currentHizbs) {
+      // Met quand même à jour la page si fournie
+      if (page !== undefined) {
+        await db
+          .update(users)
+          .set({ currentReadingPage: page, updatedAt: new Date() })
+          .where(eq(users.id, user.id))
+      }
+      return c.json({ success: true, data: { hizbsRead: currentHizbs } })
+    }
+
+    const updateData: Partial<typeof users.$inferInsert> = {
+      hizbsRead: position,
+      updatedAt: new Date(),
+      ...(page !== undefined ? { currentReadingPage: page } : {}),
+    }
+
+    const updated = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, user.id))
+      .returning({ hizbsRead: users.hizbsRead })
+
+    return c.json({ success: true, data: { hizbsRead: updated[0]?.hizbsRead ?? 0 } })
+  }
+)
+
+/**
  * Crée un feed event `milestone_reached (hizb_read)` dans tous les groupes
  * et vérifie si l'utilisateur monte de niveau.
  */

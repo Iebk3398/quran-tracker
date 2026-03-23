@@ -771,22 +771,21 @@ export function QuranClient() {
 
   /** Synchronise la position de lecture absolue dans le dashboard (PUT — jamais en arrière) */
   const syncHizbPosition = useMutation({
-    mutationFn: (position: number) =>
+    mutationFn: ({ position, page }: { position: number; page: number }) =>
       apiFetch<{ success: boolean; data: { hizbsRead: number } }>(
-        '/api/users/me/hizb', { method: 'PUT', body: JSON.stringify({ position }) }
+        '/api/users/me/hizb', { method: 'PUT', body: JSON.stringify({ position, page }) }
       ),
-    onSuccess: (res, position) => {
-      const newHizbs = res?.data?.hizbsRead ?? position
-      // Met à jour directement le cache du leaderboard pour que la ring s'affiche
-      // immédiatement quand l'utilisateur revient sur le dashboard, même si la
-      // staleTime (60s) n'est pas encore écoulée.
+    onSuccess: (res, vars) => {
+      const newHizbs = res?.data?.hizbsRead ?? vars.position
+      // Mise à jour optimiste du cache leaderboard (hizbsRead + currentReadingPage)
       if (currentUserId && groupId) {
-        queryClient.setQueryData<Array<{ userId: string; hizbsRead: number }>>(
+        queryClient.setQueryData<Array<{ userId: string; hizbsRead: number; currentReadingPage?: number }>>(
           ['group', groupId, 'leaderboard'],
-          (old) => old?.map((e) => e.userId === currentUserId ? { ...e, hizbsRead: newHizbs } : e)
+          (old) => old?.map((e) => e.userId === currentUserId
+            ? { ...e, hizbsRead: newHizbs, currentReadingPage: vars.page }
+            : e)
         )
       }
-      // Invalide également pour forcer un refetch en arrière-plan
       queryClient.invalidateQueries({ queryKey: ['group'] })
     },
   })
@@ -799,13 +798,13 @@ export function QuranClient() {
     markHizb.mutate()
   }
 
-  /** Marque la page comme lue localement + synchronise la position hizb dans le dashboard */
+  /** Marque la page comme lue localement + synchronise la position hizb ET la page dans le dashboard */
   function handleSyncHizbPosition(page: number, hizbNumber: number) {
     const updated = new Set(readPages)
     updated.add(page)
     setReadPages(updated)
     saveReadPages(updated)
-    syncHizbPosition.mutate(hizbNumber)
+    syncHizbPosition.mutate({ position: hizbNumber, page })
   }
 
   function handleSetVerseBookmark(b: VerseBookmark | null) {
