@@ -38,57 +38,6 @@ userRoutes.patch('/me', requireAuth, zValidator('json', updateUserSchema), async
   return c.json({ success: true, data: updated[0] })
 })
 
-/** PUT /api/users/me/hizb — Synchroniser la position de lecture (MAX update, jamais en arrière) */
-userRoutes.put(
-  '/me/hizb',
-  requireAuth,
-  zValidator('json', z.object({ position: z.number().int().min(1).max(60) })),
-  async (c) => {
-    const user = c.get('user')
-    const { position } = c.req.valid('json')
-
-    const currentRow = await db
-      .select({ xp: users.xp, hizbsRead: users.hizbsRead })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1)
-
-    const currentHizbsRead = currentRow[0]?.hizbsRead ?? 0
-    const xpBefore         = parseInt(currentRow[0]?.xp ?? '0')
-
-    // Position déjà atteinte ou dépassée — rien à faire
-    if (position <= currentHizbsRead) {
-      return c.json({ success: true, data: { hizbsRead: currentHizbsRead, xp: currentRow[0]?.xp ?? '0' } })
-    }
-
-    const delta      = position - currentHizbsRead
-    const XP_PER_HIZB = 5
-    const xpGain     = delta * XP_PER_HIZB
-
-    const updated = await db
-      .update(users)
-      .set({
-        hizbsRead: position,                                         // valeur absolue
-        xp: sql`(${users.xp}::integer + ${xpGain})::text`,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, user.id))
-      .returning({ hizbsRead: users.hizbsRead, xp: users.xp })
-
-    const today = new Date().toISOString().slice(0, 10)
-    await db.execute(sql`
-      INSERT INTO hizb_daily_log (id, user_id, date, count, created_at, updated_at)
-      VALUES (${nanoid()}, ${user.id}, ${today}, ${delta}, NOW(), NOW())
-      ON CONFLICT (user_id, date)
-      DO UPDATE SET count = hizb_daily_log.count + ${delta}, updated_at = NOW()
-    `)
-
-    handlePostHizbEvents(user.id, delta, position, xpBefore, xpBefore + xpGain).catch(() => {})
-
-    return c.json({ success: true, data: { hizbsRead: position, xp: updated[0]?.xp ?? '0' } })
-  }
-)
-
 /** POST /api/users/me/hizb — Enregistrer ou corriger des hizbs lus (+ ou −) */
 userRoutes.post(
   '/me/hizb',
