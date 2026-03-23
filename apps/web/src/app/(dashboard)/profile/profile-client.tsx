@@ -34,41 +34,6 @@ const ROLES = [
   { value: 'parent', label: 'Parent', emoji: '👨‍👩‍👧' },
 ] as const
 
-const XP_LEVELS = [
-  { min: 0,     minSurahs: 0,  max: 499,      name: 'Murîd',  nameFr: 'Aspirant',     emoji: '🌱', colorClass: 'text-emerald-600', bgClass: 'bg-emerald-500' },
-  { min: 500,   minSurahs: 1,  max: 1499,     name: 'Taleb',  nameFr: 'Étudiant',     emoji: '📖', colorClass: 'text-blue-600',    bgClass: 'bg-blue-500'   },
-  { min: 1500,  minSurahs: 5,  max: 3999,     name: 'Qari',   nameFr: 'Récitateur',   emoji: '📜', colorClass: 'text-purple-600',  bgClass: 'bg-purple-500' },
-  { min: 4000,  minSurahs: 20, max: 9999,     name: 'Hafiz',  nameFr: 'Mémorisateur', emoji: '⭐', colorClass: 'text-amber-600',   bgClass: 'bg-amber-500'  },
-  { min: 10000, minSurahs: 57, max: Infinity, name: 'Sheikh', nameFr: 'Maître',       emoji: '🎓', colorClass: 'text-rose-600',    bgClass: 'bg-rose-500'   },
-]
-
-/**
- * Retourne le niveau actuel selon XP ET sourates mémorisées (condition AND).
- * Le niveau le plus élevé où les deux seuils sont atteints.
- */
-function getXpLevel(xp: number, surahs: number) {
-  return XP_LEVELS.findLast(l => xp >= l.min && surahs >= l.minSurahs) ?? XP_LEVELS[0]!
-}
-
-/**
- * Retourne le prochain niveau à atteindre (premier niveau non encore débloqué).
- */
-function getNextLevel(xp: number, surahs: number) {
-  const idx = XP_LEVELS.findLastIndex(l => xp >= l.min && surahs >= l.minSurahs)
-  if (idx === XP_LEVELS.length - 1) return null
-  return XP_LEVELS[idx + 1] ?? null
-}
-
-/**
- * Progression XP en % vers le prochain niveau (basé sur les XP).
- */
-function getXpProgress(xp: number, surahs: number) {
-  const current = getXpLevel(xp, surahs)
-  const next = getNextLevel(xp, surahs)
-  if (!next) return 100
-  return Math.min(100, Math.round(((xp - current.min) / (next.min - current.min)) * 100))
-}
-
 interface BadgeStats {
   surahsMemorized: number
   hasFatiha: boolean
@@ -106,12 +71,6 @@ const PROFILE_BADGES: ProfileBadge[] = [
   { id: 'hizb-30',      emoji: '🔖', name: '30 hizbs',         hint: '30 hizbs lus (moitié)',        category: 'lecture', check: s => s.hizbsRead >= 30 },
   { id: 'khatam',       emoji: '✨', name: 'Khatam',           hint: 'Lire le Coran en entier',      category: 'lecture', check: s => s.hizbsRead >= 60 },
   { id: 'khatam-2',     emoji: '💎', name: 'Khatam × 2',      hint: '2 lectures complètes du Coran', category: 'lecture', check: s => s.hizbsRead >= 120 },
-  // ── Niveau (XP ET sourates mémorisées requis) ─────────────────
-  { id: 'level-murîd',  emoji: '🌱', name: 'Murîd',  hint: 'Commencer le voyage',                         category: 'niveau', check: () => true },
-  { id: 'level-taleb',  emoji: '📖', name: 'Taleb',  hint: '500 XP et 1 sourate mémorisée',               category: 'niveau', check: s => s.totalXp >= 500  && s.surahsMemorized >= 1  },
-  { id: 'level-qari',   emoji: '📜', name: 'Qari',   hint: '1 500 XP et 5 sourates mémorisées',           category: 'niveau', check: s => s.totalXp >= 1500 && s.surahsMemorized >= 5  },
-  { id: 'level-hafiz',  emoji: '⭐', name: 'Hafiz',  hint: '4 000 XP et 20 sourates mémorisées',          category: 'niveau', check: s => s.totalXp >= 4000 && s.surahsMemorized >= 20 },
-  { id: 'level-sheikh', emoji: '🎓', name: 'Sheikh', hint: '10 000 XP et 57 sourates mémorisées (mi-Coran)', category: 'niveau', check: s => s.totalXp >= 10000 && s.surahsMemorized >= 57 },
 ]
 
 export function ProfileClient() {
@@ -195,8 +154,9 @@ export function ProfileClient() {
     status: progressMap.get(s.id) ?? 'not_started' as MemorizationStatus,
   })) ?? []
 
+  /** Compte sourates mémorisées ET consolidées — cohérent avec le SQL du leaderboard */
   const surahsMemorized = surahsWithStatus.filter(
-    s => s.status === 'memorized'
+    s => s.status === 'memorized' || s.status === 'consolidated'
   ).length
 
   // Juz progression — top 5 with most progress
@@ -218,37 +178,15 @@ export function ProfileClient() {
     ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : 'U'
 
-  // XP & niveau (dual condition : XP ET sourates mémorisées)
-  const totalXp = Number(profile?.xp ?? 0)
-  const xpLevel = getXpLevel(totalXp, surahsMemorized)
-  const xpProgress = getXpProgress(totalXp, surahsMemorized)
-  const nextLevel = getNextLevel(totalXp, surahsMemorized)
-
-  /** Texte d'aide vers le prochain niveau (XP + sourates manquantes) */
-  const nextLevelHint = (() => {
-    if (!nextLevel) return 'Niveau maximum atteint 🎓'
-    const xpNeeded = Math.max(0, nextLevel.min - totalXp)
-    const surahsNeeded = Math.max(0, nextLevel.minSurahs - surahsMemorized)
-    const parts: string[] = []
-    if (xpNeeded > 0) parts.push(`${xpNeeded.toLocaleString()} XP`)
-    else parts.push('XP ✓')
-    if (nextLevel.minSurahs > 0) {
-      if (surahsNeeded > 0) parts.push(`${surahsNeeded} sourate${surahsNeeded > 1 ? 's' : ''}`)
-      else parts.push('mémo. ✓')
-    }
-    return `→ ${nextLevel.name} : ${parts.join(' · ')}`
-  })()
-
   // Badges
   const hasFatiha = surahsWithStatus.find(s => s.id === 1)?.status === 'memorized'
   const hasJuzAmma = surahsWithStatus.length > 0 && surahsWithStatus.filter(s => s.id >= 78 && s.id <= 114).every(s => s.status === 'memorized')
   const hasJuz29   = surahsWithStatus.length > 0 && surahsWithStatus.filter(s => s.id >= 67 && s.id <= 77).every(s => s.status === 'memorized')
-  const badgeStats: BadgeStats = { surahsMemorized, hasFatiha, hasJuzAmma, hasJuz29, hizbsRead: profile?.hizbsRead ?? 0, totalXp }
+  const badgeStats: BadgeStats = { surahsMemorized, hasFatiha, hasJuzAmma, hasJuz29, hizbsRead: profile?.hizbsRead ?? 0, totalXp: 0 }
   const earnedIds = new Set(PROFILE_BADGES.filter(b => b.check(badgeStats)).map(b => b.id))
   const badgesByCategory = {
     memo: PROFILE_BADGES.filter(b => b.category === 'memo'),
     lecture: PROFILE_BADGES.filter(b => b.category === 'lecture'),
-    niveau: PROFILE_BADGES.filter(b => b.category === 'niveau'),
   }
 
   // Total verses memorized
@@ -428,55 +366,37 @@ export function ProfileClient() {
         </div>
       </div>
 
-      {/* ── Carte XP & Niveau ── */}
+      {/* ── Badges mémorisation + lecture ── */}
       <div className="rounded-2xl border bg-card p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mes XP & Niveau</p>
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
-            {xpLevel.emoji} {xpLevel.name}
-          </span>
-        </div>
-
-        {/* Total XP + barre de niveau */}
-        <div>
-          <div className="flex items-baseline justify-between mb-1.5">
-            <span className={`text-3xl font-black tabular-nums ${xpLevel.colorClass}`}>
-              {totalXp.toLocaleString()}
-              <span className="text-base font-semibold ml-1 text-muted-foreground">XP</span>
-            </span>
-            <span className="text-xs text-muted-foreground text-right max-w-[55%] leading-tight">
-              {nextLevelHint}
-            </span>
-          </div>
-          <div className="h-3 bg-muted rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${xpLevel.bgClass}`}
-              style={{ width: `${xpProgress}%` }}
-            />
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-1 text-right">
-            {xpProgress}% XP vers {nextLevel?.name ?? 'Max'}
-            {nextLevel && nextLevel.minSurahs > surahsMemorized && (
-              <span className="ml-1 text-amber-500 font-semibold">
-                · {nextLevel.minSurahs - surahsMemorized} sourate{nextLevel.minSurahs - surahsMemorized > 1 ? 's' : ''} manquante{nextLevel.minSurahs - surahsMemorized > 1 ? 's' : ''}
-              </span>
-            )}
-          </p>
-        </div>
-
         {/* Lecture quotidienne — hizbs lus */}
         <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 p-3 space-y-1.5">
           <div className="flex items-baseline justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">📚 Lecture quotidienne — hizbs lus</span>
-            <span className="text-xs font-bold text-blue-600">{Math.min(Math.round(((profile?.hizbsRead ?? 0) / 60) * 100), 100)}%</span>
+            <span className="text-xs font-semibold text-muted-foreground">📚 Lecture quotidienne</span>
+            <span className="text-xs font-bold text-blue-600">
+              {profile?.hizbsRead ?? 0} hizb{(profile?.hizbsRead ?? 0) > 1 ? 's' : ''} lus
+            </span>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-black text-blue-600 tabular-nums">{profile?.hizbsRead ?? 0}</span>
-            <span className="text-xs font-semibold text-muted-foreground">/60 hizbs</span>
-          </div>
-          <div className="h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 rounded-full transition-all duration-700" style={{ width: `${Math.min(Math.round(((profile?.hizbsRead ?? 0) / 60) * 100), 100)}%` }} />
-          </div>
+          {(() => {
+            const total = profile?.hizbsRead ?? 0
+            const hizb = total <= 0 ? 0 : ((total - 1) % 60) + 1
+            const khatams = Math.floor(total / 60)
+            return (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-black text-blue-600 tabular-nums">H{hizb}</span>
+                  <span className="text-xs font-semibold text-muted-foreground">/60</span>
+                  {khatams > 0 && (
+                    <span className="text-[11px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                      ×{khatams} ✨
+                    </span>
+                  )}
+                </div>
+                <div className="h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full transition-all duration-700" style={{ width: `${(hizb / 60) * 100}%` }} />
+                </div>
+              </>
+            )
+          })()}
         </div>
 
         {/* ── Badges ── */}
@@ -488,7 +408,6 @@ export function ProfileClient() {
           {([
             { key: 'memo',    label: '📖 Mémorisation' },
             { key: 'lecture', label: '📚 Lecture'       },
-            { key: 'niveau',  label: '⭐ Niveau'        },
           ] as const).map(({ key, label }) => (
             <div key={key}>
               <p className="text-[10px] text-muted-foreground mb-2">{label}</p>

@@ -1,6 +1,6 @@
 'use client'
 /**
- * @file HizbTracker — Widget pour enregistrer les hizbs lus + classement du groupe
+ * @file HizbTracker — Classement lecture du groupe (hizb cyclique + page estimée)
  */
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -26,7 +26,18 @@ function hizbPosition(total: number): number {
 }
 
 /**
- * Widget hizb : bouton d'ajout + classement du groupe par hizbs lus
+ * Estimation de la page du mushaf à partir du numéro de hizb (1-60).
+ * Chaque hizb couvre ≈ 10.07 pages sur 604 pages.
+ * Approximation : page de début du hizb N.
+ */
+function estimatedPage(hizb: number): number {
+  if (hizb <= 0) return 1
+  return Math.max(1, Math.round((hizb - 1) * (604 / 60)) + 1)
+}
+
+/**
+ * Widget lecture : bouton d'ajout + classement du groupe par hizbs lus
+ * Affiche la position cyclique (H1-H60), la page estimée et les khatams.
  */
 export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
   const queryClient = useQueryClient()
@@ -39,7 +50,7 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
     enabled: !!groupId,
   })
 
-  // Trier par hizbs lus pour le classement hizb
+  // Trier par hizbs lus totaux
   const sorted = [...leaderboard].sort((a, b) => (b.hizbsRead ?? 0) - (a.hizbsRead ?? 0))
 
   const addHizb = useMutation({
@@ -62,8 +73,8 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
         <div className="flex items-center gap-2">
           <span className="text-xl">📖</span>
           <div>
-            <h3 className="font-bold text-sm">Hizbs lus</h3>
-            <p className="text-xs text-muted-foreground">Classement du groupe</p>
+            <h3 className="font-bold text-sm">Classement lecture</h3>
+            <p className="text-xs text-muted-foreground">Hizb · Page · Khatam</p>
           </div>
         </div>
         <button
@@ -81,6 +92,7 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
         )}
         {sorted.map((entry, idx) => {
           const hizb = hizbPosition(entry.hizbsRead)
+          const page = estimatedPage(hizb)
           const khatams = Math.floor((entry.hizbsRead ?? 0) / 60)
           return (
             <div
@@ -92,13 +104,12 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
               }`}
             >
               {/* Rang */}
-              <span
-                className={`w-5 text-center text-xs font-bold flex-shrink-0 ${
-                  idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : idx === 2 ? 'text-orange-400' : 'text-muted-foreground'
-                }`}
-              >
+              <span className={`w-5 text-center text-xs font-bold flex-shrink-0 ${
+                idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : idx === 2 ? 'text-orange-400' : 'text-muted-foreground'
+              }`}>
                 {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
               </span>
+
               {/* Avatar */}
               {entry.avatar ? (
                 <img src={entry.avatar} alt={entry.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
@@ -107,7 +118,8 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
                   {entry.name.charAt(0).toUpperCase()}
                 </div>
               )}
-              {/* Nom */}
+
+              {/* Nom + barre */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className="text-sm font-medium truncate">{entry.name}</span>
@@ -117,7 +129,7 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
                     </span>
                   )}
                 </div>
-                {/* Barre de progression cyclique */}
+                {/* Barre hizb cyclique */}
                 <div className="flex items-center gap-1.5">
                   <div className="flex-1 h-1 bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden">
                     <div
@@ -129,6 +141,12 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
                     H{hizb}/60
                   </span>
                 </div>
+              </div>
+
+              {/* Page estimée */}
+              <div className="flex-shrink-0 text-right">
+                <span className="text-xs font-bold text-amber-600 tabular-nums">P.{page}</span>
+                <p className="text-[9px] text-muted-foreground">~page</p>
               </div>
             </div>
           )
@@ -173,7 +191,7 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
                     +
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground text-center">1 hizb = 1/60 du Coran</p>
+                <p className="text-xs text-muted-foreground text-center">1 hizb = 1/60 du Coran ≈ 10 pages</p>
               </div>
 
               {addHizb.isError && (

@@ -406,7 +406,7 @@ groupRoutes.get('/:id/leaderboard', requireAuth, async (c) => {
       hizbsRead: users.hizbsRead,
       currentStreak: users.currentStreak,
       surahsMemorized: sql<number>`
-        COUNT(CASE WHEN ${memorizationProgress.status} = 'memorized' THEN 1 END)
+        COUNT(DISTINCT CASE WHEN ${memorizationProgress.status} IN ('memorized', 'consolidated') THEN ${memorizationProgress.surahId} END)
       `.as('surahs_memorized'),
     })
     .from(groupMembers)
@@ -414,7 +414,7 @@ groupRoutes.get('/:id/leaderboard', requireAuth, async (c) => {
     .leftJoin(memorizationProgress, eq(memorizationProgress.userId, users.id))
     .where(eq(groupMembers.groupId, groupId))
     .groupBy(users.id, users.name, users.avatar, users.xp, users.hizbsRead, users.currentStreak)
-    .orderBy(desc(sql`(${users.xp})::integer`))
+    .orderBy(desc(sql`COUNT(DISTINCT CASE WHEN ${memorizationProgress.status} IN ('memorized', 'consolidated') THEN ${memorizationProgress.surahId} END)`))
 
   // Récupérer les badges de tous les membres en une seule requête
   const memberIds = leaderboard.map((e) => e.userId)
