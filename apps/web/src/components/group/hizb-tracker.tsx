@@ -12,7 +12,7 @@ interface HizbEntry {
   name: string
   avatar: string | null
   hizbsRead: number
-  /** Page du mushaf où l'utilisateur a posé son marque-page (null si jamais synchronisé) */
+  currentReadingPage?: number | null
 }
 
 interface HizbTrackerProps {
