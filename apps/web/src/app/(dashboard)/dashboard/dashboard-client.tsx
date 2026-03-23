@@ -291,7 +291,7 @@ function HizbLectureTab({
         </p>
         {khatamCount > 0 && (
           <p className="text-xs text-stone-400 dark:text-stone-500">
-            {shownHizbsRaw} hizbs lus au total
+            {khatamCount} khatam{khatamCount > 1 ? 's' : ''} accompli{khatamCount > 1 ? 's' : ''}
           </p>
         )}
 

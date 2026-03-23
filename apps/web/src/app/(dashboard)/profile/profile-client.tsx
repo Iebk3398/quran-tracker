@@ -373,12 +373,24 @@ export function ProfileClient() {
       <div className="rounded-2xl border bg-card p-4 space-y-3">
         {/* Lecture quotidienne — hizbs lus */}
         <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 p-3 space-y-1.5">
-          <div className="flex items-baseline justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">📚 Lecture quotidienne</span>
-            <span className="text-xs font-bold text-blue-600">
-              {profile?.hizbsRead ?? 0} hizb{(profile?.hizbsRead ?? 0) > 1 ? 's' : ''} lus
-            </span>
-          </div>
+          {(() => {
+            const total = profile?.hizbsRead ?? 0
+            const hizb = total <= 0 ? 0 : ((total - 1) % 60) + 1
+            const khatams = Math.floor(total / 60)
+            return (
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground">📚 Lecture quotidienne</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-blue-600">H{hizb}/60</span>
+                  {khatams > 0 && (
+                    <span className="text-[11px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
+                      ×{khatams} ✨
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
           {(() => {
             const total = profile?.hizbsRead ?? 0
             const hizb = total <= 0 ? 0 : ((total - 1) % 60) + 1
