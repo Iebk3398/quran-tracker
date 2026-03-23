@@ -39,36 +39,22 @@ interface Surah {
   endPage: number
 }
 
-interface QuranWord {
-  id: number
-  position: number
-  /** Texte Uthmani Unicode propre — utilisé pour le rendu */
-  text_uthmani: string
-  /**
-   * Type du token :
-   *  - 'word'  → mot coranique normal
-   *  - 'end'   → marqueur de fin de verset (cercle numéroté, géré séparément)
-   *  - 'pause_permissible' | 'sajdah' | 'rub_el_hizb' → symboles spéciaux
-   */
-  char_type_name: 'word' | 'end' | 'pause_permissible' | 'sajdah' | 'rub_el_hizb'
-  /**
-   * HTML tajweed mot-par-mot fourni par l'API quran.com.
-   * Contient des spans data-type="ghunna|madda_normal|…" dont on extrait
-   * la règle dominante SANS jamais injecter le HTML — on applique seulement
-   * une couleur CSS sur le mot entier (text_uthmani) pour ne pas casser
-   * le shaping arabe.
-   */
-  text_uthmani_tajweed?: string
-}
-
 interface QuranVerse {
   id: number
   verse_number: number
   verse_key: string
+  /** Texte Unicode Uthmani pur — non utilisé pour le rendu principal */
+  text_uthmani: string
+  /**
+   * HTML tajweed niveau-verset fourni par l'API quran.com.
+   * Balises <tajweed class=TYPE>…</tajweed> autour des caractères portant
+   * une règle. On injecte ce HTML après remplacement des balises par des
+   * <span style="color:…"> — display:contents préserve le shaping arabe.
+   */
+  text_uthmani_tajweed: string
   juz_number: number
   hizb_number: number
   page_number: number
-  words: QuranWord[]
 }
 
 /** Marque-page sur un verset spécifique (ex: sourate 16, verset 43) */
@@ -141,17 +127,13 @@ function revelationLabel(t: string) {
 }
 
 async function fetchPage(page: number): Promise<QuranVerse[]> {
-  // words=true + word_fields=text_uthmani,text_uthmani_tajweed,char_type_name
-  //
-  // Stratégie couleurs tajweed :
-  //  • On récupère text_uthmani_tajweed AU NIVEAU DU MOT (pas du verset).
-  //  • On parse le data-type="…" du premier span pour connaître la règle dominante.
-  //  • On applique UNE seule couleur CSS sur le <span> du mot entier.
-  //  • text_uthmani (Unicode propre) est rendu tel quel — aucune injection HTML.
-  //  → Le shaping arabe est préservé (pas de display:contents ni de découpage).
+  // text_uthmani_tajweed au niveau VERSET = même source que quran.com.
+  // Les balises <tajweed class=TYPE> annotent les caractères précis portant
+  // une règle tajweed — pas le mot entier. Cela donne le même rendu sélectif
+  // que l'app de référence (seuls الرَّحْمَنِ, مَالِكِ, الصِّرَاطَ… colorés).
   const url = `${QURAN_API}/verses/by_page/${page}?language=fr`
-    + `&words=true&word_fields=text_uthmani,text_uthmani_tajweed,char_type_name`
-    + `&fields=juz_number,hizb_number,page_number&per_page=50`
+    + `&fields=text_uthmani,text_uthmani_tajweed,juz_number,hizb_number,page_number`
+    + `&per_page=50`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json() as { verses: QuranVerse[] }
@@ -163,93 +145,63 @@ const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَ
 // ─── Tajweed ──────────────────────────────────────────────────────────────────
 
 /**
- * Palette de couleurs tajweed — appliquée au niveau du mot entier.
- * Couleurs conformes au standard visuel utilisé par quran.com / Ayah.app.
- *
- * Règles :
- *  • ham_wasl / slnt          → gris clair (non prononcé)
- *  • laam_shamsiyya           → gris foncé (assimilation)
- *  • madda_*                  → bleu (prolongation)
- *  • ghunna / idgham_ghunna   → vert (nasalisation)
- *  • ikhafa / ikhafa_shafawi  → orange (occultation)
- *  • idgham_wo_ghunna         → vert sombre
- *  • iqlab                    → violet (transformation n→m)
- *  • qalaqah                  → rouge (écho consonantique)
- */
-/**
- * Palette tajweed — couleurs conformes au standard de l'app de référence.
- *
- * Mapping extrait du panneau "Paramètres de lecture" (légende officielle) :
- *  🟢 Vert        — Ghunnah (nasalisation ن/م)
- *  🔴 Rouge       — Idgham (assimilation avec ou sans ghunna)
- *  🔵 Bleu        — Qalaqah (écho consonantique ق ط ب ج د)
- *  🔵 Bleu foncé  — Madd long/nécessaire (6 harakat obligatoires)
- *  🩵 Teal/Cyan   — Ikhfa (occultation ن sakin / tanwin)
- *  🟣 Violet      — Iqlab (ن sakin → م avant ب)
- *  🟠 Orange      — Madd (prolongation normale · permissible · obligatoire)
- *
- * Exclus intentionnellement (ubiquitaires, pas d'enseignement spécifique) :
- *  • ham_wasl      : présent dans chaque ٱ → quasi chaque mot
- *  • laam_shamsiyah: présent dans chaque ال + lettre solaire
- *  • slnt          : lettre silencieuse
+ * Couleurs tajweed — injection sur les spans issus du HTML verset-level.
+ * Seules les règles "colorées" sont listées. Les autres (<tajweed class=ham_wasl>,
+ * <tajweed class=laam_shamsiyah>, etc.) reçoivent explicitement #1c1610 (noir)
+ * dans applyTajweedColors — aucune couleur n'est jamais héritée via CSS.
  */
 const TAJWEED_COLORS: Record<string, string> = {
-  // 🟠 Madd (orange) — toutes prolongations normales + permissibles + obligatoires
-  madda_normal:          '#c47f17',  // orange doux — madd naturel (2 harakat)
-  madda_permissible:     '#c47f17',  // orange — madd permissible (2-4-6)
-  madda_obligatory:      '#c47f17',  // orange — madd obligatoire (4-5)
-  // 🔵 Bleu foncé — Madd nécessaire (6 harakat stricts, le plus rare)
-  madda_necessary:       '#1d4ed8',  // bleu foncé — madd nécessaire (6 harakat)
-  // 🟢 Vert — Ghunnah (nasalisation)
-  ghunna:                '#16a34a',  // vert — ghunna (ن/م avec tashdid)
-  // 🔴 Rouge — Idgham (toutes variantes)
-  idgham_ghunna:         '#dc2626',  // rouge — idgham avec ghunna
-  idgham_wo_ghunna:      '#dc2626',  // rouge — idgham sans ghunna
-  idgham_mutajanisayn:   '#dc2626',  // rouge — lettres homorganes
-  idgham_mutaqaribayn:   '#dc2626',  // rouge — lettres proches
-  // 🩵 Teal — Ikhfa (occultation)
-  ikhafa:                '#0d9488',  // teal — ikhfa (ن sakin / tanwin + 15 lettres)
-  ikhafa_shafawi:        '#0d9488',  // teal — ikhfa shafawi (م sakin avant ب)
+  // 🟠 Madd (orange) — prolongations naturelles, permissibles, obligatoires
+  madda_normal:          '#c47f17',
+  madda_permissible:     '#c47f17',
+  madda_obligatory:      '#c47f17',
+  // 🔵 Bleu foncé — Madd nécessaire (6 harakat stricts)
+  madda_necessary:       '#1d4ed8',
+  // 🟢 Vert — Ghunna
+  ghunna:                '#16a34a',
+  // 🔴 Rouge — Idgham
+  idgham_ghunna:         '#dc2626',
+  idgham_wo_ghunna:      '#dc2626',
+  idgham_mutajanisayn:   '#dc2626',
+  idgham_mutaqaribayn:   '#dc2626',
+  // 🩵 Teal — Ikhfa
+  ikhafa:                '#0d9488',
+  ikhafa_shafawi:        '#0d9488',
   // 🟣 Violet — Iqlab
-  iqlab:                 '#9333ea',  // violet — iqlab (ن sakin → م avant ب)
-  // 🔵 Bleu — Qalaqah (écho consonantique)
-  qalaqah:               '#3b82f6',  // bleu — qalaqah (ق ط ب ج د)
+  iqlab:                 '#9333ea',
+  // 🔵 Bleu vif — Qalaqah
+  qalaqah:               '#3b82f6',
 }
 
 /**
- * Ordre de priorité : quand un mot porte plusieurs règles tajweed,
- * on affiche la couleur de la règle la plus pédagogiquement significative.
- * madda_normal est en bas car très fréquent — les règles "rares" priment.
+ * Supprime le marqueur de fin de verset du HTML tajweed.
+ * L'API ajoute un <span class=end>١</span> (ou similaire) en fin de verset.
  */
-const TAJWEED_PRIORITY = [
-  'qalaqah',
-  'ghunna',
-  'ikhafa', 'ikhafa_shafawi',
-  'idgham_ghunna', 'idgham_wo_ghunna', 'idgham_mutajanisayn', 'idgham_mutaqaribayn',
-  'iqlab',
-  'madda_necessary',
-  'madda_obligatory', 'madda_permissible', 'madda_normal',
-] as const
+function stripVerseEndMarker(html: string): string {
+  return html
+    .replace(/<span[^>]*class=end[^>]*>[^<]*<\/span>\s*$/, '')
+    .replace(/<span[^>]*>[٠-٩۰-۹]+<\/span>\s*$/, '')
+    .trim()
+}
 
 /**
- * Extrait la couleur tajweed d'un mot depuis le HTML mot-par-mot de l'API quran.com.
+ * Convertit le HTML tajweed verset-level en HTML avec couleurs inline.
  *
- * L'API renvoie : `<rule class=ham_wasl>ٱ</rule>للَّهِ` (attribut sans guillemets).
- * On collecte toutes les classes présentes, puis on retourne la couleur de la règle
- * la plus prioritaire. Aucun HTML n'est injecté dans le DOM.
- *
- * @param tajweedHtml - Valeur du champ text_uthmani_tajweed (niveau mot)
- * @returns Couleur CSS hex ou undefined (couleur de texte par défaut)
+ * Stratégie :
+ *  • <tajweed class=TYPE> → <span style="color:COLOR"> où COLOR est soit la
+ *    couleur tajweed de la règle, soit #1c1610 (noir forcé) pour les règles
+ *    non-colorées (ham_wasl, laam_shamsiyah, slnt…).
+ *  • Couleur toujours EXPLICITE → zéro héritage CSS parasite.
+ *  • Le CSS global .tajweed-text span { display:contents } préserve le shaping
+ *    arabe (ligatures intra-mot et inter-mots intactes).
  */
-function getTajweedColor(tajweedHtml?: string): string | undefined {
-  if (!tajweedHtml) return undefined
-  // Format API : <rule class=TYPE> — attribut sans guillemets
-  const found = [...tajweedHtml.matchAll(/class=([a-z_]+)/g)].map((m) => m[1] ?? '')
-  if (found.length === 0) return undefined
-  for (const rule of TAJWEED_PRIORITY) {
-    if (found.includes(rule)) return TAJWEED_COLORS[rule]
-  }
-  return found[0] ? TAJWEED_COLORS[found[0]] : undefined
+function applyTajweedColors(html: string): string {
+  return html
+    .replace(/<tajweed class=([a-z_]+)>/g, (_m, cls: string) => {
+      const color = TAJWEED_COLORS[cls] ?? '#1c1610'
+      return `<span style="color:${color}">`
+    })
+    .replace(/<\/tajweed>/g, '</span>')
 }
 
 /**
@@ -603,29 +555,12 @@ function ReadingView({
                       outlineOffset: '2px',
                     } : { cursor: 'pointer' }}
                   >
-                    {/*
-                      Rendu mot-par-mot avec couleurs tajweed.
-                      Stratégie :
-                        1. Chaque mot (char_type_name === 'word') est rendu dans un <span>
-                           avec UNE couleur CSS extraite du champ text_uthmani_tajweed.
-                        2. text_uthmani (Unicode propre, U+0670 ٰ) est le texte rendu —
-                           jamais d'injection HTML → shaping arabe préservé.
-                        3. Les tokens 'end' (marqueurs de fin de verset) sont ignorés ;
-                           on affiche notre badge doré à la place.
-                    */}
-                    {v.words.map((w, wi) => {
-                      if (w.char_type_name === 'end') return null
-                      const color = getTajweedColor(w.text_uthmani_tajweed)
-                      return (
-                        <span
-                          key={wi}
-                          className="qw"
-                          style={{ color: color ?? '#1c1610' }}
-                        >
-                          {w.text_uthmani}{' '}
-                        </span>
-                      )
-                    })}
+                    {/* HTML tajweed verset-level : seuls les caractères portant une règle sont colorés */}
+                    <span
+                      dangerouslySetInnerHTML={{
+                        __html: applyTajweedColors(stripVerseEndMarker(v.text_uthmani_tajweed))
+                      }}
+                    />
                     {verseBadge}{' '}
                   </span>
                 )
