@@ -144,10 +144,19 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
                 </div>
               </div>
 
-              {/* Page estimée depuis la position hizb */}
+              {/* Page réelle si synchronisée, estimée sinon */}
               <div className="flex-shrink-0 text-right">
-                <span className="text-xs font-bold text-amber-400 tabular-nums">~P.{page}</span>
-                <p className="text-[9px] text-muted-foreground">estimée</p>
+                {entry.currentReadingPage ? (
+                  <>
+                    <span className="text-xs font-bold text-emerald-600 tabular-nums">P.{entry.currentReadingPage}</span>
+                    <p className="text-[9px] text-emerald-500 font-semibold">page</p>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs font-bold text-amber-400 tabular-nums">~P.{page}</span>
+                    <p className="text-[9px] text-muted-foreground">estimée</p>
+                  </>
+                )}
               </div>
             </div>
           )
