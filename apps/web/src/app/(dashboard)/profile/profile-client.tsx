@@ -86,6 +86,8 @@ export function ProfileClient() {
     queryKey: ['user-profile'],
     queryFn: () => apiFetch<UserProfile>('/api/users/me'),
     enabled: !!storeUser?.id,
+    staleTime: 0,
+    refetchOnMount: 'always',
     retry: 2,
   })
 

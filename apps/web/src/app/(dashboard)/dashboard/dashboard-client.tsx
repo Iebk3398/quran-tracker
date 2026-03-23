@@ -468,6 +468,8 @@ export function DashboardClient() {
     queryKey: ['group', groupId, 'leaderboard'],
     queryFn: () => apiFetch<ApiLeaderboardEntry[]>(`/api/groups/${groupId}/leaderboard`),
     enabled: !!groupId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   useGroupRealtime({ groupId: groupId ?? '', enabled: !!groupId })

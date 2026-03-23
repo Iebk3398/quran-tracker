@@ -684,7 +684,8 @@ export function QuranClient() {
       apiFetch('/api/users/me/hizb', { method: 'POST', body: JSON.stringify({ count: 1 }) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group-activity'] })
-      queryClient.invalidateQueries({ queryKey: ['leaderboard'] })
+      queryClient.invalidateQueries({ queryKey: ['group'], refetchType: 'all' })
+      queryClient.invalidateQueries({ queryKey: ['user-profile'], refetchType: 'all' })
     },
   })
 
