@@ -126,6 +126,19 @@ interface HizbEntry {
   avatar: string | null
   hizbsRead: number
   xp: string
+  currentReadingPage?: number | null
+}
+
+/** Hizb cyclique 1-60 */
+function hizbPosition(total: number): number {
+  if (total <= 0) return 0
+  return ((total - 1) % 60) + 1
+}
+
+/** Estimation de la page à partir du hizb (1-60) */
+function estimatedPage(hizb: number): number {
+  if (hizb <= 0) return 1
+  return Math.max(1, Math.round((hizb - 1) * (604 / 60)) + 1)
 }
 
 /** Formate YYYY-MM en "MOIS YYYY" (ex: "MARS 2026") */
@@ -171,6 +184,8 @@ function HizbLectureTab({
     queryKey: ['group', groupId, 'leaderboard'],
     queryFn: () => apiFetch(`/api/groups/${groupId}/leaderboard`),
     enabled: !!groupId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   const myEntry = leaderboard.find((e) => e.userId === currentUserId)
@@ -290,33 +305,67 @@ function HizbLectureTab({
             {sorted.map((entry, idx) => {
               const isMe = entry.userId === currentUserId
               const MEDALS = ['🥇', '🥈', '🥉']
+              const hizb   = hizbPosition(entry.hizbsRead)
+              const kt     = Math.floor((entry.hizbsRead ?? 0) / 60)
+              const pct    = (hizb / 60) * 100
+              const realPage = entry.currentReadingPage ?? null
+              const estPage  = estimatedPage(hizb)
               return (
                 <div
                   key={entry.userId}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors',
+                    'px-3 py-2.5 rounded-xl transition-colors',
                     isMe
                       ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-200 dark:ring-amber-800'
                       : 'hover:bg-muted/40'
                   )}
                 >
-                  <span className="w-5 text-center text-sm flex-shrink-0 font-bold">
-                    {idx < 3 ? MEDALS[idx] : `${idx + 1}`}
-                  </span>
-                  {entry.avatar ? (
-                    <img src={entry.avatar} alt={entry.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-xs font-bold text-amber-600 flex-shrink-0">
-                      {entry.name.charAt(0).toUpperCase()}
+                  {/* Ligne 1 : rang · avatar · nom · badges */}
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-5 text-center text-sm flex-shrink-0 font-bold">
+                      {idx < 3 ? MEDALS[idx] : `${idx + 1}`}
+                    </span>
+                    {entry.avatar ? (
+                      <img src={entry.avatar} alt={entry.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-xs font-bold text-amber-600 flex-shrink-0">
+                        {entry.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="flex-1 text-sm font-medium truncate">
+                      {entry.name}{isMe && <span className="ml-1 text-xs text-amber-500">(moi)</span>}
+                    </span>
+                    {/* Badge Hizb */}
+                    <span className="text-[11px] font-bold text-amber-700 bg-amber-100 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 px-1.5 py-0.5 rounded-full flex-shrink-0 tabular-nums">
+                      H{hizb}
+                    </span>
+                    {/* Badge Page — vert si réelle, gris si estimée */}
+                    {realPage ? (
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 px-1.5 py-0.5 rounded-full flex-shrink-0 tabular-nums">
+                        P.{realPage}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-stone-400 bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-1.5 py-0.5 rounded-full flex-shrink-0 tabular-nums">
+                        ~P.{estPage}
+                      </span>
+                    )}
+                    {/* Badge Khatam */}
+                    {kt > 0 && (
+                      <span className="text-[11px] font-bold text-purple-700 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        ×{kt} ✨
+                      </span>
+                    )}
+                  </div>
+                  {/* Ligne 2 : barre de progression hizb cyclique */}
+                  <div className="mt-1.5 ml-[3.25rem] flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
-                  )}
-                  <span className="flex-1 text-sm font-medium truncate">
-                    {entry.name}{isMe && <span className="ml-1 text-xs text-amber-500">(moi)</span>}
-                  </span>
-                  <span className="text-sm font-bold text-amber-600 dark:text-amber-400 flex-shrink-0 tabular-nums">
-                    {entry.hizbsRead ?? 0}
-                    <span className="text-xs font-normal text-muted-foreground ml-1">hizb</span>
-                  </span>
+                    <span className="text-[10px] text-stone-400 tabular-nums w-8 text-right">{hizb}/60</span>
+                  </div>
                 </div>
               )
             })}
