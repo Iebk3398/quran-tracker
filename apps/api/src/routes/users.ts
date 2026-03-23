@@ -166,8 +166,38 @@ userRoutes.put(
 
     const currentHizbs = current[0]?.hizbsRead ?? 0
 
-    if (position <= currentHizbs) {
-      // Même si hizb ne bouge pas, met à jour la page
+    // ── Position cyclique actuelle (1-60), 0 si jamais lu ──────────────────
+    const currentCyclical = currentHizbs <= 0
+      ? 0
+      : ((currentHizbs - 1) % 60) + 1
+
+    // ── Khatam index 0-based ────────────────────────────────────────────────
+    const currentKhatam = currentHizbs <= 0
+      ? 0
+      : Math.floor((currentHizbs - 1) / 60)
+
+    // ── Calcul de la nouvelle valeur absolue ────────────────────────────────
+    // Règles :
+    //  1. Première lecture : position directe
+    //  2. Avance dans le khatam courant : position > currentCyclical
+    //  3. Nouveau khatam : on était exactement au hizb 60 (fin de khatam)
+    //     et la nouvelle position repart de 1-N → incrémenter le khatam
+    //  4. Retour en arrière en cours de khatam → refusé (ne pas reculer)
+    let newHizbsRead: number | null = null
+
+    if (currentHizbs <= 0) {
+      newHizbsRead = position
+    } else if (position > currentCyclical) {
+      // Avance dans le même khatam
+      newHizbsRead = currentKhatam * 60 + position
+    } else if (position < currentCyclical && currentCyclical === 60) {
+      // Khatam terminé → démarrage du suivant (le compteur passe ex: 60→61)
+      newHizbsRead = (currentKhatam + 1) * 60 + position
+    }
+    // Sinon : position en arrière en cours de khatam → ne pas reculer
+
+    if (newHizbsRead === null) {
+      // Pas d'avance : met à jour la page seulement
       if (page !== undefined) {
         await db.update(users).set({ currentReadingPage: page, updatedAt: new Date() }).where(eq(users.id, user.id))
       }
@@ -176,7 +206,7 @@ userRoutes.put(
 
     const updated = await db
       .update(users)
-      .set({ hizbsRead: position, updatedAt: new Date(), ...(page !== undefined ? { currentReadingPage: page } : {}) })
+      .set({ hizbsRead: newHizbsRead, updatedAt: new Date(), ...(page !== undefined ? { currentReadingPage: page } : {}) })
       .where(eq(users.id, user.id))
       .returning({ hizbsRead: users.hizbsRead })
 
