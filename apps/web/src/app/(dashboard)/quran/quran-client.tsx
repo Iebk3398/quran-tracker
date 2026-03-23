@@ -77,7 +77,7 @@ const STORAGE_KEY_VERSE_BK = 'ikraa_verse_bookmark'
 const FONT_SIZES           = [20, 24, 28, 32, 36, 40] as const
 const DEFAULT_FONT_IDX     = 2   // 28px — Moushaf Madani 1421 (KFGQPC Hafs)
 
-const QURAN_FONT = "'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Scheherazade New', 'Noto Naskh Arabic', serif"
+const QURAN_FONT = "'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', 'Scheherazade New', serif"
 
 /** Variants de transition de page — custom = 'forward' | 'back' */
 const PAGE_VARIANTS: Variants = {
@@ -485,11 +485,12 @@ function ReadingView({
               style={{
                 fontFamily: QURAN_FONT,
                 fontSize,
-                lineHeight: 2.8,
+                lineHeight: 3.2,
                 color: '#1c1610',
                 textAlign: 'center',
                 WebkitFontSmoothing: 'antialiased',
                 MozOsxFontSmoothing: 'grayscale',
+                wordSpacing: '0.05em',
               }}
             >
               {group.verses.map((v) => {

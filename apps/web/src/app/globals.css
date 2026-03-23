@@ -1,10 +1,11 @@
 @import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Scheherazade+New:wght@400;700&display=swap');
 
 /**
  * Police Uthmanic Script Hafs — édition King Fahd (KFGQPC)
  * Source : qurancdn.com CDN (utilisé par quran.com)
- * Fallback : Scheherazade New (SIL)
+ * Fallback 1 : Amiri Quran (Google Fonts — spécifique Coran, tashkeel parfait)
+ * Fallback 2 : Scheherazade New (SIL)
  */
 @font-face {
   font-family: 'UthmanicHafs';
@@ -18,8 +19,8 @@
 @theme {
   --color-emerald-brand: #059669;
   --color-gold-brand: #d97706;
-  --font-arabic: 'Noto Naskh Arabic', serif;
-  --font-quran: 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Scheherazade New', 'Noto Naskh Arabic', serif;
+  --font-arabic: 'Amiri Quran', 'Scheherazade New', serif;
+  --font-quran: 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', 'Scheherazade New', serif;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
