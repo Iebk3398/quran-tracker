@@ -892,45 +892,70 @@ export function QuranClient() {
           </p>
         </div>
 
-        {/* ── Carte "Reprendre la lecture" ── */}
+        {/* ── Carte position de lecture + vue hizb ── */}
         {verseBookmark && (
-          <button
-            onClick={() => openReading(verseBookmark.page, verseBookmark.verseKey)}
-            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl mb-4 text-left transition-all active:scale-[0.98]"
-            style={{
-              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
-              border: '1.5px solid #a7f3d0',
-            }}
-          >
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500 flex items-center justify-center shrink-0 shadow-sm">
-              <BookmarkCheck className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-emerald-800 leading-tight">
-                Reprendre la lecture
-              </p>
-              <p className="text-xs text-emerald-600 mt-0.5">
-                {verseBookmark.surahNameTranslit} · V.{verseBookmark.verseNumber}
-              </p>
-            </div>
-            <div className="text-right shrink-0 space-y-0.5">
-              <p
-                className="text-lg text-emerald-700 leading-tight"
-                style={{ fontFamily: QURAN_FONT }}
-              >
+          <div className="mb-4 rounded-2xl overflow-hidden" style={{ border: '1.5px solid #a7f3d0', background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf8 100%)' }}>
+            {/* Ligne du haut — reprendre la lecture */}
+            <button
+              onClick={() => openReading(verseBookmark.page, verseBookmark.verseKey)}
+              className="w-full flex items-center gap-3 px-4 pt-4 pb-3 text-left transition-all active:scale-[0.99]"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500 flex items-center justify-center shrink-0 shadow-sm">
+                <BookmarkCheck className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-emerald-800 leading-tight">Reprendre la lecture</p>
+                <p className="text-xs text-emerald-600 mt-0.5">
+                  {verseBookmark.surahNameTranslit} · V.{verseBookmark.verseNumber}
+                </p>
+              </div>
+              <p className="text-xl text-emerald-700 shrink-0" style={{ fontFamily: QURAN_FONT }}>
                 {verseBookmark.surahNameAr}
               </p>
-              {/* Hizb + page du marque-page */}
-              <div className="flex items-center gap-1.5 justify-end">
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">
-                  H {verseBookmark.hizbNumber}
+            </button>
+
+            {/* Séparateur */}
+            <div className="mx-4 h-px" style={{ background: 'rgba(16,185,129,0.15)' }} />
+
+            {/* Vue hizb détaillée */}
+            <div className="px-4 pb-4 pt-3 space-y-2.5">
+              {/* Badges info */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
+                  Hizb {verseBookmark.hizbNumber}/60
                 </span>
-                <span className="text-[10px] text-emerald-500 tabular-nums">
-                  P.{verseBookmark.page}
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                  Juz {verseBookmark.juzNumber}
+                </span>
+                <span className="text-[11px] font-medium text-stone-500 bg-stone-100 px-2.5 py-1 rounded-full">
+                  Page {verseBookmark.page}
                 </span>
               </div>
+
+              {/* Barre de progression hizb 1-60 */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-emerald-700 font-semibold">Position dans le Coran</span>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    {Math.round((verseBookmark.hizbNumber / 60) * 100)}%
+                  </span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(16,185,129,0.12)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${(verseBookmark.hizbNumber / 60) * 100}%`,
+                      background: 'linear-gradient(90deg, #10b981 0%, #059669 100%)',
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-[9px] text-muted-foreground">Al-Fatiha</span>
+                  <span className="text-[9px] text-muted-foreground">An-Nass</span>
+                </div>
+              </div>
             </div>
-          </button>
+          </div>
         )}
 
         {/* Barre de recherche */}

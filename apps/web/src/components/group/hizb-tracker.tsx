@@ -12,12 +12,17 @@ interface HizbEntry {
   name: string
   avatar: string | null
   hizbsRead: number
-  xp: string
 }
 
 interface HizbTrackerProps {
   groupId: string
   currentUserId: string
+}
+
+/** Hizb cyclique 1-60 — repart à 1 après chaque Khatam */
+function hizbPosition(total: number): number {
+  if (total <= 0) return 0
+  return ((total - 1) % 60) + 1
 }
 
 /**
@@ -27,7 +32,6 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [count, setCount] = useState(1)
-  const [xpToast, setXpToast] = useState<number | null>(null)
 
   const { data: leaderboard = [] } = useQuery<HizbEntry[]>({
     queryKey: ['group', groupId, 'leaderboard'],
@@ -44,32 +48,15 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
         method: 'POST',
         body: JSON.stringify({ count: n }),
       }),
-    onSuccess: (_data, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', groupId, 'leaderboard'] })
       setShowAdd(false)
-      setCount(1) // Remet le compteur à 1 pour la prochaine ouverture
-      // Toast XP (5 XP par hizb) — utilise variables (valeur réellement envoyée)
-      setXpToast(variables * 5)
-      setTimeout(() => setXpToast(null), 2500)
+      setCount(1)
     },
   })
 
   return (
     <div className="rounded-2xl border bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 p-5 space-y-4 relative">
-      {/* Toast XP */}
-      <AnimatePresence>
-        {xpToast !== null && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: -30 }}
-            exit={{ opacity: 0 }}
-            className="absolute top-3 right-4 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow pointer-events-none"
-          >
-            +{xpToast} XP ✨
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -92,40 +79,60 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
         {sorted.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-2">Aucun hizb enregistré</p>
         )}
-        {sorted.map((entry, idx) => (
-          <div
-            key={entry.userId}
-            className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${
-              entry.userId === currentUserId
-                ? 'bg-amber-100/60 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700'
-                : ''
-            }`}
-          >
-            {/* Rang */}
-            <span
-              className={`w-5 text-center text-xs font-bold flex-shrink-0 ${
-                idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : idx === 2 ? 'text-orange-400' : 'text-muted-foreground'
+        {sorted.map((entry, idx) => {
+          const hizb = hizbPosition(entry.hizbsRead)
+          const khatams = Math.floor((entry.hizbsRead ?? 0) / 60)
+          return (
+            <div
+              key={entry.userId}
+              className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${
+                entry.userId === currentUserId
+                  ? 'bg-amber-100/60 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700'
+                  : ''
               }`}
             >
-              {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
-            </span>
-            {/* Avatar */}
-            {entry.avatar ? (
-              <img src={entry.avatar} alt={entry.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-300 flex-shrink-0">
-                {entry.name.charAt(0).toUpperCase()}
+              {/* Rang */}
+              <span
+                className={`w-5 text-center text-xs font-bold flex-shrink-0 ${
+                  idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : idx === 2 ? 'text-orange-400' : 'text-muted-foreground'
+                }`}
+              >
+                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+              </span>
+              {/* Avatar */}
+              {entry.avatar ? (
+                <img src={entry.avatar} alt={entry.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-300 flex-shrink-0">
+                  {entry.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              {/* Nom */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="text-sm font-medium truncate">{entry.name}</span>
+                  {khatams > 0 && (
+                    <span className="text-[10px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      ×{khatams} ✨
+                    </span>
+                  )}
+                </div>
+                {/* Barre de progression cyclique */}
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 h-1 bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                      style={{ width: `${(hizb / 60) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground tabular-nums flex-shrink-0">
+                    H{hizb}/60
+                  </span>
+                </div>
               </div>
-            )}
-            {/* Nom */}
-            <span className="flex-1 text-sm font-medium truncate">{entry.name}</span>
-            {/* Hizbs */}
-            <span className="text-sm font-bold text-amber-600 dark:text-amber-400 flex-shrink-0">
-              {entry.hizbsRead ?? 0}
-              <span className="text-xs font-normal text-muted-foreground ml-1">hizb</span>
-            </span>
-          </div>
-        ))}
+            </div>
+          )
+        })}
       </div>
 
       {/* Modal ajout hizbs */}
