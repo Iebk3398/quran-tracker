@@ -771,13 +771,12 @@ export function QuranClient() {
 
   /** Synchronise la position de lecture absolue dans le dashboard (PUT — jamais en arrière) */
   const syncHizbPosition = useMutation({
-    mutationFn: ({ position, page }: { position: number; page: number }) =>
-      apiFetch<{ success: boolean; data: { hizbsRead: number } }>(
-        '/api/users/me/hizb', { method: 'PUT', body: JSON.stringify({ position, page }) }
-      ),
-    onSuccess: (res, vars) => {
-      const newHizbs = res?.data?.hizbsRead ?? vars.position
-      // Cache invalidé via invalidateQueries dans onSuccess
+    mutationFn: (vars: { position: number; page?: number }) =>
+      apiFetch('/api/users/me/hizb', { method: 'PUT', body: JSON.stringify(vars) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group'] })
+    },
+  })
 
   function handleMarkRead(page: number, _hizb: number) {
     const updated = new Set(readPages)
