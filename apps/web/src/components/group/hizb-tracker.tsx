@@ -120,9 +120,9 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
                 </div>
               )}
 
-              {/* Nom + barre */}
+              {/* Nom + barre progression hizb */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-0.5">
+                <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-sm font-medium truncate">{entry.name}</span>
                   {khatams > 0 && (
                     <span className="text-[10px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full flex-shrink-0">
@@ -130,7 +130,6 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
                     </span>
                   )}
                 </div>
-                {/* Barre hizb cyclique */}
                 <div className="flex items-center gap-1.5">
                   <div className="flex-1 h-1 bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden">
                     <div
@@ -138,24 +137,27 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
                       style={{ width: `${(hizb / 60) * 100}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-muted-foreground tabular-nums flex-shrink-0">
-                    H{hizb}/60
-                  </span>
                 </div>
               </div>
 
-              {/* Page réelle si synchronisée, estimée sinon */}
-              <div className="flex-shrink-0 text-right">
-                {entry.currentReadingPage ? (
-                  <>
-                    <span className="text-xs font-bold text-emerald-600 tabular-nums">P.{entry.currentReadingPage}</span>
-                    <p className="text-[9px] text-emerald-500 font-semibold">page</p>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-xs font-bold text-amber-400 tabular-nums">~P.{page}</span>
-                    <p className="text-[9px] text-muted-foreground">estimée</p>
-                  </>
+              {/* Position exacte : Hizb + Page */}
+              <div className="flex-shrink-0 text-right space-y-0.5">
+                <div className="flex items-center gap-1 justify-end">
+                  <span className="text-[11px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full tabular-nums">
+                    H{hizb}
+                  </span>
+                  {entry.currentReadingPage ? (
+                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full tabular-nums">
+                      P.{entry.currentReadingPage}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full tabular-nums">
+                      ~P.{page}
+                    </span>
+                  )}
+                </div>
+                {!entry.currentReadingPage && (
+                  <p className="text-[9px] text-muted-foreground">estimée</p>
                 )}
               </div>
             </div>

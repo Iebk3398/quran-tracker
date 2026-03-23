@@ -272,8 +272,6 @@ function ReadingView({
   const [toastMsg, setToastMsg]     = useState<string | null>(null)
   const [animKey, setAnimKey]       = useState(0)
   const [pageDir, setPageDir]       = useState<'forward' | 'back'>('forward')
-  const [pendingSyncHizb, setPendingSyncHizb] = useState<{ page: number; hizb: number } | null>(null)
-  const syncDismissTimer            = useRef<ReturnType<typeof setTimeout> | null>(null)
   const touchStartX                 = useRef<number | null>(null)
   const targetVerseRef              = useRef<string | null>(initialVerseKey ?? null)
   const queryClient                 = useQueryClient()
@@ -356,25 +354,6 @@ function ReadingView({
     showToast(`Page ${page} marquée · +5 XP`)
   }
 
-  /** Auto-dismiss du prompt de sync après 8 s */
-  function scheduleSyncDismiss() {
-    if (syncDismissTimer.current) clearTimeout(syncDismissTimer.current)
-    syncDismissTimer.current = setTimeout(() => setPendingSyncHizb(null), 8000)
-  }
-
-  function confirmSync() {
-    if (!pendingSyncHizb) return
-    if (syncDismissTimer.current) clearTimeout(syncDismissTimer.current)
-    onSyncHizbPosition(pendingSyncHizb.page, pendingSyncHizb.hizb)
-    setPendingSyncHizb(null)
-    showToast(`Hizb ${pendingSyncHizb.hizb} synchronisé ✓`)
-  }
-
-  function dismissSync() {
-    if (syncDismissTimer.current) clearTimeout(syncDismissTimer.current)
-    setPendingSyncHizb(null)
-  }
-
   /**
    * Marque un verset comme signet de lecture.
    * Un deuxième tap sur le même verset supprime le signet.
@@ -397,10 +376,9 @@ function ReadingView({
         verseNumber: v.verse_number,
       }
       onSetVerseBookmark(bk)
-      showToast(`Marque-page · H${v.hizb_number} · ${surah?.nameTranslit ?? ''} ${v.verse_key}`)
-      // Afficher le prompt de sync (non bloquant, auto-dismiss 8 s)
-      setPendingSyncHizb({ page: v.page_number ?? page, hizb: v.hizb_number })
-      scheduleSyncDismiss()
+      // Sync automatique — met à jour hizb + page dans le classement groupe
+      onSyncHizbPosition(v.page_number ?? page, v.hizb_number)
+      showToast(`📌 H${v.hizb_number} · P.${v.page_number ?? page} · ${surah?.nameTranslit ?? ''} ${v.verse_key}`)
     }
   }
 
@@ -649,66 +627,7 @@ function ReadingView({
         )}
       </AnimatePresence>
 
-      {/* ══ PROMPT SYNC HIZB ═════════════════════════════════════════════════════
-          Apparaît après la pose d'un marque-page.
-          Demande si l'utilisateur veut synchroniser son compteur dashboard.
-      ══════════════════════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {pendingSyncHizb && (
-          <motion.div
-            key="sync-prompt"
-            initial={{ opacity: 0, y: 80 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 60 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-            className="fixed bottom-20 inset-x-4 z-20 pointer-events-auto"
-          >
-            <div
-              className="flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-2xl"
-              style={{
-                background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-                border: '1px solid #fde68a',
-                boxShadow: '0 8px 32px rgba(180,130,30,0.18), 0 2px 8px rgba(0,0,0,0.08)',
-              }}
-            >
-              {/* Icone */}
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(245,158,11,0.15)' }}
-              >
-                <span className="text-lg">📊</span>
-              </div>
 
-              {/* Texte */}
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-semibold text-stone-800 leading-tight">
-                  Mettre à jour le tableau de bord ?
-                </p>
-                <p className="text-[11px] text-stone-500 mt-0.5">
-                  Hizb {pendingSyncHizb.hizb} · page {pendingSyncHizb.page}
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={dismissSync}
-                  className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-stone-400 hover:text-stone-600 hover:bg-stone-100/80 transition-colors"
-                >
-                  Plus tard
-                </button>
-                <button
-                  onClick={confirmSync}
-                  className="h-7 px-3 rounded-lg text-[11px] font-semibold text-white transition-all active:scale-95"
-                  style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
-                >
-                  Sync ✓
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
