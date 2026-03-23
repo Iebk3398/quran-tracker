@@ -196,8 +196,20 @@ function HizbLectureTab({
   const pendingDeltaRef = useRef(0)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  /** Valeur affichée : override local pendant la saisie rapide, serveur sinon */
-  const shownHizbs = localHizbs ?? myHizbs
+  // Quand les données serveur arrivent et qu'il n'y a plus de delta pending,
+  // on efface l'override local pour afficher la valeur fraîche du serveur.
+  useEffect(() => {
+    if (pendingDeltaRef.current === 0) {
+      setLocalHizbs(null)
+    }
+  }, [myHizbs])
+
+  /** Valeur brute accumulée (peut dépasser 60 sur plusieurs khatams) */
+  const shownHizbsRaw = localHizbs ?? myHizbs
+  /** Position cyclique 1-60 pour le ring et le compteur */
+  const shownHizbs = shownHizbsRaw <= 0 ? 0 : ((shownHizbsRaw - 1) % 60) + 1
+  /** Nombre de khatams complétés */
+  const khatamCount = Math.floor(shownHizbsRaw / 60)
   const milestone = hizbMilestone(shownHizbs)
 
   const sorted = [...leaderboard].sort((a, b) => (b.hizbsRead ?? 0) - (a.hizbsRead ?? 0))
@@ -232,8 +244,8 @@ function HizbLectureTab({
    */
   const tapHizb = (step: number) => {
     const current = localHizbs ?? myHizbs
-    const next = Math.max(0, Math.min(60, current + step))
-    if (next === current) return // déjà aux bornes
+    const next = Math.max(0, current + step) // pas de cap à 60 — khatams multiples
+    if (next === current) return
     setLocalHizbs(next)
     pendingDeltaRef.current += step
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
@@ -258,8 +270,13 @@ function HizbLectureTab({
             <span className="text-sm text-stone-500 dark:text-stone-400 mt-1">
               / 60 hizbs
             </span>
+            {khatamCount > 0 && (
+              <span className="mt-1 text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded-full">
+                ×{khatamCount} ✨
+              </span>
+            )}
             {milestone && (
-              <span className="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+              <span className="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
                 {milestone.emoji} {milestone.label}
               </span>
             )}
@@ -272,12 +289,17 @@ function HizbLectureTab({
             ? "Commencez votre lecture dès aujourd'hui"
             : `${Math.round((shownHizbs / 60) * 100)}% du Coran lu`}
         </p>
+        {khatamCount > 0 && (
+          <p className="text-xs text-stone-400 dark:text-stone-500">
+            {shownHizbsRaw} hizbs lus au total
+          </p>
+        )}
 
         {/* ── Compteur inline +/- ── */}
         <div className="mt-4 flex items-center gap-4 justify-center">
           <button
             onClick={() => tapHizb(-1)}
-            disabled={shownHizbs <= 0}
+            disabled={shownHizbsRaw <= 0}
             className="w-12 h-12 rounded-2xl border-2 border-stone-200 dark:border-stone-700 text-2xl font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 active:scale-95 transition-all disabled:opacity-30"
           >−</button>
           <div className="text-center min-w-[80px]">
@@ -286,7 +308,7 @@ function HizbLectureTab({
           </div>
           <button
             onClick={() => tapHizb(1)}
-            disabled={shownHizbs >= 60}
+            disabled={false}
             className="w-12 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-2xl font-bold shadow-md shadow-amber-200 dark:shadow-amber-900/30 transition-all disabled:opacity-30"
           >+</button>
         </div>
