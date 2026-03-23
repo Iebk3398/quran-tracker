@@ -49,6 +49,8 @@ export function HizbTracker({ groupId, currentUserId }: HizbTrackerProps) {
     queryKey: ['group', groupId, 'leaderboard'],
     queryFn: () => apiFetch(`/api/groups/${groupId}/leaderboard`),
     enabled: !!groupId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   // Trier par hizbs lus totaux

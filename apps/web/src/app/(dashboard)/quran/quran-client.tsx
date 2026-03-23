@@ -693,7 +693,10 @@ export function QuranClient() {
     mutationFn: (vars: { position: number; page?: number }) =>
       apiFetch('/api/users/me/hizb', { method: 'PUT', body: JSON.stringify(vars) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group'] })
+      // refetchType: 'all' force le refetch même si HizbTracker est démonté (autre onglet)
+      queryClient.invalidateQueries({ queryKey: ['group'], refetchType: 'all' })
+      // Invalide aussi le profil pour mettre à jour la page dans la section Lecture
+      queryClient.invalidateQueries({ queryKey: ['user-profile'], refetchType: 'all' })
     },
   })
 

@@ -26,6 +26,7 @@ interface UserProfile {
   currentStreak?: number | null
   longestStreak?: number | null
   hizbsRead?: number | null
+  currentReadingPage?: number | null
 }
 
 const ROLES = [
@@ -380,17 +381,32 @@ export function ProfileClient() {
             const total = profile?.hizbsRead ?? 0
             const hizb = total <= 0 ? 0 : ((total - 1) % 60) + 1
             const khatams = Math.floor(total / 60)
+            const readingPage = profile?.currentReadingPage ?? null
+            // Sourate en cours déterminée depuis la page de lecture (startPage ≤ page ≤ endPage)
+            const readingSurah = readingPage
+              ? allSurahs?.find(s => s.startPage <= readingPage && s.endPage >= readingPage)
+              : null
             return (
               <>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-2xl font-black text-blue-600 tabular-nums">H{hizb}</span>
                   <span className="text-xs font-semibold text-muted-foreground">/60</span>
+                  {readingPage && (
+                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full tabular-nums">
+                      P.{readingPage}
+                    </span>
+                  )}
                   {khatams > 0 && (
                     <span className="text-[11px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
                       ×{khatams} ✨
                     </span>
                   )}
                 </div>
+                {readingSurah && (
+                  <p className="text-xs text-muted-foreground">
+                    📍 {readingSurah.nameTranslit} — {readingSurah.nameFr}
+                  </p>
+                )}
                 <div className="h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
                   <div className="h-full bg-blue-500 rounded-full transition-all duration-700" style={{ width: `${(hizb / 60) * 100}%` }} />
                 </div>
