@@ -145,7 +145,6 @@ userRoutes.post(
 /**
  * PUT /api/users/me/hizb — Synchroniser la position absolue de lecture.
  * Met à jour hizbsRead seulement si position > valeur actuelle (jamais en arrière).
- * Stocke également la page du mushaf pour l'affichage dans le classement groupe.
  */
 userRoutes.put(
   '/me/hizb',
@@ -156,7 +155,7 @@ userRoutes.put(
   })),
   async (c) => {
     const user = c.get('user')
-    const { position, page } = c.req.valid('json')
+    const { position } = c.req.valid('json')
 
     // Récupère la valeur actuelle pour ne jamais reculer
     const current = await db
@@ -169,25 +168,12 @@ userRoutes.put(
 
     // Ne met à jour que si la position demandée est supérieure
     if (position <= currentHizbs) {
-      // Met quand même à jour la page si fournie
-      if (page !== undefined) {
-        await db
-          .update(users)
-          .set({ currentReadingPage: page, updatedAt: new Date() })
-          .where(eq(users.id, user.id))
-      }
       return c.json({ success: true, data: { hizbsRead: currentHizbs } })
-    }
-
-    const updateData: Partial<typeof users.$inferInsert> = {
-      hizbsRead: position,
-      updatedAt: new Date(),
-      ...(page !== undefined ? { currentReadingPage: page } : {}),
     }
 
     const updated = await db
       .update(users)
-      .set(updateData)
+      .set({ hizbsRead: position, updatedAt: new Date() })
       .where(eq(users.id, user.id))
       .returning({ hizbsRead: users.hizbsRead })
 

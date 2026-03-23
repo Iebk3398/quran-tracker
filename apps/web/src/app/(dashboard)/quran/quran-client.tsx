@@ -777,18 +777,7 @@ export function QuranClient() {
       ),
     onSuccess: (res, vars) => {
       const newHizbs = res?.data?.hizbsRead ?? vars.position
-      // Mise à jour optimiste du cache leaderboard (hizbsRead + currentReadingPage)
-      if (currentUserId && groupId) {
-        queryClient.setQueryData<Array<{ userId: string; hizbsRead: number; currentReadingPage?: number }>>(
-          ['group', groupId, 'leaderboard'],
-          (old) => old?.map((e) => e.userId === currentUserId
-            ? { ...e, hizbsRead: newHizbs, currentReadingPage: vars.page }
-            : e)
-        )
-      }
-      queryClient.invalidateQueries({ queryKey: ['group'] })
-    },
-  })
+      // Cache invalidé via invalidateQueries dans onSuccess
 
   function handleMarkRead(page: number, _hizb: number) {
     const updated = new Set(readPages)

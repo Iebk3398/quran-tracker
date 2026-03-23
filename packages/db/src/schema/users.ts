@@ -22,8 +22,6 @@ export const users = pgTable('users', {
   avatar: text('avatar'),
   xp: text('xp').notNull().default('0'),
   hizbsRead: integer('hizbs_read').notNull().default(0),
-  /** Page du mushaf où l'utilisateur lit actuellement (stockée lors du sync marque-page) */
-  currentReadingPage: integer('current_reading_page'),
   currentStreak: text('current_streak').notNull().default('0'),
   longestStreak: text('longest_streak').notNull().default('0'),
   lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
