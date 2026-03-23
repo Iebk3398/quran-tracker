@@ -3,14 +3,13 @@
 
 /**
  * Police Uthmanic Script Hafs — édition King Fahd (KFGQPC)
- * Source : qurancdn.com CDN (utilisé par quran.com)
- * Fallback 1 : Amiri Quran (Google Fonts — spécifique Coran, tashkeel parfait)
- * Fallback 2 : Scheherazade New (SIL)
+ * Auto-hébergée dans /public/fonts/ — aucun risque CORS/CSP
+ * Source : npm kfgqpc-uthmanic-script-hafs-regular
+ * Fallback : Amiri Quran (Google Fonts), Scheherazade New
  */
 @font-face {
   font-family: 'UthmanicHafs';
-  src: url('https://static.qurancdn.com/fonts/UthmanicHafs1Ver22.woff2') format('woff2'),
-       url('https://static.qurancdn.com/fonts/UthmanicHafs1Ver18.woff2') format('woff2');
+  src: url('/fonts/UthmanicHafs.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -19,8 +18,8 @@
 @theme {
   --color-emerald-brand: #059669;
   --color-gold-brand: #d97706;
-  --font-arabic: 'Amiri Quran', 'Scheherazade New', serif;
-  --font-quran: 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', 'Scheherazade New', serif;
+  --font-arabic: 'UthmanicHafs', 'Amiri Quran', 'Scheherazade New', serif;
+  --font-quran: 'UthmanicHafs', 'Amiri Quran', 'Scheherazade New', serif;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
