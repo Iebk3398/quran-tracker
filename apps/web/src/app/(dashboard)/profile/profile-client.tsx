@@ -404,7 +404,7 @@ export function ProfileClient() {
                 </div>
                 {readingSurah && (
                   <p className="text-xs text-muted-foreground">
-                    📍 {readingSurah.nameTranslit} — {readingSurah.nameFr}
+                    📍 {readingSurah.nameEn} — {readingSurah.nameFr}
                   </p>
                 )}
                 <div className="h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
