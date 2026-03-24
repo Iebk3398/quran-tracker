@@ -2,20 +2,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Scheherazade+New:wght@400;700&display=swap');
 
 /**
- * Police principale : Amiri Quran (Google Fonts)
- * Spécifiquement conçue pour le texte coranique.
- * Gère correctement tous les tashkeel + alif de prolongation (pas de cercles).
- * Scheherazade New en fallback (SIL, même qualité).
- *
- * Note : UthmanicHafs (npm kfgqpc-uthmanic-script-hafs-regular) supprimé —
- * version non-officielle qui rend l'alif de prolongation (U+0670) comme
- * un glyph circulaire élevé au lieu d'un alif inline.
+ * Police principale : UthmanicHafs (auto-hébergée) — letterforms Mushaf Madinah
+ * Fallback : Amiri Quran (Google Fonts), Scheherazade New
  */
+@font-face {
+  font-family: 'UthmanicHafs';
+  src: url('/fonts/UthmanicHafs.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-emerald-brand: #059669;
   --color-gold-brand: #d97706;
-  --font-arabic: 'Amiri Quran', 'Scheherazade New', serif;
-  --font-quran: 'Amiri Quran', 'Scheherazade New', serif;
+  --font-arabic: 'UthmanicHafs', 'Amiri Quran', 'Scheherazade New', serif;
+  --font-quran: 'UthmanicHafs', 'Amiri Quran', 'Scheherazade New', serif;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 

@@ -77,7 +77,7 @@ const STORAGE_KEY_VERSE_BK = 'ikraa_verse_bookmark'
 const FONT_SIZES           = [20, 24, 28, 32, 36, 40] as const
 const DEFAULT_FONT_IDX     = 2   // 28px — Moushaf Madani 1421 (KFGQPC Hafs)
 
-const QURAN_FONT = "'Amiri Quran', 'Scheherazade New', serif"
+const QURAN_FONT = "'UthmanicHafs', 'Amiri Quran', 'Scheherazade New', serif"
 
 /** Variants de transition de page — custom = 'forward' | 'back' */
 const PAGE_VARIANTS: Variants = {
@@ -151,10 +151,11 @@ const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَ
  * dans applyTajweedColors — aucune couleur n'est jamais héritée via CSS.
  */
 const TAJWEED_COLORS: Record<string, string> = {
-  // 🟠 Madd (orange) — prolongations naturelles, permissibles, obligatoires
-  madda_normal:          '#c47f17',
-  madda_permissible:     '#c47f17',
-  madda_obligatory:      '#c47f17',
+  // Madd — couleur texte neutre (le glyph UthmanicHafs rend l'alif de prolongation
+  // comme un petit signe surélevé, pas besoin de couleur qui le mettrait trop en valeur)
+  madda_normal:          '#1c1610',
+  madda_permissible:     '#1c1610',
+  madda_obligatory:      '#1c1610',
   // 🔵 Bleu foncé — Madd nécessaire (6 harakat stricts)
   madda_necessary:       '#1d4ed8',
   // 🟢 Vert — Ghunna
