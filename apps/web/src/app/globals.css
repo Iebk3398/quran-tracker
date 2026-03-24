@@ -3,11 +3,13 @@
 
 /**
  * Police principale : UthmanicHafs (auto-hébergée) — letterforms Mushaf Madinah
- * Fallback : Amiri Quran (Google Fonts), Scheherazade New
+ * WOFF2 en priorité (3× plus léger, support universel), OTF en fallback
+ * Fallback police : Amiri Quran (Google Fonts), Scheherazade New
  */
 @font-face {
   font-family: 'UthmanicHafs';
-  src: url('/fonts/UthmanicHafs.otf') format('opentype');
+  src: url('/fonts/UthmanicHafs.woff2') format('woff2'),
+       url('/fonts/UthmanicHafs.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
