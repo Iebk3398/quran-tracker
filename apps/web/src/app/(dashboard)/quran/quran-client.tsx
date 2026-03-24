@@ -185,18 +185,24 @@ function stripVerseEndMarker(html: string): string {
 }
 
 /**
- * Supprime les marques d'annotation Uthmanique (U+06D6–U+06ED) qui
- * s'affichent comme des cercles visibles avec la police UthmanicHafs.
+ * Normalise les marques d'annotation Uthmanique pour un rendu correct.
  *
- * Ces caractères sont des signes de récitation coranique (ex: ۟ U+06DF
- * "Arabic Small High Rounded Zero" pour indiquer la prolongation) qui
- * doivent rester invisibles ou très petits — la police les rend en cercles.
+ * Deux types de caractères posent problème avec UthmanicHafs :
  *
- * Plage supprimée : U+06D6–U+06ED (Arabic Small High Marks)
+ * 1. U+0670 ٰ ARABIC LETTER SUPERSCRIPT ALEF ("alif poignard")
+ *    → Marque un alif de prolongation implicite (ex: صِرَٰطَ, رَحْمَٰنِ).
+ *    → La police le rend comme un cercle visible.
+ *    → Fix : remplacé par ا (U+0627 alif normal) — affiche un vrai alif.
+ *
+ * 2. U+06D6–U+06ED Arabic Small High Marks (signes de récitation)
+ *    → Marques calligraphiques non-alphabétiques (ex: ۟ ۠ ۡ ۢ ۣ...).
+ *    → La police les rend en cercles/formes visibles parasite.
+ *    → Fix : supprimés (pas de contenu sémantique à afficher).
  */
 function stripUthmanicAnnotations(html: string): string {
-  // Supprime les caractères d'annotation dans le texte HTML (hors balises)
-  return html.replace(/[\u06D6-\u06ED]/g, '')
+  return html
+    .replace(/\u0670/g, 'ا')          // alif poignard → alif visible ا
+    .replace(/[\u06D6-\u06ED]/g, '')   // autres marques de récitation → supprimées
 }
 
 /**
