@@ -143,6 +143,7 @@ async function fetchPage(page: number): Promise<QuranVerse[]> {
 // U+06E1 (sukun jali) et U+0670 (alif poignard) présents dans le texte Uthmanique
 // → rendus en cercles par la police npm → nettoyés ici comme dans stripUthmanicAnnotations
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ'
+  .replace(/\u0671/g, 'ا')
   .replace(/\u0670/g, 'ا')
   .replace(/[\u06D6-\u06ED]/g, '')
 
@@ -209,6 +210,7 @@ function stripVerseEndMarker(html: string): string {
  */
 function stripUthmanicAnnotations(html: string): string {
   return html
+    .replace(/\u0671/g, 'ا')          // alif wasla (ٱ) → alif visible ا
     .replace(/\u0670/g, 'ا')          // alif poignard → alif visible ا
     .replace(/[\u06D6-\u06ED]/g, '')   // autres marques de récitation → supprimées
 }
