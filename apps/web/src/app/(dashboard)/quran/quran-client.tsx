@@ -185,6 +185,21 @@ function stripVerseEndMarker(html: string): string {
 }
 
 /**
+ * Supprime les marques d'annotation Uthmanique (U+06D6–U+06ED) qui
+ * s'affichent comme des cercles visibles avec la police UthmanicHafs.
+ *
+ * Ces caractères sont des signes de récitation coranique (ex: ۟ U+06DF
+ * "Arabic Small High Rounded Zero" pour indiquer la prolongation) qui
+ * doivent rester invisibles ou très petits — la police les rend en cercles.
+ *
+ * Plage supprimée : U+06D6–U+06ED (Arabic Small High Marks)
+ */
+function stripUthmanicAnnotations(html: string): string {
+  // Supprime les caractères d'annotation dans le texte HTML (hors balises)
+  return html.replace(/[\u06D6-\u06ED]/g, '')
+}
+
+/**
  * Convertit le HTML tajweed verset-level en HTML avec couleurs inline.
  *
  * Stratégie :
@@ -537,7 +552,7 @@ function ReadingView({
                     {/* HTML tajweed verset-level : seuls les caractères portant une règle sont colorés */}
                     <span
                       dangerouslySetInnerHTML={{
-                        __html: applyTajweedColors(stripVerseEndMarker(v.text_uthmani_tajweed))
+                        __html: applyTajweedColors(stripUthmanicAnnotations(stripVerseEndMarker(v.text_uthmani_tajweed)))
                       }}
                     />
                     {verseBadge}{' '}
