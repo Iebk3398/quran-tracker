@@ -196,23 +196,21 @@ function stripVerseEndMarker(html: string): string {
 /**
  * Normalise les marques d'annotation Uthmanique pour un rendu correct.
  *
- * Deux types de caractères posent problème avec UthmanicHafs :
- *
- * 1. U+0670 ٰ ARABIC LETTER SUPERSCRIPT ALEF ("alif poignard")
- *    → Marque un alif de prolongation implicite (ex: صِرَٰطَ, رَحْمَٰنِ).
- *    → La police le rend comme un cercle visible.
- *    → Fix : remplacé par ا (U+0627 alif normal) — affiche un vrai alif.
- *
- * 2. U+06D6–U+06ED Arabic Small High Marks (signes de récitation)
- *    → Marques calligraphiques non-alphabétiques (ex: ۟ ۠ ۡ ۢ ۣ...).
- *    → La police les rend en cercles/formes visibles parasite.
- *    → Fix : supprimés (pas de contenu sémantique à afficher).
+ * Caractères problématiques avec UthmanicHafs (rendus en cercles visibles) :
+ * - U+0671 ٱ ALEF WASLA — remplacé par alif normal ا
+ * - U+0670 ٰ SUPERSCRIPT ALEF (alif khanjariyya / mad tabi'i) — remplacé par ا
+ * - U+06D6–U+06ED Arabic Small High Marks — supprimés (cercles décoratifs)
+ * - HTML entities &#x670; / &#x671; / &#1648; / &#1649; — mêmes remplacements
  */
 function stripUthmanicAnnotations(html: string): string {
   return html
+    // Entités HTML pour alif wasla et alif poignard (quran.com API peut les encoder)
+    .replace(/&#x671;|&#1649;/gi, 'ا')
+    .replace(/&#x670;|&#1648;/gi, 'ا')
+    // Caractères Unicode directs
     .replace(/\u0671/g, 'ا')          // alif wasla (ٱ) → alif visible ا
     .replace(/\u0670/g, 'ا')          // alif poignard → alif visible ا
-    .replace(/[\u06D6-\u06ED]/g, '')   // autres marques de récitation → supprimées
+    .replace(/[\u06D6-\u06ED]/g, '')   // marques de récitation → supprimées
 }
 
 /**
@@ -511,7 +509,7 @@ function ReadingView({
 
             {/* ── Versets — texte continu mot-par-mot avec couleurs tajweed ── */}
             <div
-              className="text-center mb-6"
+              className="tajweed-text text-center mb-6"
               dir="rtl"
               style={{
                 fontFamily: QURAN_FONT,
