@@ -140,7 +140,11 @@ async function fetchPage(page: number): Promise<QuranVerse[]> {
   return data.verses
 }
 
+// U+06E1 (sukun jali) et U+0670 (alif poignard) présents dans le texte Uthmanique
+// → rendus en cercles par la police npm → nettoyés ici comme dans stripUthmanicAnnotations
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ'
+  .replace(/\u0670/g, 'ا')
+  .replace(/[\u06D6-\u06ED]/g, '')
 
 // ─── Tajweed ──────────────────────────────────────────────────────────────────
 
@@ -151,11 +155,10 @@ const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَ
  * dans applyTajweedColors — aucune couleur n'est jamais héritée via CSS.
  */
 const TAJWEED_COLORS: Record<string, string> = {
-  // Madd — couleur texte neutre (le glyph UthmanicHafs rend l'alif de prolongation
-  // comme un petit signe surélevé, pas besoin de couleur qui le mettrait trop en valeur)
-  madda_normal:          '#1c1610',
-  madda_permissible:     '#1c1610',
-  madda_obligatory:      '#1c1610',
+  // 🟠 Orange — Madd (prolongement)
+  madda_normal:          '#c47f17',
+  madda_permissible:     '#c47f17',
+  madda_obligatory:      '#c47f17',
   // 🔵 Bleu foncé — Madd nécessaire (6 harakat stricts)
   madda_necessary:       '#1d4ed8',
   // 🟢 Vert — Ghunna
@@ -180,8 +183,12 @@ const TAJWEED_COLORS: Record<string, string> = {
  */
 function stripVerseEndMarker(html: string): string {
   return html
+    // API verse-level : balises <tajweed class=end> (format réel de l'API)
+    .replace(/<tajweed[^>]*class=["']?end["']?[^>]*>[^<]*<\/tajweed>\s*$/, '')
+    // API word-level (ancienne version) : balises <span class=end>
     .replace(/<span[^>]*class=end[^>]*>[^<]*<\/span>\s*$/, '')
-    .replace(/<span[^>]*>[٠-٩۰-۹]+<\/span>\s*$/, '')
+    // Fallback : span contenant uniquement des chiffres arabes/indiens
+    .replace(/<(?:tajweed|span)[^>]*>[٠-٩۰-۹]+<\/(?:tajweed|span)>\s*$/, '')
     .trim()
 }
 
@@ -507,7 +514,7 @@ function ReadingView({
               style={{
                 fontFamily: QURAN_FONT,
                 fontSize,
-                lineHeight: 3.2,
+                lineHeight: 2.0,
                 color: '#1c1610',
                 textAlign: 'center',
                 WebkitFontSmoothing: 'antialiased',

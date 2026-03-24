@@ -2,13 +2,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Scheherazade+New:wght@400;700&display=swap');
 
 /**
- * Police principale : UthmanicHafs (auto-hébergée) — letterforms Mushaf Madinah
- * WOFF2 en priorité (3× plus léger, support universel), OTF en fallback
- * Fallback police : Amiri Quran (Google Fonts), Scheherazade New
+ * Police principale : UthmanicHafs — King Fahd Complex (KFGQPC), édition complète
+ * Source prioritaire : CDN qurancdn.com (police officielle utilisée par quran.com)
+ * Fallback 1 : version auto-hébergée (npm, incomplète mais disponible hors-ligne)
+ * Fallback 2 : Amiri Quran (Google Fonts) — rendu tashkeel parfait
  */
 @font-face {
   font-family: 'UthmanicHafs';
-  src: url('/fonts/UthmanicHafs.woff2') format('woff2'),
+  src: url('https://static.qurancdn.com/fonts/UthmanicHafs1Ver22.woff2') format('woff2'),
+       url('/fonts/UthmanicHafs.woff2') format('woff2'),
        url('/fonts/UthmanicHafs.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
