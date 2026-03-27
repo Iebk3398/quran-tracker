@@ -140,9 +140,8 @@ async function fetchPage(page: number): Promise<QuranVerse[]> {
   return data.verses
 }
 
-// Bismillah Uthmanique : U+0671 → ا, U+0670 conservé (superscript), U+06D6–U+06ED supprimés
+// Bismillah Uthmanique : U+0671 et U+0670 conservés, U+06D6–U+06ED supprimés
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ'
-  .replace(/\u0671/g, 'ا')
   .replace(/[\u06D6-\u06ED]/g, '')
 
 // ─── Tajweed ──────────────────────────────────────────────────────────────────
@@ -195,23 +194,21 @@ function stripVerseEndMarker(html: string): string {
  * Normalise les marques d'annotation Uthmanique pour un rendu correct.
  *
  * Caractères traités :
- * - U+0671 ٱ ALEF WASLA — remplacé par alif normal ا (compatibilité polices)
+ * - U+0671 ٱ ALEF WASLA — CONSERVÉ tel quel (rendu correct par UthmanicHafs/Amiri Quran)
  * - U+0670 ٰ SUPERSCRIPT ALEF (alif khanjariyya / mad tabi'i) — CONSERVÉ tel quel
  *   → La police UthmanicHafs / Amiri Quran le rend comme un petit alif superscript.
  *   → Quand il se trouve dans un span <tajweed class=madda_normal>, il apparaît
  *     en orange (couleur tajweed correcte) — PAS en cercle orange.
  *   → Le remplacer par ا brisait le shaping arabe et créait un ● orange visible.
  * - U+06D6–U+06ED Arabic Small High Marks — supprimés (non rendus par nos polices)
- * - HTML entities &#x671; / &#x670; / &#1648; / &#1649; — convertis en Unicode
+ * - HTML entities &#x671; / &#x670; / &#1648; / &#1649; — convertis en Unicode natif
  */
 function stripUthmanicAnnotations(html: string): string {
   return html
-    // Entités HTML → caractères Unicode (ne pas convertir en ا !)
-    .replace(/&#x671;|&#1649;/gi, 'ا')          // alif wasla entity → ا
+    // Entités HTML → caractères Unicode natifs (les deux alifes conservés)
+    .replace(/&#x671;|&#1649;/gi, '\u0671')      // alif wasla entity → U+0671 (conservé)
     .replace(/&#x670;|&#1648;/gi, '\u0670')      // alif khanjariyya entity → U+0670 (conservé)
-    // Caractères Unicode directs
-    .replace(/\u0671/g, 'ا')                      // alif wasla (ٱ) → alif visible ا
-    // U+0670 intentionnellement conservé — rendu superscript par la police
+    // U+0671 et U+0670 intentionnellement conservés — rendus correctement par la police
     .replace(/[\u06D6-\u06ED]/g, '')              // marques de récitation → supprimées
 }
 
