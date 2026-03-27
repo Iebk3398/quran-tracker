@@ -140,11 +140,8 @@ async function fetchPage(page: number): Promise<QuranVerse[]> {
   return data.verses
 }
 
-// U+06E1 (sukun jali) et U+0670 (alif poignard) présents dans le texte Uthmanique
-// → rendus en cercles par la police npm → nettoyés ici comme dans stripUthmanicAnnotations
+// Bismillah Uthmanique : U+0671 et U+0670 conservés, U+06D6–U+06ED supprimés
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ'
-  .replace(/\u0671/g, 'ا')
-  .replace(/\u0670/g, 'ا')
   .replace(/[\u06D6-\u06ED]/g, '')
 
 // ─── Tajweed ──────────────────────────────────────────────────────────────────
@@ -196,21 +193,23 @@ function stripVerseEndMarker(html: string): string {
 /**
  * Normalise les marques d'annotation Uthmanique pour un rendu correct.
  *
- * Caractères problématiques avec UthmanicHafs (rendus en cercles visibles) :
- * - U+0671 ٱ ALEF WASLA — remplacé par alif normal ا
- * - U+0670 ٰ SUPERSCRIPT ALEF (alif khanjariyya / mad tabi'i) — remplacé par ا
- * - U+06D6–U+06ED Arabic Small High Marks — supprimés (cercles décoratifs)
- * - HTML entities &#x670; / &#x671; / &#1648; / &#1649; — mêmes remplacements
+ * Caractères traités :
+ * - U+0671 ٱ ALEF WASLA — CONSERVÉ tel quel (rendu correct par UthmanicHafs/Amiri Quran)
+ * - U+0670 ٰ SUPERSCRIPT ALEF (alif khanjariyya / mad tabi'i) — CONSERVÉ tel quel
+ *   → La police UthmanicHafs / Amiri Quran le rend comme un petit alif superscript.
+ *   → Quand il se trouve dans un span <tajweed class=madda_normal>, il apparaît
+ *     en orange (couleur tajweed correcte) — PAS en cercle orange.
+ *   → Le remplacer par ا brisait le shaping arabe et créait un ● orange visible.
+ * - U+06D6–U+06ED Arabic Small High Marks — supprimés (non rendus par nos polices)
+ * - HTML entities &#x671; / &#x670; / &#1648; / &#1649; — convertis en Unicode natif
  */
 function stripUthmanicAnnotations(html: string): string {
   return html
-    // Entités HTML pour alif wasla et alif poignard (quran.com API peut les encoder)
-    .replace(/&#x671;|&#1649;/gi, 'ا')
-    .replace(/&#x670;|&#1648;/gi, 'ا')
-    // Caractères Unicode directs
-    .replace(/\u0671/g, 'ا')          // alif wasla (ٱ) → alif visible ا
-    .replace(/\u0670/g, 'ا')          // alif poignard → alif visible ا
-    .replace(/[\u06D6-\u06ED]/g, '')   // marques de récitation → supprimées
+    // Entités HTML → caractères Unicode natifs (les deux alifes conservés)
+    .replace(/&#x671;|&#1649;/gi, '\u0671')      // alif wasla entity → U+0671 (conservé)
+    .replace(/&#x670;|&#1648;/gi, '\u0670')      // alif khanjariyya entity → U+0670 (conservé)
+    // U+0671 et U+0670 intentionnellement conservés — rendus correctement par la police
+    .replace(/[\u06D6-\u06ED]/g, '')              // marques de récitation → supprimées
 }
 
 /**
