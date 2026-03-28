@@ -222,9 +222,23 @@ function stripUthmanicAnnotations(html: string): string {
  *  • Couleur toujours EXPLICITE → zéro héritage CSS parasite.
  *  • Le CSS global .tajweed-text span { display:contents } préserve le shaping
  *    arabe (ligatures intra-mot et inter-mots intactes).
+ *
+ *  Cas spécial — U+0670 (alif khanjariyya) seul dans un span :
+ *  • La police UthmanicHafs rend U+0670 comme un cercle décoratif de taille
+ *    normale → coloré en orange (#c47f17), il apparaît comme un gros ● orange.
+ *  • Fix : font-size:0.45em sur le span. Avec display:contents, font-size est
+ *    hérité par le nœud texte → U+0670 est rendu à 45 % de la taille → petite
+ *    marque superscript à peine visible, comme dans un vrai Mushaf.
+ *  • Le shaping arabe est PRÉSERVÉ (display:contents reste intact).
  */
 function applyTajweedColors(html: string): string {
   return html
+    // Cas spécial : span tajweed contenant UNIQUEMENT U+0670 → petite marque
+    .replace(/<tajweed class=([a-z_]+)>\u0670<\/tajweed>/g, (_m, cls: string) => {
+      const color = TAJWEED_COLORS[cls] ?? '#1c1610'
+      return `<span style="color:${color};font-size:0.45em">\u0670</span>`
+    })
+    // Conversion normale pour tous les autres spans
     .replace(/<tajweed class=([a-z_]+)>/g, (_m, cls: string) => {
       const color = TAJWEED_COLORS[cls] ?? '#1c1610'
       return `<span style="color:${color}">`
