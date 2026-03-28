@@ -140,8 +140,9 @@ async function fetchPage(page: number): Promise<QuranVerse[]> {
   return data.verses
 }
 
-// Bismillah Uthmanique : U+0671 et U+0670 conservés, U+06D6–U+06ED supprimés
+// Bismillah Uthmanique : U+0671 conservé, U+0670 supprimé (cercle), U+06D6–U+06ED supprimés
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ'
+  .replace(/\u0670/g, '')
   .replace(/[\u06D6-\u06ED]/g, '')
 
 // ─── Tajweed ──────────────────────────────────────────────────────────────────
@@ -195,20 +196,21 @@ function stripVerseEndMarker(html: string): string {
  *
  * Caractères traités :
  * - U+0671 ٱ ALEF WASLA — CONSERVÉ tel quel (rendu correct par UthmanicHafs/Amiri Quran)
- * - U+0670 ٰ SUPERSCRIPT ALEF (alif khanjariyya / mad tabi'i) — CONSERVÉ tel quel
- *   → La police UthmanicHafs / Amiri Quran le rend comme un petit alif superscript.
- *   → Quand il se trouve dans un span <tajweed class=madda_normal>, il apparaît
- *     en orange (couleur tajweed correcte) — PAS en cercle orange.
- *   → Le remplacer par ا brisait le shaping arabe et créait un ● orange visible.
+ * - U+0670 ٰ SUPERSCRIPT ALEF (alif khanjariyya) — SUPPRIMÉ
+ *   → La police UthmanicHafs rend U+0670 comme un cercle calligraphique visible.
+ *   → font-size sur display:contents ne fonctionne pas (confirmé en prod).
+ *   → display:inline casserait le shaping des lettres connectantes (م-ن dans الرحمن).
+ *   → Solution finale : supprimer U+0670 → zéro cercle, shaping arabe intact.
  * - U+06D6–U+06ED Arabic Small High Marks — supprimés (non rendus par nos polices)
- * - HTML entities &#x671; / &#x670; / &#1648; / &#1649; — convertis en Unicode natif
+ * - HTML entities &#x671; / &#x670; / &#1648; / &#1649; — supprimés/convertis
  */
 function stripUthmanicAnnotations(html: string): string {
   return html
-    // Entités HTML → caractères Unicode natifs (les deux alifes conservés)
+    // Entités HTML → conversion ou suppression
     .replace(/&#x671;|&#1649;/gi, '\u0671')      // alif wasla entity → U+0671 (conservé)
-    .replace(/&#x670;|&#1648;/gi, '\u0670')      // alif khanjariyya entity → U+0670 (conservé)
-    // U+0671 et U+0670 intentionnellement conservés — rendus correctement par la police
+    .replace(/&#x670;|&#1648;/gi, '')            // alif khanjariyya entity → supprimé
+    // Caractères Unicode directs
+    .replace(/\u0670/g, '')                       // alif khanjariyya → supprimé (cercle en prod)
     .replace(/[\u06D6-\u06ED]/g, '')              // marques de récitation → supprimées
 }
 
@@ -222,23 +224,11 @@ function stripUthmanicAnnotations(html: string): string {
  *  • Couleur toujours EXPLICITE → zéro héritage CSS parasite.
  *  • Le CSS global .tajweed-text span { display:contents } préserve le shaping
  *    arabe (ligatures intra-mot et inter-mots intactes).
- *
- *  Cas spécial — U+0670 (alif khanjariyya) seul dans un span :
- *  • La police UthmanicHafs rend U+0670 comme un cercle décoratif de taille
- *    normale → coloré en orange (#c47f17), il apparaît comme un gros ● orange.
- *  • Fix : font-size:0.45em sur le span. Avec display:contents, font-size est
- *    hérité par le nœud texte → U+0670 est rendu à 45 % de la taille → petite
- *    marque superscript à peine visible, comme dans un vrai Mushaf.
- *  • Le shaping arabe est PRÉSERVÉ (display:contents reste intact).
+ *  • U+0670 est supprimé en amont dans stripUthmanicAnnotations → les spans
+ *    madda_normal qui ne wrappaient que U+0670 sont vides et sans effet visuel.
  */
 function applyTajweedColors(html: string): string {
   return html
-    // Cas spécial : span tajweed contenant UNIQUEMENT U+0670 → petite marque
-    .replace(/<tajweed class=([a-z_]+)>\u0670<\/tajweed>/g, (_m, cls: string) => {
-      const color = TAJWEED_COLORS[cls] ?? '#1c1610'
-      return `<span style="color:${color};font-size:0.45em">\u0670</span>`
-    })
-    // Conversion normale pour tous les autres spans
     .replace(/<tajweed class=([a-z_]+)>/g, (_m, cls: string) => {
       const color = TAJWEED_COLORS[cls] ?? '#1c1610'
       return `<span style="color:${color}">`
