@@ -74,8 +74,8 @@ const QURAN_TOTAL_PAGES    = 604
 const QURAN_API            = 'https://api.quran.com/api/v4'
 const STORAGE_KEY_READ     = 'ikraa_pages_read'
 const STORAGE_KEY_VERSE_BK = 'ikraa_verse_bookmark'
-const FONT_SIZES           = [20, 24, 28, 32, 36, 40] as const
-const DEFAULT_FONT_IDX     = 2   // 28px — Moushaf Madani 1421 (KFGQPC Hafs)
+const FONT_SIZES           = [20, 24, 28, 32, 36, 40, 46, 52, 60] as const
+const DEFAULT_FONT_IDX     = 3   // 32px — taille par défaut à l'ouverture
 
 const QURAN_FONT = "'UthmanicHafs', 'Amiri Quran', 'Scheherazade New', serif"
 
